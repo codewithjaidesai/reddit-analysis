@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Analyzer - What Actually Matters</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .input-section {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .analyze-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .analyze-btn:hover {
+            background: #5a67d8;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            display: none;
+        }
+        
+        .results {
+            display: none;
+            padding: 30px;
+        }
+        
+        .insight-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .insight-section h3 {
+            color: #1a202c;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .consensus-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        
+        .consensus-count {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+        
+        .problem-item {
+            background: #fff5f5;
+            border-left: 3px solid #ef4444;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+        
+        .problem-count {
+            color: #ef4444;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+        
+        .solution-item {
+            background: #f0fdf4;
+            border-left: 3px solid #10b981;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+        
+        .solution-confirmed {
+            color: #10b981;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .discussion-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .discussion-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #6b7280;
+        }
+        
+        .gem-item {
+            background: #fef3c7;
+            border-left: 3px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+        
+        .gem-reason {
+            color: #92400e;
+            font-size: 0.85em;
+            margin-top: 5px;
+            font-weight: 600;
+        }
+        
+        .link-btn {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+        
+        .link-btn:hover {
+            text-decoration: underline;
+        }
+        
+        .export-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+        }
+        
+        .export-btn {
+            background: #16a085;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .export-btn:hover {
+            background: #138f76;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>What Actually Matters</h1>
+            <p>Extract real insights from Reddit discussions</p>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <input type="text" id="redditUrl" placeholder="Paste Reddit URL here" value="https://www.reddit.com/r/AskReddit/comments/1mn7rx5/what_industry_is_booming_way_more_than_people/">
+                <button class="analyze-btn" onclick="analyze()">Analyze</button>
+            </div>
+        </div>
+        
+        <div class="loading">
+            <div>⏳ Extracting what matters...</div>
+        </div>
+        
+        <div class="results" id="results">
+            <!-- Results will be inserted here -->
+        </div>
+    </div>
+    
+    <script>
+        let currentData = null;
+        
+        async function analyze() {
+            const url = document.getElementById('redditUrl').value.trim();
+            if (!url) {
+                alert('Please enter a Reddit URL');
+                return;
+            }
+            
+            document.querySelector('.input-section').style.display = 'none';
+            document.querySelector('.loading').style.display = 'block';
+            
+            try {
+                // Call your Google Apps Script
+                const data = await fetchRedditData(url);
+                currentData = data;
+                displayResults(data);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error analyzing thread: ' + error.message);
+                document.querySelector('.input-section').style.display = 'block';
+                document.querySelector('.loading').style.display = 'none';
+            }
+        }
+        
+        async function fetchRedditData(url) {
+            // Your existing JSONP fetch logic
+            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+            
+            return new Promise((resolve, reject) => {
+                const callbackName = 'callback_' + Date.now();
+                const script = document.createElement('script');
+                const scriptUrl = GOOGLE_SCRIPT_URL + '?url=' + encodeURIComponent(url) + 
+                                 '&callback=' + callbackName;
+                
+                window[callbackName] = function(data) {
+                    document.head.removeChild(script);
+                    delete window[callbackName];
+                    
+                    if (data.error) {
+                        reject(new Error(data.error));
+                    } else {
+                        resolve(data.data);
+                    }
+                };
+                
+                script.onerror = function() {
+                    document.head.removeChild(script);
+                    delete window[callbackName];
+                    reject(new Error('Failed to load'));
+                };
+                
+                script.src = scriptUrl;
+                document.head.appendChild(script);
+            });
+        }
+        
+        function displayResults(data) {
+            const insights = data.insights || {};
+            let html = '';
+            
+            // Consensus Section
+            if (insights.consensus && insights.consensus.length > 0) {
+                html += '<div class="insight-section">';
+                html += '<h3>📊 The Consensus</h3>';
+                insights.consensus.forEach(item => {
+                    html += '<div class="consensus-item">';
+                    html += item.statement;
+                    html += '<span class="consensus-count">mentioned ' + item.mentions + 'x</span>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+            
+            // Problems Section
+            if (insights.problems && insights.problems.length > 0) {
+                html += '<div class="insight-section">';
+                html += '<h3>😓 Problems People Face</h3>';
+                insights.problems.forEach(item => {
+                    html += '<div class="problem-item">';
+                    html += '<div>' + item.problem + '</div>';
+                    html += '<div class="problem-count">' + item.count + ' people mentioned this</div>';
+                    if (item.replies && item.replies.length > 0) {
+                        html += '<div style="margin-top:5px; font-size:0.9em; color:#666;">↳ Has ' + item.replies.length + ' suggested solutions</div>';
+                    }
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+            
+            // Solutions Section
+            if (insights.solutions && insights.solutions.length > 0) {
+                html += '<div class="insight-section">';
+                html += '<h3>✅ Solutions That Work</h3>';
+                insights.solutions.forEach(item => {
+                    html += '<div class="solution-item">';
+                    html += '<div>' + item.solution + '</div>';
+                    if (item.confirmations > 0) {
+                        html += '<div class="solution-confirmed">✓ Confirmed by ' + item.confirmations + ' people</div>';
+                    }
+                    html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+            
+            // Discussions Section
+            if (insights.discussions && insights.discussions.length > 0) {
+                html += '<div class="insight-section">';
+                html += '<h3>💬 Real Discussions</h3>';
+                insights.discussions.forEach(item => {
+                    html += '<div class="discussion-item">';
+                    html += '<div>' + item.comment + '</div>';
+                    html += '<div class="discussion-meta">';
+                    html += '<span>🔥 ' + item.replyCount + ' replies</span>';
+                    html += '<span>Type: ' + item.discussionType + '</span>';
+                    html += '<span>Score: ' + item.score + '</span>';
+                    html += '</div>';
+                    if (item.topReply) {
+                        html += '<div style="margin-top:10px; padding:10px; background:#f9fafb; border-radius:6px; font-size:0.9em;">';
+                        html += '<strong>Top reply:</strong> ' + item.topReply.excerpt;
+                        html += '</div>';
+                    }
+                    html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View thread →</a>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+            
+            // Hidden Gems Section
+            if (insights.hiddenGems && insights.hiddenGems.length > 0) {
+                html += '<div class="insight-section">';
+                html += '<h3>💎 Hidden Gems</h3>';
+                insights.hiddenGems.forEach(item => {
+                    html += '<div class="gem-item">';
+                    html += '<div>' + item.content + '</div>';
+                    html += '<div class="gem-reason">' + item.reason + '</div>';
+                    html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+            
+            // Export Section
+            html += '<div class="export-section">';
+            html += '<button class="export-btn" onclick="exportData()">Export Raw Data (CSV)</button>';
+            html += '</div>';
+            
+            document.getElementById('results').innerHTML = html;
+            document.querySelector('.loading').style.display = 'none';
+            document.querySelector('.results').style.display = 'block';
+        }
+        
+        function exportData() {
+            if (!currentData) return;
+            
+            // Create CSV from the insights
+            let csv = 'Type,Content,Count,Author,Score,Link\n';
+            
+            const insights = currentData.insights || {};
+            
+            // Add each type of insight to CSV
+            if (insights.consensus) {
+                insights.consensus.forEach(item => {
+                    csv += '"Consensus","' + item.statement.replace(/"/g, '""') + '",' + item.mentions + ',,,' + '\n';
+                });
+            }
+            
+            if (insights.problems) {
+                insights.problems.forEach(item => {
+                    csv += '"Problem","' + item.problem.replace(/"/g, '""') + '",' + item.count + ',,,' + '\n';
+                });
+            }
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'reddit_insights.csv';
+            a.click();
+        }
+    </script>
+</body>
+</html>
