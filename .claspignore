@@ -1,0 +1,7 @@
+# Files to ignore when pushing to Google Apps Script
+.git/
+.gitignore
+node_modules/
+README.md
+index.html
+.claspignore
