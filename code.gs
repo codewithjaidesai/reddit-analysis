@@ -298,9 +298,9 @@ function fetchAuthenticatedRedditData(inputUrl) {
 function processRealRedditData(redditData) {
   let posts = [];
   let comments = [];
-  
+
   console.log('Processing Reddit data structure...');
-  
+
   if (Array.isArray(redditData) && redditData.length >= 1) {
     // Post data (always in first array element)
     if (redditData[0] && redditData[0].data && redditData[0].data.children) {
@@ -308,12 +308,12 @@ function processRealRedditData(redditData) {
       posts.push(postData);
       console.log('Found post:', postData.title);
     }
-    
+
     // Comments data (in second array element if it exists)
     if (redditData[1] && redditData[1].data && redditData[1].data.children) {
       const rawComments = redditData[1].data.children;
       console.log(`Found ${rawComments.length} top-level comment objects`);
-      
+
       // Process comments recursively to get nested replies
       comments = extractAllComments(rawComments);
       console.log(`Extracted ${comments.length} total comments including replies`);
@@ -322,56 +322,39 @@ function processRealRedditData(redditData) {
     // Subreddit listing - shouldn't happen in deep dive mode
     throw new Error('Got subreddit data instead of post data');
   }
-  
+
   // Filter out deleted/removed comments
-  const validComments = comments.filter(comment => 
-    comment.body && 
-    comment.body !== '[deleted]' && 
+  const validComments = comments.filter(comment =>
+    comment.body &&
+    comment.body !== '[deleted]' &&
     comment.body !== '[removed]' &&
     comment.author &&
     comment.author !== '[deleted]' &&
     comment.body.trim().length > 10
   );
-  
+
   console.log(`${validComments.length} valid comments after filtering`);
-  
+
   // Sort comments by score (highest first)
   validComments.sort((a, b) => (b.score || 0) - (a.score || 0));
-  
-  // Extract enhanced insights including new features
-  const insights = extractEnhancedInsights(posts, validComments);
-  // Add simplified insights
-try {
-  const simplifiedInsights = extractWhatMatters(posts, validComments);
-  if (simplifiedInsights) {
-    // Merge simplified insights with existing ones
-    insights.consensus = simplifiedInsights.consensus || [];
-    insights.problems = simplifiedInsights.problems || [];
-    insights.solutions = simplifiedInsights.solutions || [];
-    insights.discussions = simplifiedInsights.discussions || [];
-    insights.hiddenGems = simplifiedInsights.hiddenGems || [];
-    insights.patterns = simplifiedInsights.patterns || [];
-  }
-} catch (error) {
-  console.error('Simplified extraction error:', error);
-  // Continue with existing insights if simplified fails
-}
-  // Extract special comment categories
-  const postScore = posts[0] ? posts[0].score : 0;
-  const specialComments = extractSpecialComments(validComments, postScore);
-  
+
+  // NEW: Analyze post context to determine what insights to extract
+  const post = posts[0];
+  const postContext = analyzePostContext(post, validComments);
+  console.log('Post context:', postContext.type, 'Topics:', postContext.topics);
+
+  // NEW: Extract dynamic insights based on post context
+  const dynamicInsights = extractDynamicInsights(post, validComments, postContext);
+
   return {
-    posts: posts.slice(0, 15),
-    comments: validComments.slice(0, 50),
-    insights: insights,
-    specialComments: specialComments,
+    postContext: postContext,
+    insights: dynamicInsights,
     stats: {
-      totalPosts: posts.length,
       totalComments: validComments.length,
       totalScore: validComments.reduce((sum, c) => sum + (c.score || 0), 0),
       averageScore: validComments.length > 0 ? Math.round(validComments.reduce((sum, c) => sum + (c.score || 0), 0) / validComments.length) : 0,
       topScore: validComments.length > 0 ? Math.max(...validComments.map(c => c.score || 0)) : 0,
-      postScore: postScore
+      postScore: post ? post.score : 0
     }
   };
 }
@@ -495,13 +478,13 @@ function calculateControversy(comment, replyCount) {
 
 function extractAllComments(commentObjects) {
   const allComments = [];
-  
+
   function processComment(commentObj, depth = 0) {
     if (commentObj && commentObj.kind !== 'more' && commentObj.data && commentObj.data.body) {
       const comment = commentObj.data;
       comment.depth = depth; // Add depth for context
       allComments.push(comment);
-      
+
       // Process replies recursively
       if (comment.replies && comment.replies.data && comment.replies.data.children) {
         comment.replies.data.children.forEach(reply => {
@@ -510,12 +493,916 @@ function extractAllComments(commentObjects) {
       }
     }
   }
-  
+
   commentObjects.forEach(commentObj => {
     processComment(commentObj, 0);
   });
-  
+
   return allComments;
+}
+
+// ========== NEW: POST CONTEXT ANALYZER ==========
+
+function analyzePostContext(post, comments) {
+  if (!post) return { type: 'unknown', topics: [], title: '' };
+
+  const title = (post.title || '').toLowerCase();
+  const selftext = (post.selftext || '').toLowerCase();
+  const combinedText = title + ' ' + selftext;
+
+  // Detect post type based on title patterns
+  let postType = 'discussion'; // default
+
+  if (/\b(what|which|best|top|recommend|suggestion)\b.*\?/.test(title)) {
+    if (/\b(improved|quality of life|wish|did sooner|changed|game changer)\b/.test(title)) {
+      postType = 'life_advice_request';
+    } else if (/\b(industry|business|trend|growing|booming)\b/.test(title)) {
+      postType = 'trend_discovery';
+    } else {
+      postType = 'recommendation_request';
+    }
+  } else if (/\b(need to be told|should know|realize|understand|truth)\b/.test(title)) {
+    postType = 'truth_seeking';
+  } else if (/\b(tell your|say to|talk about|discuss with)\b/.test(title)) {
+    postType = 'perspective_sharing';
+  } else if (/\b(how|why|when|where)\b.*\?/.test(title)) {
+    postType = 'question';
+  } else if (/\b(problem|issue|help|fix|solve)\b/.test(title)) {
+    postType = 'problem_solving';
+  } else if (/\b(story|experience|time when)\b/.test(title)) {
+    postType = 'story_sharing';
+  }
+
+  // Extract topics from title and top comments
+  const topics = extractTopics(combinedText, comments);
+
+  // Detect if gender-specific
+  const isGenderSpecific = /\b(men|women|male|female|guy|girl|ladies|gentleman)\b/i.test(title);
+
+  return {
+    title: post.title,
+    type: postType,
+    topics: topics,
+    isGenderSpecific: isGenderSpecific,
+    subreddit: post.subreddit,
+    postScore: post.score || 0,
+    commentCount: post.num_comments || 0
+  };
+}
+
+function extractTopics(text, comments) {
+  const topics = [];
+
+  // Topic keywords
+  const topicMap = {
+    'health_wellness': ['health', 'therapy', 'doctor', 'mental', 'fitness', 'exercise', 'sleep', 'meditation', 'anxiety', 'depression'],
+    'money_finance': ['money', 'dollar', 'salary', 'invest', 'financial', 'budget', 'cost', 'price', 'expensive', 'save'],
+    'work_career': ['job', 'work', 'career', 'boss', 'employee', 'business', 'company', 'office', 'remote'],
+    'relationships': ['relationship', 'dating', 'marriage', 'girlfriend', 'boyfriend', 'partner', 'spouse', 'love'],
+    'home_lifestyle': ['home', 'house', 'apartment', 'furniture', 'cleaning', 'organize', 'decor'],
+    'technology': ['tech', 'software', 'app', 'phone', 'computer', 'internet', 'ai', 'code', 'programming'],
+    'education': ['school', 'university', 'college', 'learn', 'study', 'course', 'degree', 'teacher'],
+    'hobbies': ['hobby', 'gaming', 'music', 'art', 'reading', 'travel', 'cooking', 'sports'],
+    'social': ['friend', 'people', 'social', 'conversation', 'communication', 'personality']
+  };
+
+  // Check which topics are present
+  Object.keys(topicMap).forEach(topic => {
+    const keywords = topicMap[topic];
+    const hasKeyword = keywords.some(keyword => text.includes(keyword));
+    if (hasKeyword) {
+      topics.push(topic);
+    }
+  });
+
+  return topics.slice(0, 5); // Top 5 topics
+}
+
+// ========== NEW: DYNAMIC INSIGHT EXTRACTION ==========
+
+function extractDynamicInsights(post, comments, postContext) {
+  const insights = [];
+
+  console.log('Extracting insights for post type:', postContext.type);
+
+  // Always extract top voices
+  insights.push(extractTopVoices(comments));
+
+  // Type-specific insights
+  switch (postContext.type) {
+    case 'recommendation_request':
+    case 'life_advice_request':
+      insights.push(extractRankedRecommendations(comments));
+      insights.push(extractCategorizedRecommendations(comments));
+      insights.push(extractQuickWinsVsLongTerm(comments));
+      break;
+
+    case 'truth_seeking':
+      insights.push(extractConsensusPoints(comments));
+      insights.push(extractControversialTruths(comments));
+      insights.push(extractHarshRealities(comments));
+      break;
+
+    case 'perspective_sharing':
+      insights.push(extractThematicPatterns(comments));
+      insights.push(extractCategorizedPerspectives(comments));
+      insights.push(extractNotablePerspectives(comments));
+      break;
+
+    case 'trend_discovery':
+      insights.push(extractMentionRankings(comments));
+      insights.push(extractGrowthIndicators(comments));
+      insights.push(extractOpportunities(comments));
+      break;
+
+    case 'problem_solving':
+      insights.push(extractProblemsReported(comments));
+      insights.push(extractVerifiedSolutionsNew(comments));
+      insights.push(extractRootCauses(comments));
+      break;
+
+    default:
+      // Generic discussion insights
+      insights.push(extractKeyThemes(comments));
+      insights.push(extractActiveDiscussions(comments));
+      insights.push(extractNotableQuotes(comments));
+  }
+
+  // Always try to find hidden gems
+  insights.push(extractHiddenGemsNew(comments));
+
+  // Filter out empty insights
+  return insights.filter(insight => insight && insight.data && insight.data.length > 0);
+}
+
+// ========== MODULAR INSIGHT EXTRACTORS ==========
+
+function extractTopVoices(comments) {
+  const topComments = comments
+    .slice(0, 20)
+    .map(c => ({
+      content: c.body.substring(0, 500) + (c.body.length > 500 ? '...' : ''),
+      author: c.author,
+      score: c.score,
+      awards: c.total_awards_received || 0,
+      permalink: c.permalink
+    }));
+
+  return {
+    id: 'top_voices',
+    title: '🔥 Top Voices',
+    description: 'Highest upvoted comments',
+    type: 'quotes',
+    data: topComments
+  };
+}
+
+// === Recommendation/Life Advice Extractors ===
+
+function extractRankedRecommendations(comments) {
+  const recommendations = {};
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const sentences = body.split(/[.!?\n]+/);
+
+    sentences.forEach(sentence => {
+      const trimmed = sentence.trim();
+      if (trimmed.length > 15 && trimmed.length < 300) {
+        const normalized = trimmed.toLowerCase();
+
+        if (!recommendations[normalized]) {
+          recommendations[normalized] = {
+            text: trimmed,
+            mentions: 0,
+            totalScore: 0,
+            examples: []
+          };
+        }
+
+        recommendations[normalized].mentions++;
+        recommendations[normalized].totalScore += comment.score || 0;
+
+        if (recommendations[normalized].examples.length < 3) {
+          recommendations[normalized].examples.push({
+            author: comment.author,
+            score: comment.score,
+            permalink: comment.permalink
+          });
+        }
+      }
+    });
+  });
+
+  const ranked = Object.values(recommendations)
+    .filter(r => r.mentions >= 2 || r.totalScore > 100)
+    .sort((a, b) => (b.mentions * 100 + b.totalScore) - (a.mentions * 100 + a.totalScore))
+    .slice(0, 15)
+    .map(r => ({
+      recommendation: r.text,
+      mentions: r.mentions,
+      totalScore: r.totalScore,
+      examples: r.examples
+    }));
+
+  return {
+    id: 'ranked_recommendations',
+    title: '📊 Top Recommendations (Ranked by Popularity)',
+    description: 'Most mentioned and upvoted recommendations',
+    type: 'ranking',
+    data: ranked
+  };
+}
+
+function extractCategorizedRecommendations(comments) {
+  const categories = {
+    'Health & Wellness': ['therapy', 'therapist', 'doctor', 'mental health', 'exercise', 'gym', 'meditation', 'yoga', 'sleep', 'diet', 'fitness'],
+    'Home & Purchases': ['bidet', 'mattress', 'pillow', 'vacuum', 'bed', 'chair', 'desk', 'bought', 'purchase', 'product'],
+    'Habits & Routines': ['routine', 'habit', 'daily', 'morning', 'evening', 'schedule', 'wake up', 'journaling', 'reading'],
+    'Financial': ['budget', 'save', 'invest', 'money', 'financial', 'debt', 'credit', 'savings', 'retirement'],
+    'Social & Boundaries': ['saying no', 'boundaries', 'friends', 'toxic', 'people', 'social', 'cut off', 'distance']
+  };
+
+  const categorized = {};
+
+  Object.keys(categories).forEach(category => {
+    categorized[category] = [];
+  });
+
+  comments.forEach(comment => {
+    const body = (comment.body || '').toLowerCase();
+    const score = comment.score || 0;
+
+    if (score < 20) return; // Only high-quality comments
+
+    Object.keys(categories).forEach(category => {
+      const keywords = categories[category];
+      const hasKeyword = keywords.some(keyword => body.includes(keyword));
+
+      if (hasKeyword && categorized[category].length < 5) {
+        categorized[category].push({
+          content: comment.body.substring(0, 300) + (comment.body.length > 300 ? '...' : ''),
+          author: comment.author,
+          score: score,
+          permalink: comment.permalink
+        });
+      }
+    });
+  });
+
+  // Convert to array format
+  const result = Object.entries(categorized)
+    .filter(([cat, items]) => items.length > 0)
+    .map(([category, items]) => ({
+      category: category,
+      items: items
+    }));
+
+  return {
+    id: 'categorized_recommendations',
+    title: '🗂️ Recommendations by Category',
+    description: 'Grouped by topic area',
+    type: 'categorized',
+    data: result
+  };
+}
+
+function extractQuickWinsVsLongTerm(comments) {
+  const quickWins = [];
+  const longTerm = [];
+
+  const quickPatterns = /\b(immediately|instant|right away|overnight|same day|within days|quick|fast)\b/i;
+  const longTermPatterns = /\b(years|months|took time|eventually|long term|patience|consistent|over time)\b/i;
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const score = comment.score || 0;
+
+    if (score < 20) return;
+
+    if (quickPatterns.test(body) && quickWins.length < 10) {
+      quickWins.push({
+        content: body.substring(0, 300) + (body.length > 300 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        permalink: comment.permalink
+      });
+    }
+
+    if (longTermPatterns.test(body) && longTerm.length < 10) {
+      longTerm.push({
+        content: body.substring(0, 300) + (body.length > 300 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        permalink: comment.permalink
+      });
+    }
+  });
+
+  return {
+    id: 'quick_vs_longterm',
+    title: '⚡ Quick Wins vs Long-term Changes',
+    description: 'Impact timeline',
+    type: 'comparison',
+    data: {
+      quickWins: quickWins,
+      longTerm: longTerm
+    }
+  };
+}
+
+// === Truth-Seeking Extractors ===
+
+function extractConsensusPoints(comments) {
+  const statements = {};
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const sentences = body.split(/[.!?\n]+/);
+
+    sentences.forEach(sentence => {
+      const trimmed = sentence.trim();
+      if (trimmed.length > 20 && trimmed.length < 250) {
+        const normalized = trimmed.toLowerCase();
+
+        if (!statements[normalized]) {
+          statements[normalized] = {
+            text: trimmed,
+            totalScore: 0,
+            count: 0,
+            supportingReplies: 0
+          };
+        }
+
+        statements[normalized].count++;
+        statements[normalized].totalScore += comment.score || 0;
+
+        // Check replies for agreement
+        if (comment.replies && comment.replies.data && comment.replies.data.children) {
+          comment.replies.data.children.forEach(reply => {
+            if (reply.data && reply.data.body) {
+              const replyBody = reply.data.body.toLowerCase();
+              if (/\b(exactly|agree|true|this|yes|correct)\b/.test(replyBody)) {
+                statements[normalized].supportingReplies++;
+              }
+            }
+          });
+        }
+      }
+    });
+  });
+
+  const consensus = Object.values(statements)
+    .filter(s => s.count >= 3 || s.totalScore > 200)
+    .sort((a, b) => (b.totalScore + b.supportingReplies * 50) - (a.totalScore + a.supportingReplies * 50))
+    .slice(0, 10)
+    .map(s => ({
+      statement: s.text,
+      agreementLevel: s.count + ' mentions, ' + s.supportingReplies + ' supporting replies',
+      totalScore: s.totalScore
+    }));
+
+  return {
+    id: 'consensus_points',
+    title: '✅ Consensus Points',
+    description: 'What most people agree on',
+    type: 'list',
+    data: consensus
+  };
+}
+
+function extractControversialTruths(comments) {
+  const controversial = [];
+
+  comments.forEach(comment => {
+    const replyCount = countReplies(comment);
+    const score = comment.score || 0;
+
+    if (replyCount > 15) {
+      let debateScore = 0;
+      let supportScore = 0;
+
+      if (comment.replies && comment.replies.data && comment.replies.data.children) {
+        comment.replies.data.children.forEach(reply => {
+          if (reply.data && reply.data.body) {
+            const replyBody = reply.data.body.toLowerCase();
+            if (/\b(disagree|wrong|but|however|actually|not true)\b/.test(replyBody)) {
+              debateScore++;
+            }
+            if (/\b(agree|exactly|true|this|yes)\b/.test(replyBody)) {
+              supportScore++;
+            }
+          }
+        });
+      }
+
+      if (debateScore >= 5) {
+        controversial.push({
+          content: comment.body.substring(0, 400) + (comment.body.length > 400 ? '...' : ''),
+          author: comment.author,
+          score: score,
+          debateLevel: debateScore + ' counter-arguments, ' + supportScore + ' agreements',
+          permalink: comment.permalink
+        });
+      }
+    }
+  });
+
+  return {
+    id: 'controversial_truths',
+    title: '⚔️ Controversial Takes',
+    description: 'High debate, mixed reactions',
+    type: 'debates',
+    data: controversial.slice(0, 8)
+  };
+}
+
+function extractHarshRealities(comments) {
+  const harsh = [];
+  const negativeWords = ['harsh', 'truth', 'reality', 'unfortunately', 'sad fact', 'hard pill', 'unpopular opinion'];
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const score = comment.score || 0;
+
+    if (score < 30) return;
+
+    const hasNegativeSentiment = negativeWords.some(word => body.toLowerCase().includes(word));
+    const isDirective = /\b(need to|should|must|have to|stop)\b/i.test(body);
+
+    if ((hasNegativeSentiment || isDirective) && body.length > 50) {
+      harsh.push({
+        content: body.substring(0, 400) + (body.length > 400 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        permalink: comment.permalink
+      });
+    }
+  });
+
+  return {
+    id: 'harsh_realities',
+    title: '💊 Harsh But True',
+    description: 'Difficult truths people need to hear',
+    type: 'quotes',
+    data: harsh.slice(0, 10)
+  };
+}
+
+// === Perspective Sharing Extractors ===
+
+function extractThematicPatterns(comments) {
+  const themes = {};
+
+  comments.forEach(comment => {
+    const body = (comment.body || '').toLowerCase();
+
+    // Extract key phrases (3-5 words)
+    const words = body.split(/\s+/).filter(w => w.length > 3);
+
+    for (let i = 0; i < words.length - 2; i++) {
+      const phrase = words.slice(i, i + 3).join(' ');
+
+      if (phrase.length > 10 && phrase.length < 50) {
+        if (!themes[phrase]) {
+          themes[phrase] = { count: 0, users: new Set() };
+        }
+        themes[phrase].count++;
+        themes[phrase].users.add(comment.author);
+      }
+    }
+  });
+
+  const patterns = Object.entries(themes)
+    .filter(([phrase, data]) => data.users.size >= 3)
+    .sort((a, b) => b[1].users.size - a[1].users.size)
+    .slice(0, 15)
+    .map(([phrase, data]) => ({
+      pattern: phrase,
+      mentionedBy: data.users.size + ' different people'
+    }));
+
+  return {
+    id: 'thematic_patterns',
+    title: '🔍 Common Patterns',
+    description: 'Recurring themes across comments',
+    type: 'patterns',
+    data: patterns
+  };
+}
+
+function extractCategorizedPerspectives(comments) {
+  const categories = {
+    'Emotional/Vulnerability': ['feel', 'emotion', 'scared', 'afraid', 'vulnerable', 'worry', 'anxious', 'comfortable'],
+    'Practical Advice': ['tip', 'advice', 'recommend', 'should', 'try', 'works', 'helps', 'solution'],
+    'Social Dynamics': ['people', 'society', 'friends', 'women', 'men', 'relationship', 'social'],
+    'Personal Experiences': ['my', 'I', 'me', 'experience', 'happened', 'story', 'time when']
+  };
+
+  const categorized = {};
+
+  Object.keys(categories).forEach(category => {
+    categorized[category] = [];
+  });
+
+  comments.forEach(comment => {
+    const body = (comment.body || '').toLowerCase();
+    const score = comment.score || 0;
+
+    if (score < 15) return;
+
+    Object.keys(categories).forEach(category => {
+      const keywords = categories[category];
+      const matchCount = keywords.filter(keyword => body.includes(keyword)).length;
+
+      if (matchCount >= 2 && categorized[category].length < 5) {
+        categorized[category].push({
+          content: comment.body.substring(0, 350) + (comment.body.length > 350 ? '...' : ''),
+          author: comment.author,
+          score: score,
+          permalink: comment.permalink
+        });
+      }
+    });
+  });
+
+  const result = Object.entries(categorized)
+    .filter(([cat, items]) => items.length > 0)
+    .map(([category, items]) => ({
+      category: category,
+      items: items
+    }));
+
+  return {
+    id: 'categorized_perspectives',
+    title: '📂 Perspectives by Type',
+    description: 'Grouped by theme',
+    type: 'categorized',
+    data: result
+  };
+}
+
+function extractNotablePerspectives(comments) {
+  const notable = comments
+    .filter(c => (c.score || 0) > 50)
+    .slice(0, 15)
+    .map(c => ({
+      content: c.body.substring(0, 400) + (c.body.length > 400 ? '...' : ''),
+      author: c.author,
+      score: c.score,
+      permalink: c.permalink
+    }));
+
+  return {
+    id: 'notable_perspectives',
+    title: '💎 Notable Perspectives',
+    description: 'High-impact viewpoints',
+    type: 'quotes',
+    data: notable
+  };
+}
+
+// === Trend Discovery Extractors ===
+
+function extractMentionRankings(comments) {
+  const mentions = {};
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+
+    // Extract capitalized words or quoted terms (likely specific things)
+    const capitalizedWords = body.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) || [];
+
+    capitalizedWords.forEach(word => {
+      if (word.length > 3 && word !== 'Reddit' && word !== 'Edit') {
+        if (!mentions[word]) {
+          mentions[word] = {
+            count: 0,
+            totalScore: 0,
+            examples: []
+          };
+        }
+        mentions[word].count++;
+        mentions[word].totalScore += comment.score || 0;
+
+        if (mentions[word].examples.length < 2) {
+          mentions[word].examples.push({
+            author: comment.author,
+            score: comment.score,
+            context: body.substring(0, 150)
+          });
+        }
+      }
+    });
+  });
+
+  const ranked = Object.entries(mentions)
+    .filter(([word, data]) => data.count >= 3)
+    .sort((a, b) => (b[1].count * 10 + b[1].totalScore) - (a[1].count * 10 + a[1].totalScore))
+    .slice(0, 20)
+    .map(([word, data]) => ({
+      item: word,
+      mentions: data.count,
+      totalScore: data.totalScore,
+      examples: data.examples
+    }));
+
+  return {
+    id: 'mention_rankings',
+    title: '📈 Most Mentioned',
+    description: 'Ranked by frequency and score',
+    type: 'ranking',
+    data: ranked
+  };
+}
+
+function extractGrowthIndicators(comments) {
+  const indicators = [];
+  const growthPatterns = /\b(growing|booming|exploding|huge|massive|increasing|trending|hot|popular|demand)\b/i;
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const score = comment.score || 0;
+
+    if (growthPatterns.test(body) && score > 20) {
+      indicators.push({
+        content: body.substring(0, 350) + (body.length > 350 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        permalink: comment.permalink
+      });
+    }
+  });
+
+  return {
+    id: 'growth_indicators',
+    title: '🚀 Growth Signals',
+    description: 'Comments mentioning growth/trends',
+    type: 'quotes',
+    data: indicators.slice(0, 12)
+  };
+}
+
+function extractOpportunities(comments) {
+  const opportunities = [];
+  const opportunityPatterns = /\b(opportunity|gap|need|demand|should exist|wish there was|nobody is|untapped)\b/i;
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const score = comment.score || 0;
+
+    if (opportunityPatterns.test(body) && score > 15) {
+      opportunities.push({
+        content: body.substring(0, 350) + (body.length > 350 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        permalink: comment.permalink
+      });
+    }
+  });
+
+  return {
+    id: 'opportunities',
+    title: '💡 Opportunities Mentioned',
+    description: 'Gaps and unmet needs',
+    type: 'quotes',
+    data: opportunities.slice(0, 10)
+  };
+}
+
+// === Problem Solving Extractors ===
+
+function extractProblemsReported(comments) {
+  const problems = [];
+  const problemPatterns = /\b(problem|issue|can't|cannot|struggle|difficult|hard to|doesn't work)\b/i;
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const score = comment.score || 0;
+
+    if (problemPatterns.test(body)) {
+      problems.push({
+        content: body.substring(0, 350) + (body.length > 350 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        replyCount: countReplies(comment),
+        permalink: comment.permalink
+      });
+    }
+  });
+
+  return {
+    id: 'problems_reported',
+    title: '⚠️ Problems Reported',
+    description: 'Issues people are facing',
+    type: 'problems',
+    data: problems.slice(0, 15)
+  };
+}
+
+function extractVerifiedSolutionsNew(comments) {
+  const solutions = [];
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const score = comment.score || 0;
+
+    if (score > 25 && /\b(solution|works|solved|fixed|helped|try this)\b/i.test(body)) {
+      let confirmations = 0;
+
+      if (comment.replies && comment.replies.data && comment.replies.data.children) {
+        comment.replies.data.children.forEach(reply => {
+          if (reply.data && reply.data.body) {
+            if (/\b(worked|thanks|helped|confirmed)\b/i.test(reply.data.body)) {
+              confirmations++;
+            }
+          }
+        });
+      }
+
+      solutions.push({
+        content: body.substring(0, 350) + (body.length > 350 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        confirmations: confirmations,
+        permalink: comment.permalink
+      });
+    }
+  });
+
+  return {
+    id: 'verified_solutions',
+    title: '✅ Verified Solutions',
+    description: 'Solutions with community confirmation',
+    type: 'solutions',
+    data: solutions.slice(0, 10)
+  };
+}
+
+function extractRootCauses(comments) {
+  const causes = [];
+  const causePatterns = /\b(because|reason|root cause|caused by|due to|stems from)\b/i;
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const score = comment.score || 0;
+
+    if (causePatterns.test(body) && score > 20) {
+      causes.push({
+        content: body.substring(0, 350) + (body.length > 350 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        permalink: comment.permalink
+      });
+    }
+  });
+
+  return {
+    id: 'root_causes',
+    title: '🔍 Root Causes Identified',
+    description: 'Why problems happen',
+    type: 'quotes',
+    data: causes.slice(0, 8)
+  };
+}
+
+// === Generic Discussion Extractors ===
+
+function extractKeyThemes(comments) {
+  const themes = {};
+
+  const keywords = [
+    'technology', 'health', 'money', 'work', 'relationship', 'family', 'education',
+    'government', 'politics', 'society', 'environment', 'culture', 'business'
+  ];
+
+  comments.forEach(comment => {
+    const body = (comment.body || '').toLowerCase();
+
+    keywords.forEach(keyword => {
+      if (body.includes(keyword)) {
+        if (!themes[keyword]) {
+          themes[keyword] = { count: 0, examples: [] };
+        }
+        themes[keyword].count++;
+
+        if (themes[keyword].examples.length < 2) {
+          themes[keyword].examples.push({
+            content: comment.body.substring(0, 200),
+            score: comment.score
+          });
+        }
+      }
+    });
+  });
+
+  const themeList = Object.entries(themes)
+    .filter(([theme, data]) => data.count >= 3)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 10)
+    .map(([theme, data]) => ({
+      theme: theme,
+      mentions: data.count,
+      examples: data.examples
+    }));
+
+  return {
+    id: 'key_themes',
+    title: '🎯 Key Themes',
+    description: 'Main discussion topics',
+    type: 'themes',
+    data: themeList
+  };
+}
+
+function extractActiveDiscussions(comments) {
+  const discussions = [];
+
+  comments.forEach(comment => {
+    const replyCount = countReplies(comment);
+    const score = comment.score || 0;
+
+    if (replyCount > 10) {
+      discussions.push({
+        content: comment.body.substring(0, 300) + (comment.body.length > 300 ? '...' : ''),
+        author: comment.author,
+        score: score,
+        replyCount: replyCount,
+        permalink: comment.permalink
+      });
+    }
+  });
+
+  return {
+    id: 'active_discussions',
+    title: '💬 Active Discussions',
+    description: 'Comments with most replies',
+    type: 'discussions',
+    data: discussions.slice(0, 10)
+  };
+}
+
+function extractNotableQuotes(comments) {
+  const quotes = comments
+    .filter(c => {
+      const body = c.body || '';
+      const score = c.score || 0;
+      return score > 40 && body.length > 100 && body.length < 600;
+    })
+    .slice(0, 15)
+    .map(c => ({
+      content: c.body,
+      author: c.author,
+      score: c.score,
+      permalink: c.permalink
+    }));
+
+  return {
+    id: 'notable_quotes',
+    title: '💬 Notable Quotes',
+    description: 'High-quality comments',
+    type: 'quotes',
+    data: quotes
+  };
+}
+
+// === Universal Extractors ===
+
+function extractHiddenGemsNew(comments) {
+  const gems = [];
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const score = comment.score || 0;
+
+    if (score > 10 && score < 100 && body.length > 150) {
+      let valueScore = 0;
+
+      if (/\b(source:|study|research|worked in|experience|years|professional)\b/i.test(body)) valueScore += 2;
+      if (/https?:\/\//.test(body)) valueScore++;
+      if (/\n[-*•]|\n\d+\./.test(body)) valueScore++;
+      if (comment.total_awards_received > 0) valueScore++;
+
+      if (valueScore >= 2) {
+        gems.push({
+          content: body.substring(0, 400) + (body.length > 400 ? '...' : ''),
+          author: comment.author,
+          score: score,
+          valueScore: valueScore,
+          reason: identifyGemReason(body),
+          permalink: comment.permalink
+        });
+      }
+    }
+  });
+
+  return {
+    id: 'hidden_gems',
+    title: '💎 Hidden Gems',
+    description: 'High-value, low-score comments',
+    type: 'gems',
+    data: gems.slice(0, 5)
+  };
 }
 
 function extractEnhancedInsights(posts, comments) {
