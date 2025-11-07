@@ -631,6 +631,12 @@ function extractDynamicInsights(post, comments, postContext) {
   // Always try to find hidden gems
   insights.push(extractHiddenGemsNew(comments));
 
+  // NEW: Add synthesized strategic insights
+  const strategicInsights = synthesizeStrategicInsights(post, comments, postContext, insights);
+  if (strategicInsights && strategicInsights.data && strategicInsights.data.length > 0) {
+    insights.unshift(strategicInsights); // Add at the beginning
+  }
+
   // Filter out empty insights
   return insights.filter(insight => insight && insight.data && insight.data.length > 0);
 }
@@ -1402,6 +1408,449 @@ function extractHiddenGemsNew(comments) {
     description: 'High-value, low-score comments',
     type: 'gems',
     data: gems.slice(0, 5)
+  };
+}
+
+// ========== STRATEGIC INSIGHT SYNTHESIS ==========
+
+function synthesizeStrategicInsights(post, comments, postContext, extractedInsights) {
+  const insights = [];
+  const totalComments = comments.length;
+
+  console.log('Synthesizing strategic insights for', postContext.type);
+
+  // Analyze comment text for patterns
+  const allText = comments.map(c => c.body || '').join(' ').toLowerCase();
+  const words = allText.split(/\s+/).filter(w => w.length > 3);
+
+  // Calculate sentiment distribution
+  const sentimentDist = calculateSentimentDistribution(comments);
+
+  // Find what people are asking for vs what they're complaining about
+  const needsVsComplaints = analyzeNeedsVsComplaints(comments);
+
+  // Identify success patterns vs failure patterns
+  const successPatterns = analyzeSuccessPatterns(comments);
+
+  // Calculate percentage-based insights
+  const percentageInsights = calculatePercentageInsights(comments, postContext);
+
+  // Identify correlations (what works together)
+  const correlations = findCorrelations(comments);
+
+  // Synthesize based on post type
+  if (postContext.type === 'recommendation_request' || postContext.type === 'life_advice_request') {
+    insights.push(...synthesizeRecommendationInsights(comments, totalComments));
+  } else if (postContext.type === 'problem_solving' || postContext.type === 'question') {
+    insights.push(...synthesizeProblemSolvingInsights(comments, totalComments));
+  } else if (postContext.type === 'trend_discovery') {
+    insights.push(...synthesizeTrendInsights(comments, totalComments));
+  }
+
+  // Add universal strategic insights
+  if (percentageInsights.length > 0) {
+    insights.push(...percentageInsights);
+  }
+
+  if (correlations.length > 0) {
+    insights.push(...correlations);
+  }
+
+  if (Object.keys(needsVsComplaints).length > 0) {
+    insights.push({
+      type: 'need_analysis',
+      insight: needsVsComplaints.summary,
+      data: needsVsComplaints
+    });
+  }
+
+  return {
+    id: 'strategic_insights',
+    title: '🎯 Strategic Insights',
+    description: 'Synthesized intelligence from the discussion',
+    type: 'strategic',
+    data: insights
+  };
+}
+
+function synthesizeRecommendationInsights(comments, totalComments) {
+  const insights = [];
+
+  // Find most mentioned items with context
+  const mentions = {};
+  const pricePatterns = /\$[\d,]+|\bcheap\b|\bexpensive\b|\baffordable\b|\bpricey\b/gi;
+  const timePatterns = /\b(immediately|instant|week|month|year|long.?term|short.?term)\b/gi;
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+
+    // Extract capitalized words (likely products/services)
+    const items = body.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g) || [];
+
+    items.forEach(item => {
+      if (item.length > 3 && !['Reddit', 'Edit', 'Update'].includes(item)) {
+        if (!mentions[item]) {
+          mentions[item] = {
+            count: 0,
+            withPrice: 0,
+            withTime: 0,
+            positive: 0,
+            negative: 0,
+            totalScore: 0
+          };
+        }
+        mentions[item].count++;
+        mentions[item].totalScore += comment.score || 0;
+
+        if (pricePatterns.test(body)) mentions[item].withPrice++;
+        if (timePatterns.test(body)) mentions[item].withTime++;
+
+        // Check sentiment around this mention
+        const itemIndex = body.indexOf(item);
+        const context = body.substring(Math.max(0, itemIndex - 50), Math.min(body.length, itemIndex + 50));
+        if (/\b(love|great|amazing|best|recommend|helped|worked)\b/i.test(context)) {
+          mentions[item].positive++;
+        }
+        if (/\b(hate|bad|terrible|worst|waste|didn't work|failed)\b/i.test(context)) {
+          mentions[item].negative++;
+        }
+      }
+    });
+  });
+
+  // Synthesize top recommendation with stats
+  const topMentions = Object.entries(mentions)
+    .filter(([item, data]) => data.count >= 3)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 10);
+
+  if (topMentions.length > 0) {
+    const top = topMentions[0];
+    const [item, data] = top;
+    const satisfactionRate = Math.round((data.positive / (data.positive + data.negative)) * 100);
+
+    insights.push({
+      type: 'top_recommendation',
+      insight: `"${item}" is the most mentioned (${data.count} times, ${Math.round((data.count/totalComments)*100)}% of comments) with ${satisfactionRate}% positive sentiment`,
+      item: item,
+      mentions: data.count,
+      percentageOfComments: Math.round((data.count/totalComments)*100),
+      satisfactionRate: satisfactionRate
+    });
+  }
+
+  // Find what people would "break rules" for
+  const breakRules = comments.filter(c =>
+    /\b(break|cheat|exception|worth it|can't resist|have to|must have)\b/i.test(c.body || '')
+  );
+
+  if (breakRules.length > 5) {
+    const percentage = Math.round((breakRules.length / totalComments) * 100);
+    insights.push({
+      type: 'behavioral_insight',
+      insight: `${percentage}% of people mention items they'd "break their rules" for - indicating strong emotional attachment`,
+      percentage: percentage,
+      count: breakRules.length
+    });
+  }
+
+  // Find price sensitivity patterns
+  const priceComments = comments.filter(c => pricePatterns.test(c.body || ''));
+  if (priceComments.length > 10) {
+    const expensiveMentions = priceComments.filter(c => /\bexpensive\b|\bpricey\b|\bcost\b|\$[\d,]{3,}/i.test(c.body)).length;
+    const cheapMentions = priceComments.filter(c => /\bcheap\b|\baffordable\b|\bbudget\b/i.test(c.body)).length;
+
+    insights.push({
+      type: 'price_sensitivity',
+      insight: `Price discussed in ${Math.round((priceComments.length/totalComments)*100)}% of comments - ${expensiveMentions > cheapMentions ? 'Quality over price' : 'Budget-conscious'} audience`,
+      priceAware: Math.round((priceComments.length/totalComments)*100),
+      expensiveMentions: expensiveMentions,
+      cheapMentions: cheapMentions,
+      tendency: expensiveMentions > cheapMentions ? 'premium' : 'budget'
+    });
+  }
+
+  return insights;
+}
+
+function synthesizeProblemSolvingInsights(comments, totalComments) {
+  const insights = [];
+
+  // Find problem severity indicators
+  const severityWords = {
+    critical: ['desperate', 'urgent', 'emergency', 'severe', 'extreme', 'unbearable'],
+    high: ['really', 'very', 'super', 'extremely', 'significantly'],
+    moderate: ['somewhat', 'kinda', 'bit', 'little', 'slightly']
+  };
+
+  let criticalCount = 0, highCount = 0, moderateCount = 0;
+
+  comments.forEach(comment => {
+    const body = (comment.body || '').toLowerCase();
+    if (severityWords.critical.some(word => body.includes(word))) criticalCount++;
+    else if (severityWords.high.some(word => body.includes(word))) highCount++;
+    else if (severityWords.moderate.some(word => body.includes(word))) moderateCount++;
+  });
+
+  if (criticalCount > 0) {
+    insights.push({
+      type: 'urgency_analysis',
+      insight: `${Math.round((criticalCount/totalComments)*100)}% of comments indicate critical/urgent issues requiring immediate attention`,
+      criticalPercentage: Math.round((criticalCount/totalComments)*100),
+      highPercentage: Math.round((highCount/totalComments)*100),
+      moderatePercentage: Math.round((moderateCount/totalComments)*100)
+    });
+  }
+
+  // Find solution success rate
+  const solutionComments = comments.filter(c =>
+    /\b(worked|solved|fixed|helped|success|cured)\b/i.test(c.body || '')
+  );
+  const failureComments = comments.filter(c =>
+    /\b(didn't work|failed|worse|no help|useless|waste)\b/i.test(c.body || '')
+  );
+
+  if (solutionComments.length > 5 || failureComments.length > 5) {
+    const successRate = Math.round((solutionComments.length / (solutionComments.length + failureComments.length)) * 100);
+    insights.push({
+      type: 'solution_effectiveness',
+      insight: `${successRate}% success rate among attempted solutions (${solutionComments.length} worked vs ${failureComments.length} failed)`,
+      successRate: successRate,
+      workedCount: solutionComments.length,
+      failedCount: failureComments.length
+    });
+  }
+
+  // Find common frustration points
+  const frustrationWords = ['frustrated', 'annoying', 'impossible', 'can\'t', 'won\'t', 'never', 'always fails'];
+  const frustrations = comments.filter(c =>
+    frustrationWords.some(word => (c.body || '').toLowerCase().includes(word))
+  );
+
+  if (frustrations.length > totalComments * 0.2) {
+    insights.push({
+      type: 'frustration_level',
+      insight: `High frustration level detected: ${Math.round((frustrations.length/totalComments)*100)}% of comments express frustration - indicates systemic issues`,
+      frustrationPercentage: Math.round((frustrations.length/totalComments)*100)
+    });
+  }
+
+  // Time to resolution
+  const timePatterns = {
+    immediate: /\b(immediately|instant|right away|same day)\b/i,
+    days: /\b(days?|few days|couple days)\b/i,
+    weeks: /\b(weeks?|few weeks)\b/i,
+    months: /\b(months?|several months|half year)\b/i,
+    years: /\b(years?|long time|forever)\b/i
+  };
+
+  const timelines = {immediate: 0, days: 0, weeks: 0, months: 0, years: 0};
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    Object.keys(timePatterns).forEach(timeline => {
+      if (timePatterns[timeline].test(body)) timelines[timeline]++;
+    });
+  });
+
+  const longestTimeline = Object.entries(timelines)
+    .filter(([_, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])[0];
+
+  if (longestTimeline && longestTimeline[1] > 3) {
+    insights.push({
+      type: 'resolution_timeline',
+      insight: `Most common resolution timeline: ${longestTimeline[0]} (mentioned in ${longestTimeline[1]} comments)`,
+      timeline: longestTimeline[0],
+      mentions: longestTimeline[1]
+    });
+  }
+
+  return insights;
+}
+
+function synthesizeTrendInsights(comments, totalComments) {
+  const insights = [];
+
+  // Find growth indicators with percentages
+  const growthWords = ['growing', 'booming', 'exploding', 'trending', 'popular', 'increasing'];
+  const declineWords = ['declining', 'dying', 'failing', 'decreasing', 'dead'];
+
+  const growthMentions = comments.filter(c =>
+    growthWords.some(word => (c.body || '').toLowerCase().includes(word))
+  ).length;
+
+  const declineMentions = comments.filter(c =>
+    declineWords.some(word => (c.body || '').toLowerCase().includes(word))
+  ).length;
+
+  if (growthMentions > declineMentions && growthMentions > 5) {
+    insights.push({
+      type: 'growth_sentiment',
+      insight: `${Math.round((growthMentions/(growthMentions+declineMentions))*100)}% positive growth sentiment (${growthMentions} growing vs ${declineMentions} declining mentions)`,
+      growthPercentage: Math.round((growthMentions/(growthMentions+declineMentions))*100),
+      growthCount: growthMentions,
+      declineCount: declineMentions
+    });
+  }
+
+  // Find market size indicators
+  const sizeWords = {
+    huge: /\b(huge|massive|enormous|giant|gigantic)\b/i,
+    large: /\b(large|big|substantial|significant)\b/i,
+    niche: /\b(niche|small|tiny|limited|narrow)\b/i
+  };
+
+  const sizeIndicators = {huge: 0, large: 0, niche: 0};
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    Object.keys(sizeWords).forEach(size => {
+      if (sizeWords[size].test(body)) sizeIndicators[size]++;
+    });
+  });
+
+  const dominantSize = Object.entries(sizeIndicators)
+    .sort((a, b) => b[1] - a[1])[0];
+
+  if (dominantSize && dominantSize[1] > 3) {
+    insights.push({
+      type: 'market_size_perception',
+      insight: `Market perceived as "${dominantSize[0]}" by ${Math.round((dominantSize[1]/totalComments)*100)}% of commenters`,
+      perception: dominantSize[0],
+      percentage: Math.round((dominantSize[1]/totalComments)*100)
+    });
+  }
+
+  return insights;
+}
+
+function calculatePercentageInsights(comments, postContext) {
+  const insights = [];
+  const totalComments = comments.length;
+
+  // Calculate question vs answer ratio
+  const questions = comments.filter(c => (c.body || '').includes('?')).length;
+  const answers = comments.filter(c => {
+    const body = (c.body || '').toLowerCase();
+    return /\b(because|since|due to|reason|answer|solution|try|use|do this)\b/.test(body);
+  }).length;
+
+  if (questions > totalComments * 0.3) {
+    insights.push({
+      type: 'engagement_pattern',
+      insight: `${Math.round((questions/totalComments)*100)}% of comments are questions - high information-seeking behavior`,
+      questionPercentage: Math.round((questions/totalComments)*100),
+      answerPercentage: Math.round((answers/totalComments)*100)
+    });
+  }
+
+  // Calculate personal experience sharing
+  const personalExp = comments.filter(c => {
+    const body = (c.body || '').toLowerCase();
+    return /\b(i |my |me |mine |i've|i'm|i'd)\b/.test(body);
+  }).length;
+
+  if (personalExp > totalComments * 0.5) {
+    insights.push({
+      type: 'content_type',
+      insight: `${Math.round((personalExp/totalComments)*100)}% share personal experiences - highly authentic, experience-based discussion`,
+      personalExperiencePercentage: Math.round((personalExp/totalComments)*100)
+    });
+  }
+
+  return insights;
+}
+
+function findCorrelations(comments) {
+  const insights = [];
+
+  // Find what commonly appears together
+  const pairings = {};
+
+  // Look for common word pairs that appear together frequently
+  const keywords = ['diet', 'exercise', 'medication', 'therapy', 'supplement', 'treatment', 'doctor', 'specialist'];
+
+  comments.forEach(comment => {
+    const body = (comment.body || '').toLowerCase();
+    const presentKeywords = keywords.filter(kw => body.includes(kw));
+
+    // Record all pairs
+    for (let i = 0; i < presentKeywords.length; i++) {
+      for (let j = i + 1; j < presentKeywords.length; j++) {
+        const pair = [presentKeywords[i], presentKeywords[j]].sort().join(' + ');
+        pairings[pair] = (pairings[pair] || 0) + 1;
+      }
+    }
+  });
+
+  const topPairings = Object.entries(pairings)
+    .filter(([_, count]) => count >= 3)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+
+  topPairings.forEach(([pair, count]) => {
+    insights.push({
+      type: 'correlation',
+      insight: `"${pair}" frequently mentioned together (${count} times) - suggests combined approach works best`,
+      combination: pair,
+      frequency: count
+    });
+  });
+
+  return insights;
+}
+
+function analyzeNeedsVsComplaints(comments) {
+  const needs = [];
+  const complaints = [];
+
+  const needPatterns = /\b(need|want|wish|hope|looking for|searching for|trying to find)\b/i;
+  const complaintPatterns = /\b(hate|annoying|frustrated|terrible|awful|disappointed|upset)\b/i;
+
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    if (needPatterns.test(body)) needs.push(body);
+    if (complaintPatterns.test(body)) complaints.push(body);
+  });
+
+  return {
+    needsCount: needs.length,
+    complaintsCount: complaints.length,
+    ratio: needs.length > 0 ? (complaints.length / needs.length).toFixed(2) : 0,
+    summary: needs.length > complaints.length
+      ? `${needs.length} needs vs ${complaints.length} complaints - solution-seeking audience`
+      : `${complaints.length} complaints vs ${needs.length} needs - venting/support-seeking audience`
+  };
+}
+
+function analyzeSuccessPatterns(comments) {
+  const successMarkers = ['worked', 'success', 'helped', 'cured', 'fixed', 'solved'];
+  const successComments = comments.filter(c =>
+    successMarkers.some(marker => (c.body || '').toLowerCase().includes(marker))
+  );
+
+  return {
+    count: successComments.length,
+    patterns: successComments.slice(0, 5).map(c => c.body.substring(0, 200))
+  };
+}
+
+function calculateSentimentDistribution(comments) {
+  let positive = 0, negative = 0, neutral = 0;
+
+  comments.forEach(comment => {
+    const body = (comment.body || '').toLowerCase();
+    const posWords = (body.match(/\b(good|great|amazing|love|best|helped|worked|success)\b/g) || []).length;
+    const negWords = (body.match(/\b(bad|terrible|hate|worst|failed|didn't work|awful)\b/g) || []).length;
+
+    if (posWords > negWords) positive++;
+    else if (negWords > posWords) negative++;
+    else neutral++;
+  });
+
+  return {
+    positive: Math.round((positive / comments.length) * 100),
+    negative: Math.round((negative / comments.length) * 100),
+    neutral: Math.round((neutral / comments.length) * 100)
   };
 }
 
