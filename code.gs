@@ -1417,51 +1417,197 @@ function synthesizeStrategicInsights(post, comments, postContext, extractedInsig
   const insights = [];
   const totalComments = comments.length;
 
-  console.log('Synthesizing strategic insights for', postContext.type);
+  console.log('Synthesizing strategic insights for', postContext.type, 'across', totalComments, 'comments');
 
-  // Analyze comment text for patterns
-  const allText = comments.map(c => c.body || '').join(' ').toLowerCase();
-  const words = allText.split(/\s+/).filter(w => w.length > 3);
+  // PHASE 1: Deep data aggregation across ALL comments
+  const aggregatedData = {
+    entities: {},
+    experiences: {personal: 0, reported: 0, stories: []},
+    outcomes: {success: 0, failure: 0, mixed: 0},
+    timeframes: {immediate: 0, short: 0, medium: 0, long: 0},
+    actions: {tried: [], worked: [], failed: [], recommended: []},
+    expertise: {professional: 0, experienced: 0, patient: 0},
+    patterns: {},
+    numbers: {percentages: [], prices: [], counts: []}
+  };
 
-  // Calculate sentiment distribution
-  const sentimentDist = calculateSentimentDistribution(comments);
+  // Aggregate data from all comments
+  comments.forEach(comment => {
+    const body = comment.body || '';
+    const lower = body.toLowerCase();
 
-  // Find what people are asking for vs what they're complaining about
-  const needsVsComplaints = analyzeNeedsVsComplaints(comments);
+    // Track personal experiences vs reported info
+    if (/\b(I |my |me |mine |I've|I'm)\b/.test(body)) {
+      aggregatedData.experiences.personal++;
+      if (lower.length > 200) {
+        aggregatedData.experiences.stories.push({
+          text: body.substring(0, 400),
+          score: comment.score,
+          author: comment.author
+        });
+      }
+    }
 
-  // Identify success patterns vs failure patterns
-  const successPatterns = analyzeSuccessPatterns(comments);
+    // Extract entities (proper nouns, products, treatments, etc.)
+    const entities = body.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}\b/g) || [];
+    entities.forEach(e => {
+      if (e.length > 3 && !['Reddit', 'Edit', 'Update', 'Source', 'Yeah', 'There'].includes(e)) {
+        if (!aggregatedData.entities[e]) {
+          aggregatedData.entities[e] = {count: 0, sentiment: {pos: 0, neg: 0}};
+        }
+        aggregatedData.entities[e].count++;
 
-  // Calculate percentage-based insights
-  const percentageInsights = calculatePercentageInsights(comments, postContext);
-
-  // Identify correlations (what works together)
-  const correlations = findCorrelations(comments);
-
-  // Synthesize based on post type
-  if (postContext.type === 'recommendation_request' || postContext.type === 'life_advice_request') {
-    insights.push(...synthesizeRecommendationInsights(comments, totalComments));
-  } else if (postContext.type === 'problem_solving' || postContext.type === 'question') {
-    insights.push(...synthesizeProblemSolvingInsights(comments, totalComments));
-  } else if (postContext.type === 'trend_discovery') {
-    insights.push(...synthesizeTrendInsights(comments, totalComments));
-  }
-
-  // Add universal strategic insights
-  if (percentageInsights.length > 0) {
-    insights.push(...percentageInsights);
-  }
-
-  if (correlations.length > 0) {
-    insights.push(...correlations);
-  }
-
-  if (Object.keys(needsVsComplaints).length > 0) {
-    insights.push({
-      type: 'need_analysis',
-      insight: needsVsComplaints.summary,
-      data: needsVsComplaints
+        // Contextual sentiment
+        const idx = body.indexOf(e);
+        const context = body.substring(Math.max(0, idx-50), Math.min(body.length, idx+50)).toLowerCase();
+        if (/\b(worked|helped|great|best|recommend)\b/.test(context)) {
+          aggregatedData.entities[e].sentiment.pos++;
+        }
+        if (/\b(failed|bad|didn't work|avoid|terrible)\b/.test(context)) {
+          aggregatedData.entities[e].sentiment.neg++;
+        }
+      }
     });
+
+    // Track outcomes
+    if (/\b(worked|success|helped|fixed|cured|solved)\b/i.test(body)) aggregatedData.outcomes.success++;
+    if (/\b(failed|didn't work|worse|useless|no help)\b/i.test(body)) aggregatedData.outcomes.failure++;
+    if (/\b(sometimes works|hit or miss|depends|varies)\b/i.test(body)) aggregatedData.outcomes.mixed++;
+
+    // Timeframes
+    if (/\b(immediately|instant|right away|same day)\b/i.test(body)) aggregatedData.timeframes.immediate++;
+    if (/\b(days?|week or two)\b/i.test(body)) aggregatedData.timeframes.short++;
+    if (/\b(weeks?|month)\b/i.test(body)) aggregatedData.timeframes.medium++;
+    if (/\b(months?|years?|long time)\b/i.test(body)) aggregatedData.timeframes.long++;
+
+    // Expertise level
+    if (/\b(I'm a|doctor|MD|PhD|professional|specialist|therapist)\b/i.test(body)) {
+      aggregatedData.expertise.professional++;
+    } else if (/\b(years? of|experience with|dealt with)\b/i.test(body)) {
+      aggregatedData.expertise.experienced++;
+    } else if (/\b(diagnosed|patient|living with)\b/i.test(body)) {
+      aggregatedData.expertise.patient++;
+    }
+
+    // Extract patterns (repeated phrases)
+    const words = lower.split(/\s+/).filter(w => w.length > 3);
+    for (let i = 0; i < words.length - 2; i++) {
+      const phrase = words.slice(i, i + 3).join(' ');
+      if (phrase.length > 15) {
+        aggregatedData.patterns[phrase] = (aggregatedData.patterns[phrase] || 0) + 1;
+      }
+    }
+  });
+
+  // PHASE 2: Generate insights from aggregated data
+
+  // Insight: Entity analysis with sentiment
+  const topEntities = Object.entries(aggregatedData.entities)
+    .filter(([_, data]) => data.count >= 3)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 5);
+
+  if (topEntities.length > 0) {
+    const [topEntity, topData] = topEntities[0];
+    const percentage = Math.round((topData.count / totalComments) * 100);
+    const satisfaction = topData.sentiment.pos > 0 ?
+      Math.round((topData.sentiment.pos / (topData.sentiment.pos + topData.sentiment.neg)) * 100) : 0;
+
+    if (topData.count >= 5) {
+      insights.push({
+        type: 'top_mention',
+        insight: `"${topEntity}" most frequently discussed (${topData.count} mentions, ${percentage}% of comments)${satisfaction > 0 ? ` with ${satisfaction}% positive sentiment` : ''}`,
+        entity: topEntity,
+        mentions: topData.count,
+        percentage: percentage,
+        satisfaction: satisfaction
+      });
+    }
+  }
+
+  // Insight: Experience composition
+  const experienceTotal = aggregatedData.experiences.personal + aggregatedData.experiences.reported;
+  if (experienceTotal > 0) {
+    const personalPct = Math.round((aggregatedData.experiences.personal / totalComments) * 100);
+    if (personalPct > 50) {
+      insights.push({
+        type: 'content_authenticity',
+        insight: `${personalPct}% of comments share personal firsthand experiences - highly authentic, lived-experience based discussion`,
+        percentage: personalPct
+      });
+    }
+  }
+
+  // Insight: Success vs failure rates
+  const outcomeTotal = aggregatedData.outcomes.success + aggregatedData.outcomes.failure;
+  if (outcomeTotal >= 10) {
+    const successRate = Math.round((aggregatedData.outcomes.success / outcomeTotal) * 100);
+    insights.push({
+      type: 'outcome_analysis',
+      insight: `${successRate}% success rate reported (${aggregatedData.outcomes.success} positive vs ${aggregatedData.outcomes.failure} negative outcomes)`,
+      successRate: successRate,
+      successCount: aggregatedData.outcomes.success,
+      failureCount: aggregatedData.outcomes.failure
+    });
+  }
+
+  // Insight: Timeline patterns
+  const totalTimeframes = Object.values(aggregatedData.timeframes).reduce((a, b) => a + b, 0);
+  if (totalTimeframes >= 10) {
+    const dominant = Object.entries(aggregatedData.timeframes)
+      .sort((a, b) => b[1] - a[1])[0];
+    const pct = Math.round((dominant[1] / totalTimeframes) * 100);
+
+    insights.push({
+      type: 'timeline_pattern',
+      insight: `${pct}% report ${dominant[0]}-term results (${dominant[1]} mentions) - sets realistic expectation timeline`,
+      timeline: dominant[0],
+      percentage: pct,
+      count: dominant[1]
+    });
+  }
+
+  // Insight: Expertise distribution
+  const expertiseTotal = aggregatedData.expertise.professional + aggregatedData.expertise.experienced + aggregatedData.expertise.patient;
+  if (expertiseTotal > 0) {
+    const profPct = Math.round((aggregatedData.expertise.professional / expertiseTotal) * 100);
+    const patientPct = Math.round((aggregatedData.expertise.patient / expertiseTotal) * 100);
+
+    if (profPct > 20) {
+      insights.push({
+        type: 'expertise_mix',
+        insight: `${profPct}% professional/medical perspective vs ${patientPct}% patient perspective - balanced medical and lived experience`,
+        professionalPct: profPct,
+        patientPct: patientPct
+      });
+    } else if (patientPct > 70) {
+      insights.push({
+        type: 'expertise_mix',
+        insight: `${patientPct}% patient/personal perspective - community-driven, experience-based knowledge`,
+        patientPct: patientPct
+      });
+    }
+  }
+
+  // PHASE 3: Call existing specialized synthesizers with aggregated data
+  if (postContext.type === 'recommendation_request' || postContext.type === 'life_advice_request') {
+    insights.push(...synthesizeRecommendationInsights(comments, totalComments, aggregatedData));
+  } else if (postContext.type === 'problem_solving' || postContext.type === 'question') {
+    insights.push(...synthesizeProblemSolvingInsights(comments, totalComments, aggregatedData));
+  } else if (postContext.type === 'trend_discovery') {
+    insights.push(...synthesizeTrendInsights(comments, totalComments, aggregatedData));
+  }
+
+  // PHASE 4: Cross-comment pattern detection
+  const crossPatterns = detectCrossCommentPatterns(comments, aggregatedData);
+  if (crossPatterns.length > 0) {
+    insights.push(...crossPatterns.slice(0, 3));
+  }
+
+  // PHASE 5: Add correlations from aggregated data
+  const correlations = findCorrelations(comments);
+  if (correlations.length > 0) {
+    insights.push(...correlations.slice(0, 2));
   }
 
   return {
@@ -1473,8 +1619,70 @@ function synthesizeStrategicInsights(post, comments, postContext, extractedInsig
   };
 }
 
-function synthesizeRecommendationInsights(comments, totalComments) {
+// NEW: Detect patterns across multiple comments
+function detectCrossCommentPatterns(comments, aggregatedData) {
+  const patterns = [];
+
+  // Pattern: Repeated frustrations
+  const frustrationWords = ['frustrated', 'annoying', 'impossible', "can't", "won't", 'never works'];
+  const frustratedComments = comments.filter(c =>
+    frustrationWords.some(word => (c.body || '').toLowerCase().includes(word))
+  );
+
+  if (frustratedComments.length > comments.length * 0.25) {
+    const percentage = Math.round((frustratedComments.length / comments.length) * 100);
+    patterns.push({
+      type: 'frustration_epidemic',
+      insight: `${percentage}% express frustration or barriers - indicates systemic issue requiring structural solutions`,
+      percentage: percentage,
+      count: frustratedComments.length
+    });
+  }
+
+  // Pattern: Gap detection (what's NOT mentioned)
+  const verificationWords = ['confirmed', 'verified', 'diagnosed by', 'test results', 'ultrasound', 'blood work'];
+  const verifiedComments = comments.filter(c =>
+    verificationWords.some(word => (c.body || '').toLowerCase().includes(word))
+  );
+
+  if (verifiedComments.length < comments.length * 0.2 && comments.length > 20) {
+    const percentage = Math.round((verifiedComments.length / comments.length) * 100);
+    patterns.push({
+      type: 'verification_gap',
+      insight: `Only ${percentage}% mention diagnostic verification - suggests potential diagnosis accuracy issues`,
+      percentage: percentage,
+      verified: verifiedComments.length,
+      unverified: comments.length - verifiedComments.length
+    });
+  }
+
+  // Pattern: Geographic/cultural variance
+  const countries = ['US', 'UK', 'Canada', 'Australia', 'Europe', 'Asia', 'India', 'China'];
+  const countryMentions = {};
+  comments.forEach(c => {
+    countries.forEach(country => {
+      if ((c.body || '').includes(country)) {
+        countryMentions[country] = (countryMentions[country] || 0) + 1;
+      }
+    });
+  });
+
+  const mentionedCountries = Object.entries(countryMentions).filter(([_, count]) => count >= 2);
+  if (mentionedCountries.length >= 2) {
+    patterns.push({
+      type: 'geographic_variance',
+      insight: `Geographic differences noted across ${mentionedCountries.length} regions - treatment/approach varies by location`,
+      regions: mentionedCountries.length,
+      details: mentionedCountries.map(([c, n]) => `${c} (${n})`).join(', ')
+    });
+  }
+
+  return patterns;
+}
+
+function synthesizeRecommendationInsights(comments, totalComments, aggregatedData) {
   const insights = [];
+  aggregatedData = aggregatedData || {}; // Fallback if not provided
 
   // Find most mentioned items with context
   const mentions = {};
@@ -1573,8 +1781,9 @@ function synthesizeRecommendationInsights(comments, totalComments) {
   return insights;
 }
 
-function synthesizeProblemSolvingInsights(comments, totalComments) {
+function synthesizeProblemSolvingInsights(comments, totalComments, aggregatedData) {
   const insights = [];
+  aggregatedData = aggregatedData || {}; // Fallback if not provided
 
   // Find problem severity indicators
   const severityWords = {
@@ -1668,8 +1877,9 @@ function synthesizeProblemSolvingInsights(comments, totalComments) {
   return insights;
 }
 
-function synthesizeTrendInsights(comments, totalComments) {
+function synthesizeTrendInsights(comments, totalComments, aggregatedData) {
   const insights = [];
+  aggregatedData = aggregatedData || {}; // Fallback if not provided
 
   // Find growth indicators with percentages
   const growthWords = ['growing', 'booming', 'exploding', 'trending', 'popular', 'increasing'];
