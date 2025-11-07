@@ -223,10 +223,17 @@
             <h1>What Actually Matters</h1>
             <p>Extract real insights from Reddit discussions</p>
         </div>
-        
+
         <div class="input-section">
+            <div style="background:#f0f9ff; padding:15px; border-radius:8px; margin-bottom:20px; font-size:0.9em; line-height:1.6;">
+                <div style="font-weight:600; color:#1e40af; margin-bottom:5px;">🔍 Supported Modes:</div>
+                <div style="color:#475569;">
+                    <strong>Single Post:</strong> Paste a full Reddit post URL (e.g., /r/AskReddit/comments/...) for deep analysis<br>
+                    <strong>Subreddit Overview:</strong> Paste subreddit name (e.g., r/AskReddit) for 24hr trending posts
+                </div>
+            </div>
             <div class="input-group">
-                <input type="text" id="redditUrl" placeholder="Paste Reddit URL here" value="https://www.reddit.com/r/AskReddit/comments/1mn7rx5/what_industry_is_booming_way_more_than_people/">
+                <input type="text" id="redditUrl" placeholder="Paste Reddit post URL or subreddit name (e.g., r/AskReddit)" value="https://www.reddit.com/r/AskReddit/comments/1mn7rx5/what_industry_is_booming_way_more_than_people/">
                 <button class="analyze-btn" onclick="analyze()">Analyze</button>
             </div>
         </div>
@@ -242,20 +249,28 @@
     
     <script>
         let currentData = null;
-        
+        let currentMode = 'single'; // 'single' or 'subreddit'
+
         async function analyze() {
             const url = document.getElementById('redditUrl').value.trim();
             if (!url) {
                 alert('Please enter a Reddit URL');
                 return;
             }
-            
+
+            // Detect mode based on URL
+            if (url.includes('/comments/')) {
+                currentMode = 'deep'; // single post deep dive
+            } else {
+                currentMode = 'overview'; // subreddit overview
+            }
+
             document.querySelector('.input-section').style.display = 'none';
             document.querySelector('.loading').style.display = 'block';
-            
+
             try {
                 // Call your Google Apps Script
-                const data = await fetchRedditData(url);
+                const data = await fetchRedditData(url, currentMode);
                 currentData = data;
                 displayResults(data);
             } catch (error) {
@@ -266,162 +281,322 @@
             }
         }
         
-        async function fetchRedditData(url) {
+        async function fetchRedditData(url, mode) {
             // Your existing JSONP fetch logic
             const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLPQgHXv8RFFYDQS_eoEMoTOQp8gptNIUi9wJgvC-wK9WQI5XHn8yAVaH95WZR9WsP/exec';
-            
+
             return new Promise((resolve, reject) => {
                 const callbackName = 'callback_' + Date.now();
                 const script = document.createElement('script');
-                const scriptUrl = GOOGLE_SCRIPT_URL + '?url=' + encodeURIComponent(url) + 
+                const scriptUrl = GOOGLE_SCRIPT_URL + '?url=' + encodeURIComponent(url) +
+                                 '&mode=' + mode +
                                  '&callback=' + callbackName;
-                
+
                 window[callbackName] = function(data) {
                     document.head.removeChild(script);
                     delete window[callbackName];
-                    
+
                     if (data.error) {
                         reject(new Error(data.error));
                     } else {
                         resolve(data.data);
                     }
                 };
-                
+
                 script.onerror = function() {
                     document.head.removeChild(script);
                     delete window[callbackName];
                     reject(new Error('Failed to load'));
                 };
-                
+
                 script.src = scriptUrl;
                 document.head.appendChild(script);
             });
         }
         
         function displayResults(data) {
-            const insights = data.insights || {};
             let html = '';
-            
-            // Consensus Section
-            if (insights.consensus && insights.consensus.length > 0) {
-                html += '<div class="insight-section">';
-                html += '<h3>📊 The Consensus</h3>';
-                insights.consensus.forEach(item => {
-                    html += '<div class="consensus-item">';
-                    html += item.statement;
-                    html += '<span class="consensus-count">mentioned ' + item.mentions + 'x</span>';
-                    html += '</div>';
-                });
+
+            // Display post context if available
+            if (data.postContext) {
+                const ctx = data.postContext;
+                html += '<div style="background:#f0f9ff; padding:20px; border-radius:8px; margin-bottom:20px; border-left:4px solid #3b82f6;">';
+                html += '<div style="font-weight:600; color:#1e40af; margin-bottom:8px;">Post Analysis</div>';
+                html += '<div style="font-size:1.1em; margin-bottom:10px;">' + escapeHtml(ctx.title) + '</div>';
+                html += '<div style="display:flex; gap:15px; font-size:0.9em; color:#64748b;">';
+                html += '<span>Type: <strong>' + ctx.type.replace(/_/g, ' ') + '</strong></span>';
+                if (ctx.topics && ctx.topics.length > 0) {
+                    html += '<span>Topics: <strong>' + ctx.topics.join(', ').replace(/_/g, ' ') + '</strong></span>';
+                }
+                html += '<span>Comments: <strong>' + (data.stats?.totalComments || 0) + '</strong></span>';
+                html += '</div>';
                 html += '</div>';
             }
-            
-            // Problems Section
-            if (insights.problems && insights.problems.length > 0) {
-                html += '<div class="insight-section">';
-                html += '<h3>😓 Problems People Face</h3>';
-                insights.problems.forEach(item => {
-                    html += '<div class="problem-item">';
-                    html += '<div>' + item.problem + '</div>';
-                    html += '<div class="problem-count">' + item.count + ' people mentioned this</div>';
-                    if (item.replies && item.replies.length > 0) {
-                        html += '<div style="margin-top:5px; font-size:0.9em; color:#666;">↳ Has ' + item.replies.length + ' suggested solutions</div>';
+
+            // Dynamically render insights
+            const insights = data.insights || [];
+
+            if (insights.length === 0) {
+                html += '<div class="empty-state">No insights found. Try a different post.</div>';
+            } else {
+                insights.forEach(insight => {
+                    if (!insight || !insight.data || insight.data.length === 0) return;
+
+                    html += '<div class="insight-section">';
+                    html += '<h3>' + insight.title + '</h3>';
+                    if (insight.description) {
+                        html += '<p style="color:#6b7280; font-size:0.9em; margin-bottom:15px;">' + insight.description + '</p>';
                     }
+
+                    // Render based on type
+                    html += renderInsightByType(insight);
+
                     html += '</div>';
                 });
+            }
+
+            // Stats section
+            if (data.stats) {
+                html += '<div style="background:#f9fafb; padding:15px; border-radius:8px; margin-top:20px;">';
+                html += '<div style="display:flex; gap:20px; font-size:0.9em; color:#6b7280; flex-wrap:wrap;">';
+                html += '<span>Total Comments: <strong>' + data.stats.totalComments + '</strong></span>';
+                html += '<span>Total Score: <strong>' + data.stats.totalScore.toLocaleString() + '</strong></span>';
+                html += '<span>Average Score: <strong>' + data.stats.averageScore + '</strong></span>';
+                html += '<span>Top Score: <strong>' + data.stats.topScore + '</strong></span>';
+                html += '</div>';
                 html += '</div>';
             }
-            
-            // Solutions Section
-            if (insights.solutions && insights.solutions.length > 0) {
-                html += '<div class="insight-section">';
-                html += '<h3>✅ Solutions That Work</h3>';
-                insights.solutions.forEach(item => {
-                    html += '<div class="solution-item">';
-                    html += '<div>' + item.solution + '</div>';
-                    if (item.confirmations > 0) {
-                        html += '<div class="solution-confirmed">✓ Confirmed by ' + item.confirmations + ' people</div>';
-                    }
-                    html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                    html += '</div>';
-                });
-                html += '</div>';
-            }
-            
-            // Discussions Section
-            if (insights.discussions && insights.discussions.length > 0) {
-                html += '<div class="insight-section">';
-                html += '<h3>💬 Real Discussions</h3>';
-                insights.discussions.forEach(item => {
-                    html += '<div class="discussion-item">';
-                    html += '<div>' + item.comment + '</div>';
-                    html += '<div class="discussion-meta">';
-                    html += '<span>🔥 ' + item.replyCount + ' replies</span>';
-                    html += '<span>Type: ' + item.discussionType + '</span>';
-                    html += '<span>Score: ' + item.score + '</span>';
-                    html += '</div>';
-                    if (item.topReply) {
-                        html += '<div style="margin-top:10px; padding:10px; background:#f9fafb; border-radius:6px; font-size:0.9em;">';
-                        html += '<strong>Top reply:</strong> ' + item.topReply.excerpt;
-                        html += '</div>';
-                    }
-                    html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View thread →</a>';
-                    html += '</div>';
-                });
-                html += '</div>';
-            }
-            
-            // Hidden Gems Section
-            if (insights.hiddenGems && insights.hiddenGems.length > 0) {
-                html += '<div class="insight-section">';
-                html += '<h3>💎 Hidden Gems</h3>';
-                insights.hiddenGems.forEach(item => {
-                    html += '<div class="gem-item">';
-                    html += '<div>' + item.content + '</div>';
-                    html += '<div class="gem-reason">' + item.reason + '</div>';
-                    html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                    html += '</div>';
-                });
-                html += '</div>';
-            }
-            
+
             // Export Section
             html += '<div class="export-section">';
-            html += '<button class="export-btn" onclick="exportData()">Export Raw Data (CSV)</button>';
+            html += '<button class="export-btn" onclick="exportData()">Export Data (JSON)</button>';
             html += '</div>';
-            
+
             document.getElementById('results').innerHTML = html;
             document.querySelector('.loading').style.display = 'none';
             document.querySelector('.results').style.display = 'block';
         }
+
+        function renderInsightByType(insight) {
+            const type = insight.type;
+            const data = insight.data;
+            let html = '';
+
+            switch(type) {
+                case 'quotes':
+                    data.forEach(item => {
+                        html += '<div class="discussion-item">';
+                        html += '<div>' + escapeHtml(item.content) + '</div>';
+                        html += '<div class="discussion-meta">';
+                        html += '<span>👤 u/' + item.author + '</span>';
+                        html += '<span>⬆️ ' + item.score + '</span>';
+                        if (item.awards && item.awards > 0) html += '<span>🏆 ' + item.awards + '</span>';
+                        html += '</div>';
+                        if (item.permalink) {
+                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'ranking':
+                    data.forEach((item, index) => {
+                        html += '<div class="consensus-item">';
+                        html += '<span style="font-weight:700; color:#667eea; margin-right:10px;">#' + (index + 1) + '</span>';
+                        if (item.recommendation) {
+                            html += escapeHtml(item.recommendation);
+                            if (item.mentions) html += '<span class="consensus-count">' + item.mentions + ' mentions</span>';
+                        } else if (item.item) {
+                            html += escapeHtml(item.item);
+                            if (item.mentions) html += '<span class="consensus-count">' + item.mentions + ' mentions</span>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'categorized':
+                    data.forEach(category => {
+                        html += '<div style="margin-bottom:20px;">';
+                        html += '<div style="font-weight:600; color:#1a202c; margin-bottom:10px; font-size:1.05em;">' + category.category + '</div>';
+                        category.items.forEach(item => {
+                            html += '<div class="discussion-item" style="margin-bottom:8px;">';
+                            html += '<div>' + escapeHtml(item.content) + '</div>';
+                            html += '<div class="discussion-meta">';
+                            html += '<span>👤 u/' + item.author + '</span>';
+                            html += '<span>⬆️ ' + item.score + '</span>';
+                            html += '</div>';
+                            if (item.permalink) {
+                                html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                            }
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'comparison':
+                    if (data.quickWins && data.quickWins.length > 0) {
+                        html += '<div style="margin-bottom:20px;">';
+                        html += '<div style="font-weight:600; color:#10b981; margin-bottom:10px;">⚡ Quick Wins</div>';
+                        data.quickWins.forEach(item => {
+                            html += '<div class="solution-item">';
+                            html += '<div>' + escapeHtml(item.content) + '</div>';
+                            html += '<div style="font-size:0.85em; color:#6b7280; margin-top:5px;">Score: ' + item.score + '</div>';
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                    }
+                    if (data.longTerm && data.longTerm.length > 0) {
+                        html += '<div>';
+                        html += '<div style="font-weight:600; color:#3b82f6; margin-bottom:10px;">📅 Long-term Changes</div>';
+                        data.longTerm.forEach(item => {
+                            html += '<div class="solution-item">';
+                            html += '<div>' + escapeHtml(item.content) + '</div>';
+                            html += '<div style="font-size:0.85em; color:#6b7280; margin-top:5px;">Score: ' + item.score + '</div>';
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                    }
+                    break;
+
+                case 'list':
+                    data.forEach(item => {
+                        html += '<div class="consensus-item">';
+                        html += '<div>' + escapeHtml(item.statement) + '</div>';
+                        if (item.agreementLevel) {
+                            html += '<div style="font-size:0.85em; color:#667eea; margin-top:5px;">' + item.agreementLevel + '</div>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'debates':
+                    data.forEach(item => {
+                        html += '<div class="problem-item">';
+                        html += '<div>' + escapeHtml(item.content) + '</div>';
+                        if (item.debateLevel) {
+                            html += '<div style="font-size:0.85em; color:#ef4444; margin-top:5px;">' + item.debateLevel + '</div>';
+                        }
+                        html += '<div class="discussion-meta">';
+                        html += '<span>⬆️ ' + item.score + '</span>';
+                        html += '</div>';
+                        if (item.permalink) {
+                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'patterns':
+                    data.forEach(item => {
+                        html += '<div class="consensus-item">';
+                        html += '"' + escapeHtml(item.pattern) + '"';
+                        if (item.mentionedBy) {
+                            html += '<span class="consensus-count">' + item.mentionedBy + '</span>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'themes':
+                    data.forEach(item => {
+                        html += '<div class="consensus-item">';
+                        html += '<strong>' + item.theme + '</strong>';
+                        html += '<span class="consensus-count">' + item.mentions + ' mentions</span>';
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'discussions':
+                    data.forEach(item => {
+                        html += '<div class="discussion-item">';
+                        html += '<div>' + escapeHtml(item.content) + '</div>';
+                        html += '<div class="discussion-meta">';
+                        html += '<span>👤 u/' + item.author + '</span>';
+                        html += '<span>💬 ' + item.replyCount + ' replies</span>';
+                        html += '<span>⬆️ ' + item.score + '</span>';
+                        html += '</div>';
+                        if (item.permalink) {
+                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'problems':
+                    data.forEach(item => {
+                        html += '<div class="problem-item">';
+                        html += '<div>' + escapeHtml(item.content) + '</div>';
+                        html += '<div class="problem-count">';
+                        if (item.replyCount) html += item.replyCount + ' replies • ';
+                        html += 'Score: ' + item.score;
+                        html += '</div>';
+                        if (item.permalink) {
+                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'solutions':
+                    data.forEach(item => {
+                        html += '<div class="solution-item">';
+                        html += '<div>' + escapeHtml(item.content) + '</div>';
+                        if (item.confirmations > 0) {
+                            html += '<div class="solution-confirmed">✓ ' + item.confirmations + ' confirmations</div>';
+                        }
+                        html += '<div style="font-size:0.85em; color:#6b7280; margin-top:5px;">Score: ' + item.score + '</div>';
+                        if (item.permalink) {
+                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                case 'gems':
+                    data.forEach(item => {
+                        html += '<div class="gem-item">';
+                        html += '<div>' + escapeHtml(item.content) + '</div>';
+                        if (item.reason) {
+                            html += '<div class="gem-reason">' + item.reason + '</div>';
+                        }
+                        html += '<div style="font-size:0.85em; color:#92400e; margin-top:5px;">Score: ' + item.score + '</div>';
+                        if (item.permalink) {
+                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
+                        }
+                        html += '</div>';
+                    });
+                    break;
+
+                default:
+                    // Fallback for unknown types
+                    html += '<pre style="background:#f3f4f6; padding:10px; border-radius:4px; overflow:auto; font-size:0.85em;">';
+                    html += JSON.stringify(data, null, 2);
+                    html += '</pre>';
+            }
+
+            return html;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         
         function exportData() {
             if (!currentData) return;
-            
-            // Create CSV from the insights
-            let csv = 'Type,Content,Count,Author,Score,Link\n';
-            
-            const insights = currentData.insights || {};
-            
-            // Add each type of insight to CSV
-            if (insights.consensus) {
-                insights.consensus.forEach(item => {
-                    csv += '"Consensus","' + item.statement.replace(/"/g, '""') + '",' + item.mentions + ',,,' + '\n';
-                });
-            }
-            
-            if (insights.problems) {
-                insights.problems.forEach(item => {
-                    csv += '"Problem","' + item.problem.replace(/"/g, '""') + '",' + item.count + ',,,' + '\n';
-                });
-            }
-            
-            // Download
-            const blob = new Blob([csv], { type: 'text/csv' });
+
+            // Export as JSON
+            const jsonData = JSON.stringify(currentData, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'reddit_insights.csv';
+            a.download = 'reddit_insights_' + Date.now() + '.json';
             a.click();
+            window.URL.revokeObjectURL(url);
         }
     </script>
 </body>
