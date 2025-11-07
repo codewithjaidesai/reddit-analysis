@@ -568,6 +568,53 @@
                     });
                     break;
 
+                case 'strategic':
+                    // Strategic insights with intelligence and percentages
+                    data.forEach(item => {
+                        html += '<div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:20px; border-radius:8px; margin-bottom:15px;">';
+                        html += '<div style="font-size:1.1em; font-weight:600; margin-bottom:10px;">💡 ' + escapeHtml(item.insight) + '</div>';
+
+                        // Show additional data if available
+                        if (item.type === 'top_recommendation') {
+                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
+                            html += '<span>📊 ' + item.percentageOfComments + '% of comments</span>';
+                            html += '<span>😊 ' + item.satisfactionRate + '% positive</span>';
+                            html += '</div>';
+                        } else if (item.type === 'price_sensitivity') {
+                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
+                            html += '<span>💰 ' + item.priceAware + '% price-aware</span>';
+                            html += '<span>📈 Tendency: ' + item.tendency + '</span>';
+                            html += '</div>';
+                        } else if (item.type === 'solution_effectiveness') {
+                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
+                            html += '<span>✅ ' + item.workedCount + ' worked</span>';
+                            html += '<span>❌ ' + item.failedCount + ' failed</span>';
+                            html += '</div>';
+                        } else if (item.type === 'urgency_analysis') {
+                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
+                            html += '<span>🚨 Critical: ' + item.criticalPercentage + '%</span>';
+                            html += '<span>⚠️ High: ' + item.highPercentage + '%</span>';
+                            html += '<span>📌 Moderate: ' + item.moderatePercentage + '%</span>';
+                            html += '</div>';
+                        } else if (item.type === 'correlation') {
+                            html += '<div style="font-size:0.9em; opacity:0.9; margin-top:10px;">';
+                            html += '<span>🔗 Combination: "' + item.combination + '" (' + item.frequency + ' times)</span>';
+                            html += '</div>';
+                        } else if (item.type === 'growth_sentiment') {
+                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
+                            html += '<span>📈 ' + item.growthCount + ' growth mentions</span>';
+                            html += '<span>📉 ' + item.declineCount + ' decline mentions</span>';
+                            html += '</div>';
+                        } else if (item.percentage) {
+                            html += '<div style="font-size:0.9em; opacity:0.9; margin-top:10px;">';
+                            html += '<span>📊 ' + item.percentage + '% of comments</span>';
+                            html += '</div>';
+                        }
+
+                        html += '</div>';
+                    });
+                    break;
+
                 default:
                     // Fallback for unknown types
                     html += '<pre style="background:#f3f4f6; padding:10px; border-radius:4px; overflow:auto; font-size:0.85em;">';
