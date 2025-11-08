@@ -57,20 +57,33 @@ function getRedditAccessToken() {
 
 function doGet(e) {
   const output = ContentService.createTextOutput();
-  
+
   try {
     const url = e.parameter.url;
-    const mode = e.parameter.mode || 'deep'; // 'deep' for single post, 'overview' for subreddit
+    const mode = e.parameter.mode || 'deep'; // 'deep', 'overview', 'step1_extract', 'step2_recommend', 'step3_analyze'
     const callback = e.parameter.callback;
-    
+
     console.log('Processing request for:', url, 'Mode:', mode);
-    
+
     let processedData;
-    
+
     if (mode === 'overview') {
       // Subreddit overview mode
       const redditData = fetchSubredditOverview(url);
       processedData = processSubredditOverview(redditData, url);
+    } else if (mode === 'step1_extract') {
+      // Step 1: Extract valuable content only
+      const redditData = fetchAuthenticatedRedditData(url);
+      processedData = extractValuableContentOnly(redditData);
+    } else if (mode === 'step2_recommend') {
+      // Step 2: Analyze content and recommend analyses
+      const contentData = JSON.parse(e.parameter.contentData || '{}');
+      processedData = analyzeAndRecommend(contentData);
+    } else if (mode === 'step3_analyze') {
+      // Step 3: Generate selected insights
+      const contentData = JSON.parse(e.parameter.contentData || '{}');
+      const selectedAnalyses = JSON.parse(e.parameter.selectedAnalyses || '[]');
+      processedData = generateSelectedInsights(contentData, selectedAnalyses);
     } else {
       // Deep dive mode for single post
       const redditData = fetchAuthenticatedRedditData(url);
@@ -1947,4 +1960,538 @@ function synthesizeFromPatterns(patterns, learned, totalComments) {
   console.log('=== GENERATED', insights.length, 'INSIGHTS ===');
 
   return insights;
+}
+// ========== 3-STEP INTERACTIVE ANALYSIS SYSTEM ==========
+
+// STEP 1: Extract valuable content only (no analysis yet)
+function extractValuableContentOnly(redditData) {
+  const post = redditData.post;
+  const allComments = redditData.comments || [];
+
+  console.log('STEP 1: Extracting valuable content from', allComments.length, 'comments');
+
+  // Filter for high-value comments based on multiple criteria
+  const valuableComments = allComments.filter(comment => {
+    const score = comment.score || 0;
+    const body = comment.body || '';
+    const length = body.length;
+
+    // Criteria for "valuable" content:
+    // 1. High score (> 50)
+    // 2. Long detailed content (> 200 chars)
+    // 3. Has links/sources
+    // 4. Has awards
+    // 5. Expert indicators (professional language, experience mentions)
+
+    let valueScore = 0;
+
+    if (score > 100) valueScore += 3;
+    else if (score > 50) valueScore += 2;
+    else if (score > 20) valueScore += 1;
+
+    if (length > 500) valueScore += 2;
+    else if (length > 200) valueScore += 1;
+
+    if (/https?:\/\//.test(body)) valueScore += 1;
+    if (comment.total_awards_received > 0) valueScore += 2;
+    if (/\b(I work|professional|experience|expert|years|specialist|doctor|engineer|developer)\b/i.test(body)) valueScore += 1;
+    if (/\n[-*•]|\n\d+\./.test(body)) valueScore += 1; // Has lists
+
+    return valueScore >= 2; // Keep if value score is 2 or higher
+  });
+
+  // Sort by score descending
+  const sorted = valuableComments.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  // Return valuable content with metadata
+  return {
+    post: {
+      title: post.title,
+      author: post.author,
+      score: post.score,
+      url: post.url,
+      selftext: post.selftext,
+      created: post.created_utc,
+      num_comments: post.num_comments
+    },
+    totalComments: allComments.length,
+    valuableComments: sorted.slice(0, 100).map(c => ({ // Top 100 valuable comments
+      body: c.body,
+      author: c.author,
+      score: c.score,
+      awards: c.total_awards_received || 0,
+      created: c.created_utc,
+      permalink: c.permalink
+    })),
+    extractionStats: {
+      total: allComments.length,
+      extracted: sorted.length,
+      percentageKept: Math.round((sorted.length / allComments.length) * 100),
+      averageScore: Math.round(sorted.reduce((sum, c) => sum + (c.score || 0), 0) / sorted.length)
+    }
+  };
+}
+
+// STEP 2: Analyze content and recommend possible analyses
+function analyzeAndRecommend(contentData) {
+  console.log('STEP 2: Analyzing content to recommend analyses');
+
+  const comments = contentData.valuableComments || [];
+  const recommendations = [];
+
+  // Analyze what types of insights are possible based on content
+
+  // 1. Entity & Topic Analysis
+  const entities = {};
+  comments.forEach(c => {
+    const matches = (c.body || '').match(/\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/g) || [];
+    matches.forEach(e => {
+      if (e.length > 3) entities[e] = (entities[e] || 0) + 1;
+    });
+  });
+  const topEntities = Object.entries(entities).filter(([_, count]) => count >= 3).length;
+  if (topEntities > 0) {
+    recommendations.push({
+      id: 'entity_analysis',
+      name: 'Entity & Topic Analysis',
+      description: `Identify most discussed industries, products, or topics with sentiment`,
+      available: true,
+      dataFound: `${topEntities} entities mentioned 3+ times`,
+      estimatedInsights: Math.min(topEntities, 10)
+    });
+  }
+
+  // 2. Success/Failure Rate Analysis
+  const outcomeWords = {
+    success: /\b(worked|success|helped|fixed|cured|solved|great|amazing)\b/i,
+    failure: /\b(failed|didn't work|worse|useless|no help|terrible|awful)\b/i
+  };
+  const successCount = comments.filter(c => outcomeWords.success.test(c.body)).length;
+  const failureCount = comments.filter(c => outcomeWords.failure.test(c.body)).length;
+  if (successCount + failureCount >= 10) {
+    recommendations.push({
+      id: 'outcome_analysis',
+      name: 'Success/Failure Rate Analysis',
+      description: `Calculate success rates and effectiveness of solutions discussed`,
+      available: true,
+      dataFound: `${successCount} success + ${failureCount} failure mentions`,
+      estimatedInsights: 3
+    });
+  }
+
+  // 3. Expert vs Experience Mix
+  const expertCount = comments.filter(c => /\b(I work|professional|doctor|engineer|specialist|expert)\b/i.test(c.body)).length;
+  const experienceCount = comments.filter(c => /\b(I |my |me |I've|I'm|personally)\b/i.test(c.body)).length;
+  if (expertCount >= 5 || experienceCount >= 20) {
+    recommendations.push({
+      id: 'speaker_analysis',
+      name: 'Expert vs Personal Experience Mix',
+      description: `Analyze the balance between professional advice and lived experiences`,
+      available: true,
+      dataFound: `${expertCount} expert comments, ${experienceCount} personal experiences`,
+      estimatedInsights: 2
+    });
+  }
+
+  // 4. Geographic Patterns
+  const locations = ['US', 'UK', 'Canada', 'Australia', 'Europe', 'Asia', 'India', 'China', 'California', 'Texas', 'New York'];
+  const geoMentions = {};
+  comments.forEach(c => {
+    locations.forEach(loc => {
+      if ((c.body || '').includes(loc)) {
+        geoMentions[loc] = (geoMentions[loc] || 0) + 1;
+      }
+    });
+  });
+  const geoCount = Object.keys(geoMentions).length;
+  if (geoCount >= 2) {
+    recommendations.push({
+      id: 'geographic_analysis',
+      name: 'Geographic Patterns',
+      description: `Identify location-based differences in experiences or availability`,
+      available: true,
+      dataFound: `${geoCount} locations mentioned`,
+      estimatedInsights: Math.min(geoCount, 3)
+    });
+  }
+
+  // 5. Pricing/Cost Analysis
+  const pricePatterns = /\$[\d,]+|\bcost\b|\bprice\b|\bexpensive\b|\bcheap\b|\baffordable\b/gi;
+  const priceCount = comments.filter(c => pricePatterns.test(c.body)).length;
+  if (priceCount >= 10) {
+    recommendations.push({
+      id: 'pricing_analysis',
+      name: 'Pricing & Cost Analysis',
+      description: `Analyze price sensitivity, cost mentions, and value perception`,
+      available: true,
+      dataFound: `${priceCount} comments mention pricing/cost`,
+      estimatedInsights: 3
+    });
+  }
+
+  // 6. Timeline Expectations
+  const timePatterns = /\b(immediate|instant|days?|weeks?|months?|years?|long.?term|short.?term)\b/i;
+  const timeCount = comments.filter(c => timePatterns.test(c.body)).length;
+  if (timeCount >= 10) {
+    recommendations.push({
+      id: 'timeline_analysis',
+      name: 'Timeline Expectations',
+      description: `Understand how long things take based on community experiences`,
+      available: true,
+      dataFound: `${timeCount} comments mention timeframes`,
+      estimatedInsights: 2
+    });
+  }
+
+  // 7. Repeated Phrases (Common Language)
+  const phrases = {};
+  comments.forEach(c => {
+    const words = (c.body || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    for (let i = 0; i < words.length - 2; i++) {
+      const phrase = words.slice(i, i + 3).join(' ');
+      if (phrase.length >= 12 && phrase.length <= 60) {
+        phrases[phrase] = (phrases[phrase] || 0) + 1;
+      }
+    }
+  });
+  const commonPhrases = Object.entries(phrases).filter(([_, count]) => count >= 3).length;
+  if (commonPhrases >= 3) {
+    recommendations.push({
+      id: 'phrase_analysis',
+      name: 'Common Language & Phrases',
+      description: `Identify repeated phrases that reveal shared experiences`,
+      available: true,
+      dataFound: `${commonPhrases} phrases repeated 3+ times`,
+      estimatedInsights: Math.min(commonPhrases, 5)
+    });
+  }
+
+  // 8. Comparison Analysis
+  const comparisonPatterns = /\b(vs|versus|compared to|better than|worse than|instead of)\b/i;
+  const compCount = comments.filter(c => comparisonPatterns.test(c.body)).length;
+  if (compCount >= 5) {
+    recommendations.push({
+      id: 'comparison_analysis',
+      name: 'Comparison Analysis',
+      description: `Identify what people are comparing and their preferences`,
+      available: true,
+      dataFound: `${compCount} comments with comparisons`,
+      estimatedInsights: Math.min(compCount, 5)
+    });
+  } else {
+    recommendations.push({
+      id: 'comparison_analysis',
+      name: 'Comparison Analysis',
+      description: `Identify what people are comparing and their preferences`,
+      available: false,
+      dataFound: `Only ${compCount} comparison mentions (need 5+)`,
+      estimatedInsights: 0
+    });
+  }
+
+  // 9. Emotional Tone Analysis
+  const emotionWords = {
+    frustrated: /\b(frustrat|annoying|impossible|can't|won't)\b/i,
+    excited: /\b(excited|amazing|love|incredible|fantastic)\b/i,
+    worried: /\b(worry|concern|anxious|afraid|nervous)\b/i
+  };
+  let emotionCount = 0;
+  Object.values(emotionWords).forEach(pattern => {
+    emotionCount += comments.filter(c => pattern.test(c.body)).length;
+  });
+  if (emotionCount >= 10) {
+    recommendations.push({
+      id: 'emotion_analysis',
+      name: 'Emotional Tone Analysis',
+      description: `Understand the emotional landscape of the discussion`,
+      available: true,
+      dataFound: `${emotionCount} emotional indicators detected`,
+      estimatedInsights: 3
+    });
+  }
+
+  return {
+    totalRecommendations: recommendations.length,
+    availableAnalyses: recommendations.filter(r => r.available).length,
+    recommendations: recommendations.sort((a, b) => (b.available ? 1 : 0) - (a.available ? 1 : 0))
+  };
+}
+
+// STEP 3: Generate only selected insights
+function generateSelectedInsights(contentData, selectedAnalyses) {
+  console.log('STEP 3: Generating insights for', selectedAnalyses.length, 'selected analyses');
+
+  const comments = contentData.valuableComments || [];
+  const post = contentData.post || {};
+  const insights = [];
+
+  // Stopwords for entity extraction
+  const stopwords = new Set([
+    'The', 'This', 'That', 'These', 'Those', 'They', 'There', 'Their',
+    'What', 'When', 'Where', 'Which', 'Who', 'Why', 'How',
+    'Every', 'Each', 'Some', 'Many', 'More', 'Most', 'Much',
+    'From', 'With', 'About', 'Into', 'Through', 'During', 'Before', 'After',
+    'Just', 'Very', 'Really', 'Actually', 'Basically', 'Literally',
+    'Reddit', 'Edit', 'Update', 'Source', 'Yeah', 'Also', 'Because',
+    'People', 'Person', 'Someone', 'Anyone', 'Everyone', 'Nobody',
+    'Thing', 'Things', 'Something', 'Anything', 'Everything', 'Nothing'
+  ]);
+
+  selectedAnalyses.forEach(analysisId => {
+
+    if (analysisId === 'entity_analysis') {
+      // Entity & Topic Analysis
+      const entities = {};
+      const basePosWords = ['good', 'great', 'love', 'best', 'worked', 'helped', 'success', 'amazing', 'booming', 'growing'];
+      const baseNegWords = ['bad', 'terrible', 'hate', 'worst', 'failed', 'useless', 'awful', 'dying', 'declining'];
+
+      comments.forEach(c => {
+        const body = c.body || '';
+        const matches = body.match(/\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/g) || [];
+        matches.forEach(entity => {
+          if (entity.length > 3 && !stopwords.has(entity)) {
+            if (!entities[entity]) {
+              entities[entity] = {count: 0, pos: 0, neg: 0, neu: 0};
+            }
+            entities[entity].count++;
+
+            const idx = body.indexOf(entity);
+            const context = body.substring(Math.max(0, idx - 60), Math.min(body.length, idx + entity.length + 60)).toLowerCase();
+            if (basePosWords.some(w => context.includes(w))) {
+              entities[entity].pos++;
+            } else if (baseNegWords.some(w => context.includes(w))) {
+              entities[entity].neg++;
+            } else {
+              entities[entity].neu++;
+            }
+          }
+        });
+      });
+
+      const topEntities = Object.entries(entities)
+        .filter(([_, data]) => data.count >= 3)
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 10);
+
+      topEntities.forEach(([entity, data]) => {
+        const total = data.pos + data.neg + data.neu;
+        const sentiment = total > 0 ? Math.round((data.pos / total) * 100) : 0;
+        const percentage = Math.round((data.count / comments.length) * 100);
+
+        let sentimentText = '';
+        if (sentiment >= 70) sentimentText = ` with ${sentiment}% positive sentiment - highly favored`;
+        else if (sentiment <= 30 && sentiment > 0) sentimentText = ` with only ${sentiment}% positive sentiment - concerns noted`;
+
+        insights.push({
+          type: 'entity_analysis',
+          insight: `"${entity}" discussed in ${percentage}% of comments (${data.count} mentions)${sentimentText}`,
+          entity: entity,
+          mentions: data.count,
+          percentage: percentage,
+          sentiment: sentiment
+        });
+      });
+    }
+
+    if (analysisId === 'outcome_analysis') {
+      // Success/Failure Rate Analysis
+      const worked = comments.filter(c => /\b(worked|success|helped|fixed|cured|solved)\b/i.test(c.body)).length;
+      const failed = comments.filter(c => /\b(failed|didn't work|worse|useless|no help)\b/i.test(c.body)).length;
+      const total = worked + failed;
+
+      if (total >= 10) {
+        const successRate = Math.round((worked / total) * 100);
+        let interpretation = '';
+        if (successRate >= 70) interpretation = 'highly effective';
+        else if (successRate >= 50) interpretation = 'moderately effective';
+        else if (successRate >= 30) interpretation = 'mixed results';
+        else interpretation = 'low success rate - caution advised';
+
+        insights.push({
+          type: 'outcome_analysis',
+          insight: `${successRate}% success rate across reported attempts (${worked} worked vs ${failed} failed) - ${interpretation}`,
+          successRate: successRate,
+          worked: worked,
+          failed: failed
+        });
+      }
+    }
+
+    if (analysisId === 'speaker_analysis') {
+      // Expert vs Experience Mix
+      const expertCount = comments.filter(c => /\b(I work|professional|doctor|engineer|specialist|expert)\b/i.test(c.body)).length;
+      const experienceCount = comments.filter(c => /\b(I |my |me |I've|I'm|personally)\b/i.test(c.body)).length;
+      const expertPct = Math.round((expertCount / comments.length) * 100);
+      const experiencePct = Math.round((experienceCount / comments.length) * 100);
+
+      let insight = '';
+      if (expertPct >= 20) {
+        insight = `${expertPct}% expert/professional input, ${experiencePct}% firsthand experiences - balanced authoritative and personal perspectives`;
+      } else if (experiencePct >= 70) {
+        insight = `${experiencePct}% firsthand personal experiences - highly authentic, lived-experience based discussion`;
+      } else {
+        insight = `Community-driven discussion with ${experiencePct}% firsthand experiences`;
+      }
+
+      insights.push({
+        type: 'speaker_analysis',
+        insight: insight,
+        expertPct: expertPct,
+        experiencePct: experiencePct
+      });
+    }
+
+    if (analysisId === 'geographic_analysis') {
+      // Geographic Patterns
+      const locations = ['US', 'UK', 'Canada', 'Australia', 'Europe', 'Asia', 'India', 'China', 'California', 'Texas', 'New York'];
+      const geoMentions = {};
+      comments.forEach(c => {
+        locations.forEach(loc => {
+          if ((c.body || '').includes(loc)) {
+            geoMentions[loc] = (geoMentions[loc] || 0) + 1;
+          }
+        });
+      });
+
+      const mentioned = Object.entries(geoMentions).filter(([_, count]) => count >= 2);
+      if (mentioned.length >= 2) {
+        const locationList = mentioned.map(([loc, count]) => `${loc} (${count})`).join(', ');
+        insights.push({
+          type: 'geographic_analysis',
+          insight: `Geographic differences noted: ${locationList} - treatment/experience varies by location`,
+          locations: mentioned.length
+        });
+      }
+    }
+
+    if (analysisId === 'pricing_analysis') {
+      // Pricing/Cost Analysis
+      const priceComments = comments.filter(c => /\$[\d,]+|\bcost\b|\bprice\b|\bexpensive\b|\bcheap\b|\baffordable\b/i.test(c.body));
+      const expensiveMentions = priceComments.filter(c => /\bexpensive\b|\bpricey\b|\bcost\b|\$[\d,]{3,}/i.test(c.body)).length;
+      const cheapMentions = priceComments.filter(c => /\bcheap\b|\baffordable\b|\bbudget\b/i.test(c.body)).length;
+      const pricePct = Math.round((priceComments.length / comments.length) * 100);
+
+      insights.push({
+        type: 'pricing_analysis',
+        insight: `Price discussed in ${pricePct}% of comments - ${expensiveMentions > cheapMentions ? 'Quality over price' : 'Budget-conscious'} audience`,
+        pricePct: pricePct,
+        expensiveMentions: expensiveMentions,
+        cheapMentions: cheapMentions
+      });
+    }
+
+    if (analysisId === 'timeline_analysis') {
+      // Timeline Expectations
+      const timeMentions = {};
+      const timePatterns = {
+        'immediate': /\b(immediately|instant|right away|same day)\b/i,
+        'days': /\b(days?|few days|couple days)\b/i,
+        'weeks': /\b(weeks?|few weeks)\b/i,
+        'months': /\b(months?|several months)\b/i,
+        'years': /\b(years?|long time|forever)\b/i
+      };
+
+      comments.forEach(c => {
+        Object.entries(timePatterns).forEach(([timeline, pattern]) => {
+          if (pattern.test(c.body)) {
+            timeMentions[timeline] = (timeMentions[timeline] || 0) + 1;
+          }
+        });
+      });
+
+      const dominant = Object.entries(timeMentions).sort((a, b) => b[1] - a[1])[0];
+      if (dominant && dominant[1] >= 3) {
+        const pct = Math.round((dominant[1] / comments.length) * 100);
+        insights.push({
+          type: 'timeline_analysis',
+          insight: `Most common timeline: "${dominant[0]}" (${pct}% of comments) - sets realistic expectations`,
+          timeline: dominant[0],
+          percentage: pct
+        });
+      }
+    }
+
+    if (analysisId === 'phrase_analysis') {
+      // Common Language & Phrases
+      const phrases = {};
+      comments.forEach(c => {
+        const words = (c.body || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        for (let i = 0; i < words.length - 2; i++) {
+          const phrase = words.slice(i, i + 3).join(' ');
+          if (phrase.length >= 12 && phrase.length <= 60) {
+            phrases[phrase] = (phrases[phrase] || 0) + 1;
+          }
+        }
+      });
+
+      const common = Object.entries(phrases)
+        .filter(([_, count]) => count >= 3)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      common.forEach(([phrase, count]) => {
+        const pct = Math.round((count / comments.length) * 100);
+        insights.push({
+          type: 'phrase_analysis',
+          insight: `"${phrase}" repeated ${count} times (${pct}% of comments) - common shared experience`,
+          phrase: phrase,
+          count: count
+        });
+      });
+    }
+
+    if (analysisId === 'comparison_analysis') {
+      // Comparison Analysis
+      const comparisons = [];
+      comments.forEach(c => {
+        const matches = (c.body || '').match(/([A-Za-z\s]+)\s+(vs|versus|compared to|better than|worse than|instead of)\s+([A-Za-z\s]+)/gi);
+        if (matches) {
+          matches.forEach(m => comparisons.push(m));
+        }
+      });
+
+      if (comparisons.length >= 5) {
+        insights.push({
+          type: 'comparison_analysis',
+          insight: `${comparisons.length} comparisons found - active evaluation and decision-making in discussion`,
+          count: comparisons.length,
+          examples: comparisons.slice(0, 3)
+        });
+      }
+    }
+
+    if (analysisId === 'emotion_analysis') {
+      // Emotional Tone Analysis
+      const emotions = {
+        'frustrated': 0,
+        'excited': 0,
+        'worried': 0
+      };
+
+      comments.forEach(c => {
+        const body = c.body || '';
+        if (/\b(frustrat|annoying|impossible|can't|won't)\b/i.test(body)) emotions.frustrated++;
+        if (/\b(excited|amazing|love|incredible|fantastic)\b/i.test(body)) emotions.excited++;
+        if (/\b(worry|concern|anxious|afraid|nervous)\b/i.test(body)) emotions.worried++;
+      });
+
+      const dominant = Object.entries(emotions).sort((a, b) => b[1] - a[1])[0];
+      if (dominant && dominant[1] >= 5) {
+        const pct = Math.round((dominant[1] / comments.length) * 100);
+        insights.push({
+          type: 'emotion_analysis',
+          insight: `Dominant emotion: ${dominant[0]} (${pct}% of comments) - shapes discussion tone`,
+          emotion: dominant[0],
+          percentage: pct
+        });
+      }
+    }
+
+  });
+
+  return {
+    selectedAnalyses: selectedAnalyses,
+    totalInsights: insights.length,
+    insights: insights
+  };
 }
