@@ -1965,6 +1965,12 @@ function synthesizeFromPatterns(patterns, learned, totalComments) {
 
 // STEP 1: Extract valuable content only (no analysis yet)
 function extractValuableContentOnly(redditData) {
+  console.log('STEP 1: Received redditData:', redditData);
+
+  if (!redditData || !redditData.post) {
+    throw new Error('Invalid data: Missing post data. RedditData structure: ' + JSON.stringify(Object.keys(redditData || {})));
+  }
+
   const post = redditData.post;
   const allComments = redditData.comments || [];
 
