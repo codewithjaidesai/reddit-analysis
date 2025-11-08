@@ -75,6 +75,8 @@ function doGet(e) {
       // Step 1: Extract valuable content only
       const rawRedditData = fetchAuthenticatedRedditData(url);
 
+      console.log('Step1: Raw Reddit data received, length:', rawRedditData ? rawRedditData.length : 'null');
+
       // Parse raw Reddit API data structure
       let post = null;
       let comments = [];
@@ -83,13 +85,20 @@ function doGet(e) {
         // Extract post data
         if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
           post = rawRedditData[0].data.children[0].data;
+          console.log('Step1: Extracted post:', post ? post.title : 'null');
         }
 
         // Extract comments data
         if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
           const rawComments = rawRedditData[1].data.children;
+          console.log('Step1: Raw comments found:', rawComments.length);
           comments = extractAllComments(rawComments);
+          console.log('Step1: Extracted comments (recursive):', comments.length);
+        } else {
+          console.log('Step1: No comments data found in rawRedditData[1]');
         }
+      } else {
+        console.log('Step1: rawRedditData is not an array or empty');
       }
 
       // Filter valid comments
@@ -101,6 +110,9 @@ function doGet(e) {
         comment.author !== '[deleted]' &&
         comment.body.trim().length > 10
       );
+
+      console.log('Step1: Valid comments after filtering:', validComments.length);
+      console.log('Step1: First 3 comment bodies:', validComments.slice(0, 3).map(c => c.body ? c.body.substring(0, 50) : 'no body'));
 
       // Pass structured data to extraction function
       processedData = extractValuableContentOnly({
