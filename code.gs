@@ -1073,30 +1073,60 @@ function extractNotablePerspectives(comments) {
 function extractMentionRankings(comments) {
   const mentions = {};
 
+  // Comprehensive stopword list - common words that aren't entities
+  const stopwords = new Set([
+    'The', 'This', 'That', 'These', 'Those', 'They', 'There', 'Their',
+    'What', 'When', 'Where', 'Which', 'Who', 'Why', 'How',
+    'Every', 'Each', 'Some', 'Many', 'More', 'Most', 'Much',
+    'From', 'With', 'About', 'Into', 'Through', 'During', 'Before', 'After',
+    'Just', 'Very', 'Really', 'Actually', 'Basically', 'Literally',
+    'Reddit', 'Edit', 'Update', 'Source', 'Yeah', 'Also', 'Because',
+    'People', 'Person', 'Someone', 'Anyone', 'Everyone', 'Nobody',
+    'Thing', 'Things', 'Something', 'Anything', 'Everything', 'Nothing',
+    'Good', 'Great', 'Best', 'Better', 'Worse', 'Worst',
+    'First', 'Second', 'Third', 'Last', 'Next', 'Other', 'Another',
+    'Data', 'Year', 'Years', 'Time', 'Times', 'Way', 'Ways',
+    'Work', 'Working', 'Works', 'Worked', 'Does', 'Did', 'Done',
+    'Make', 'Makes', 'Made', 'Making', 'Take', 'Takes', 'Took',
+    'Even', 'Still', 'Always', 'Never', 'Often', 'Sometimes',
+    'Here', 'There', 'Everywhere', 'Somewhere', 'Anywhere', 'Nowhere'
+  ]);
+
   comments.forEach(comment => {
     const body = comment.body || '';
 
-    // Extract capitalized words or quoted terms (likely specific things)
-    const capitalizedWords = body.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) || [];
+    // Extract multi-word capitalized phrases (up to 4 words)
+    const capitalizedPhrases = body.match(/\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/g) || [];
 
-    capitalizedWords.forEach(word => {
-      if (word.length > 3 && word !== 'Reddit' && word !== 'Edit') {
-        if (!mentions[word]) {
-          mentions[word] = {
-            count: 0,
-            totalScore: 0,
-            examples: []
-          };
-        }
-        mentions[word].count++;
-        mentions[word].totalScore += comment.score || 0;
+    capitalizedPhrases.forEach(phrase => {
+      const trimmed = phrase.trim();
 
-        if (mentions[word].examples.length < 2) {
-          mentions[word].examples.push({
-            author: comment.author,
-            score: comment.score,
-            context: body.substring(0, 150)
-          });
+      // Filter out stopwords and very short words
+      if (trimmed.length > 2 && !stopwords.has(trimmed)) {
+        // Also filter if it's ONLY stopwords in a multi-word phrase
+        const words = trimmed.split(/\s+/);
+        const hasNonStopword = words.some(w => !stopwords.has(w));
+
+        if (hasNonStopword) {
+          if (!mentions[trimmed]) {
+            mentions[trimmed] = {
+              count: 0,
+              totalScore: 0,
+              examples: []
+            };
+          }
+          mentions[trimmed].count++;
+          mentions[trimmed].totalScore += comment.score || 0;
+
+          if (mentions[trimmed].examples.length < 2) {
+            const idx = body.indexOf(trimmed);
+            const context = body.substring(Math.max(0, idx - 50), Math.min(body.length, idx + trimmed.length + 100));
+            mentions[trimmed].examples.push({
+              author: comment.author,
+              score: comment.score,
+              context: context
+            });
+          }
         }
       }
     });
@@ -1105,7 +1135,7 @@ function extractMentionRankings(comments) {
   const ranked = Object.entries(mentions)
     .filter(([word, data]) => data.count >= 3)
     .sort((a, b) => (b[1].count * 10 + b[1].totalScore) - (a[1].count * 10 + a[1].totalScore))
-    .slice(0, 20)
+    .slice(0, 15)
     .map(([word, data]) => ({
       item: word,
       mentions: data.count,
@@ -1115,8 +1145,8 @@ function extractMentionRankings(comments) {
 
   return {
     id: 'mention_rankings',
-    title: '📈 Most Mentioned',
-    description: 'Ranked by frequency and score',
+    title: '📈 Industries & Topics',
+    description: 'Most discussed entities',
     type: 'ranking',
     data: ranked
   };
@@ -1411,1188 +1441,7 @@ function extractHiddenGemsNew(comments) {
   };
 }
 
-// ========== STRATEGIC INSIGHT SYNTHESIS ==========
-
-function synthesizeStrategicInsights(post, comments, postContext, extractedInsights) {
-  const insights = [];
-  const totalComments = comments.length;
-
-  console.log('Synthesizing strategic insights for', postContext.type);
-
-  // Analyze comment text for patterns
-  const allText = comments.map(c => c.body || '').join(' ').toLowerCase();
-  const words = allText.split(/\s+/).filter(w => w.length > 3);
-
-  // Calculate sentiment distribution
-  const sentimentDist = calculateSentimentDistribution(comments);
-
-  // Find what people are asking for vs what they're complaining about
-  const needsVsComplaints = analyzeNeedsVsComplaints(comments);
-
-  // Identify success patterns vs failure patterns
-  const successPatterns = analyzeSuccessPatterns(comments);
-
-  // Calculate percentage-based insights
-  const percentageInsights = calculatePercentageInsights(comments, postContext);
-
-  // Identify correlations (what works together)
-  const correlations = findCorrelations(comments);
-
-  // Synthesize based on post type
-  if (postContext.type === 'recommendation_request' || postContext.type === 'life_advice_request') {
-    insights.push(...synthesizeRecommendationInsights(comments, totalComments));
-  } else if (postContext.type === 'problem_solving' || postContext.type === 'question') {
-    insights.push(...synthesizeProblemSolvingInsights(comments, totalComments));
-  } else if (postContext.type === 'trend_discovery') {
-    insights.push(...synthesizeTrendInsights(comments, totalComments));
-  }
-
-  // Add universal strategic insights
-  if (percentageInsights.length > 0) {
-    insights.push(...percentageInsights);
-  }
-
-  if (correlations.length > 0) {
-    insights.push(...correlations);
-  }
-
-  if (Object.keys(needsVsComplaints).length > 0) {
-    insights.push({
-      type: 'need_analysis',
-      insight: needsVsComplaints.summary,
-      data: needsVsComplaints
-    });
-  }
-
-  return {
-    id: 'strategic_insights',
-    title: '🎯 Strategic Insights',
-    description: 'Synthesized intelligence from the discussion',
-    type: 'strategic',
-    data: insights
-  };
-}
-
-function synthesizeRecommendationInsights(comments, totalComments) {
-  const insights = [];
-
-  // Find most mentioned items with context
-  const mentions = {};
-  const pricePatterns = /\$[\d,]+|\bcheap\b|\bexpensive\b|\baffordable\b|\bpricey\b/gi;
-  const timePatterns = /\b(immediately|instant|week|month|year|long.?term|short.?term)\b/gi;
-
-  comments.forEach(comment => {
-    const body = comment.body || '';
-
-    // Extract capitalized words (likely products/services)
-    const items = body.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g) || [];
-
-    items.forEach(item => {
-      if (item.length > 3 && !['Reddit', 'Edit', 'Update'].includes(item)) {
-        if (!mentions[item]) {
-          mentions[item] = {
-            count: 0,
-            withPrice: 0,
-            withTime: 0,
-            positive: 0,
-            negative: 0,
-            totalScore: 0
-          };
-        }
-        mentions[item].count++;
-        mentions[item].totalScore += comment.score || 0;
-
-        if (pricePatterns.test(body)) mentions[item].withPrice++;
-        if (timePatterns.test(body)) mentions[item].withTime++;
-
-        // Check sentiment around this mention
-        const itemIndex = body.indexOf(item);
-        const context = body.substring(Math.max(0, itemIndex - 50), Math.min(body.length, itemIndex + 50));
-        if (/\b(love|great|amazing|best|recommend|helped|worked)\b/i.test(context)) {
-          mentions[item].positive++;
-        }
-        if (/\b(hate|bad|terrible|worst|waste|didn't work|failed)\b/i.test(context)) {
-          mentions[item].negative++;
-        }
-      }
-    });
-  });
-
-  // Synthesize top recommendation with stats
-  const topMentions = Object.entries(mentions)
-    .filter(([item, data]) => data.count >= 3)
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 10);
-
-  if (topMentions.length > 0) {
-    const top = topMentions[0];
-    const [item, data] = top;
-    const satisfactionRate = Math.round((data.positive / (data.positive + data.negative)) * 100);
-
-    insights.push({
-      type: 'top_recommendation',
-      insight: `"${item}" is the most mentioned (${data.count} times, ${Math.round((data.count/totalComments)*100)}% of comments) with ${satisfactionRate}% positive sentiment`,
-      item: item,
-      mentions: data.count,
-      percentageOfComments: Math.round((data.count/totalComments)*100),
-      satisfactionRate: satisfactionRate
-    });
-  }
-
-  // Find what people would "break rules" for
-  const breakRules = comments.filter(c =>
-    /\b(break|cheat|exception|worth it|can't resist|have to|must have)\b/i.test(c.body || '')
-  );
-
-  if (breakRules.length > 5) {
-    const percentage = Math.round((breakRules.length / totalComments) * 100);
-    insights.push({
-      type: 'behavioral_insight',
-      insight: `${percentage}% of people mention items they'd "break their rules" for - indicating strong emotional attachment`,
-      percentage: percentage,
-      count: breakRules.length
-    });
-  }
-
-  // Find price sensitivity patterns
-  const priceComments = comments.filter(c => pricePatterns.test(c.body || ''));
-  if (priceComments.length > 10) {
-    const expensiveMentions = priceComments.filter(c => /\bexpensive\b|\bpricey\b|\bcost\b|\$[\d,]{3,}/i.test(c.body)).length;
-    const cheapMentions = priceComments.filter(c => /\bcheap\b|\baffordable\b|\bbudget\b/i.test(c.body)).length;
-
-    insights.push({
-      type: 'price_sensitivity',
-      insight: `Price discussed in ${Math.round((priceComments.length/totalComments)*100)}% of comments - ${expensiveMentions > cheapMentions ? 'Quality over price' : 'Budget-conscious'} audience`,
-      priceAware: Math.round((priceComments.length/totalComments)*100),
-      expensiveMentions: expensiveMentions,
-      cheapMentions: cheapMentions,
-      tendency: expensiveMentions > cheapMentions ? 'premium' : 'budget'
-    });
-  }
-
-  return insights;
-}
-
-function synthesizeProblemSolvingInsights(comments, totalComments) {
-  const insights = [];
-
-  // Find problem severity indicators
-  const severityWords = {
-    critical: ['desperate', 'urgent', 'emergency', 'severe', 'extreme', 'unbearable'],
-    high: ['really', 'very', 'super', 'extremely', 'significantly'],
-    moderate: ['somewhat', 'kinda', 'bit', 'little', 'slightly']
-  };
-
-  let criticalCount = 0, highCount = 0, moderateCount = 0;
-
-  comments.forEach(comment => {
-    const body = (comment.body || '').toLowerCase();
-    if (severityWords.critical.some(word => body.includes(word))) criticalCount++;
-    else if (severityWords.high.some(word => body.includes(word))) highCount++;
-    else if (severityWords.moderate.some(word => body.includes(word))) moderateCount++;
-  });
-
-  if (criticalCount > 0) {
-    insights.push({
-      type: 'urgency_analysis',
-      insight: `${Math.round((criticalCount/totalComments)*100)}% of comments indicate critical/urgent issues requiring immediate attention`,
-      criticalPercentage: Math.round((criticalCount/totalComments)*100),
-      highPercentage: Math.round((highCount/totalComments)*100),
-      moderatePercentage: Math.round((moderateCount/totalComments)*100)
-    });
-  }
-
-  // Find solution success rate
-  const solutionComments = comments.filter(c =>
-    /\b(worked|solved|fixed|helped|success|cured)\b/i.test(c.body || '')
-  );
-  const failureComments = comments.filter(c =>
-    /\b(didn't work|failed|worse|no help|useless|waste)\b/i.test(c.body || '')
-  );
-
-  if (solutionComments.length > 5 || failureComments.length > 5) {
-    const successRate = Math.round((solutionComments.length / (solutionComments.length + failureComments.length)) * 100);
-    insights.push({
-      type: 'solution_effectiveness',
-      insight: `${successRate}% success rate among attempted solutions (${solutionComments.length} worked vs ${failureComments.length} failed)`,
-      successRate: successRate,
-      workedCount: solutionComments.length,
-      failedCount: failureComments.length
-    });
-  }
-
-  // Find common frustration points
-  const frustrationWords = ['frustrated', 'annoying', 'impossible', 'can\'t', 'won\'t', 'never', 'always fails'];
-  const frustrations = comments.filter(c =>
-    frustrationWords.some(word => (c.body || '').toLowerCase().includes(word))
-  );
-
-  if (frustrations.length > totalComments * 0.2) {
-    insights.push({
-      type: 'frustration_level',
-      insight: `High frustration level detected: ${Math.round((frustrations.length/totalComments)*100)}% of comments express frustration - indicates systemic issues`,
-      frustrationPercentage: Math.round((frustrations.length/totalComments)*100)
-    });
-  }
-
-  // Time to resolution
-  const timePatterns = {
-    immediate: /\b(immediately|instant|right away|same day)\b/i,
-    days: /\b(days?|few days|couple days)\b/i,
-    weeks: /\b(weeks?|few weeks)\b/i,
-    months: /\b(months?|several months|half year)\b/i,
-    years: /\b(years?|long time|forever)\b/i
-  };
-
-  const timelines = {immediate: 0, days: 0, weeks: 0, months: 0, years: 0};
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    Object.keys(timePatterns).forEach(timeline => {
-      if (timePatterns[timeline].test(body)) timelines[timeline]++;
-    });
-  });
-
-  const longestTimeline = Object.entries(timelines)
-    .filter(([_, count]) => count > 0)
-    .sort((a, b) => b[1] - a[1])[0];
-
-  if (longestTimeline && longestTimeline[1] > 3) {
-    insights.push({
-      type: 'resolution_timeline',
-      insight: `Most common resolution timeline: ${longestTimeline[0]} (mentioned in ${longestTimeline[1]} comments)`,
-      timeline: longestTimeline[0],
-      mentions: longestTimeline[1]
-    });
-  }
-
-  return insights;
-}
-
-function synthesizeTrendInsights(comments, totalComments) {
-  const insights = [];
-
-  // Find growth indicators with percentages
-  const growthWords = ['growing', 'booming', 'exploding', 'trending', 'popular', 'increasing'];
-  const declineWords = ['declining', 'dying', 'failing', 'decreasing', 'dead'];
-
-  const growthMentions = comments.filter(c =>
-    growthWords.some(word => (c.body || '').toLowerCase().includes(word))
-  ).length;
-
-  const declineMentions = comments.filter(c =>
-    declineWords.some(word => (c.body || '').toLowerCase().includes(word))
-  ).length;
-
-  if (growthMentions > declineMentions && growthMentions > 5) {
-    insights.push({
-      type: 'growth_sentiment',
-      insight: `${Math.round((growthMentions/(growthMentions+declineMentions))*100)}% positive growth sentiment (${growthMentions} growing vs ${declineMentions} declining mentions)`,
-      growthPercentage: Math.round((growthMentions/(growthMentions+declineMentions))*100),
-      growthCount: growthMentions,
-      declineCount: declineMentions
-    });
-  }
-
-  // Find market size indicators
-  const sizeWords = {
-    huge: /\b(huge|massive|enormous|giant|gigantic)\b/i,
-    large: /\b(large|big|substantial|significant)\b/i,
-    niche: /\b(niche|small|tiny|limited|narrow)\b/i
-  };
-
-  const sizeIndicators = {huge: 0, large: 0, niche: 0};
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    Object.keys(sizeWords).forEach(size => {
-      if (sizeWords[size].test(body)) sizeIndicators[size]++;
-    });
-  });
-
-  const dominantSize = Object.entries(sizeIndicators)
-    .sort((a, b) => b[1] - a[1])[0];
-
-  if (dominantSize && dominantSize[1] > 3) {
-    insights.push({
-      type: 'market_size_perception',
-      insight: `Market perceived as "${dominantSize[0]}" by ${Math.round((dominantSize[1]/totalComments)*100)}% of commenters`,
-      perception: dominantSize[0],
-      percentage: Math.round((dominantSize[1]/totalComments)*100)
-    });
-  }
-
-  return insights;
-}
-
-function calculatePercentageInsights(comments, postContext) {
-  const insights = [];
-  const totalComments = comments.length;
-
-  // Calculate question vs answer ratio
-  const questions = comments.filter(c => (c.body || '').includes('?')).length;
-  const answers = comments.filter(c => {
-    const body = (c.body || '').toLowerCase();
-    return /\b(because|since|due to|reason|answer|solution|try|use|do this)\b/.test(body);
-  }).length;
-
-  if (questions > totalComments * 0.3) {
-    insights.push({
-      type: 'engagement_pattern',
-      insight: `${Math.round((questions/totalComments)*100)}% of comments are questions - high information-seeking behavior`,
-      questionPercentage: Math.round((questions/totalComments)*100),
-      answerPercentage: Math.round((answers/totalComments)*100)
-    });
-  }
-
-  // Calculate personal experience sharing
-  const personalExp = comments.filter(c => {
-    const body = (c.body || '').toLowerCase();
-    return /\b(i |my |me |mine |i've|i'm|i'd)\b/.test(body);
-  }).length;
-
-  if (personalExp > totalComments * 0.5) {
-    insights.push({
-      type: 'content_type',
-      insight: `${Math.round((personalExp/totalComments)*100)}% share personal experiences - highly authentic, experience-based discussion`,
-      personalExperiencePercentage: Math.round((personalExp/totalComments)*100)
-    });
-  }
-
-  return insights;
-}
-
-function findCorrelations(comments) {
-  const insights = [];
-
-  // Find what commonly appears together
-  const pairings = {};
-
-  // Look for common word pairs that appear together frequently
-  const keywords = ['diet', 'exercise', 'medication', 'therapy', 'supplement', 'treatment', 'doctor', 'specialist'];
-
-  comments.forEach(comment => {
-    const body = (comment.body || '').toLowerCase();
-    const presentKeywords = keywords.filter(kw => body.includes(kw));
-
-    // Record all pairs
-    for (let i = 0; i < presentKeywords.length; i++) {
-      for (let j = i + 1; j < presentKeywords.length; j++) {
-        const pair = [presentKeywords[i], presentKeywords[j]].sort().join(' + ');
-        pairings[pair] = (pairings[pair] || 0) + 1;
-      }
-    }
-  });
-
-  const topPairings = Object.entries(pairings)
-    .filter(([_, count]) => count >= 3)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-
-  topPairings.forEach(([pair, count]) => {
-    insights.push({
-      type: 'correlation',
-      insight: `"${pair}" frequently mentioned together (${count} times) - suggests combined approach works best`,
-      combination: pair,
-      frequency: count
-    });
-  });
-
-  return insights;
-}
-
-function analyzeNeedsVsComplaints(comments) {
-  const needs = [];
-  const complaints = [];
-
-  const needPatterns = /\b(need|want|wish|hope|looking for|searching for|trying to find)\b/i;
-  const complaintPatterns = /\b(hate|annoying|frustrated|terrible|awful|disappointed|upset)\b/i;
-
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    if (needPatterns.test(body)) needs.push(body);
-    if (complaintPatterns.test(body)) complaints.push(body);
-  });
-
-  return {
-    needsCount: needs.length,
-    complaintsCount: complaints.length,
-    ratio: needs.length > 0 ? (complaints.length / needs.length).toFixed(2) : 0,
-    summary: needs.length > complaints.length
-      ? `${needs.length} needs vs ${complaints.length} complaints - solution-seeking audience`
-      : `${complaints.length} complaints vs ${needs.length} needs - venting/support-seeking audience`
-  };
-}
-
-function analyzeSuccessPatterns(comments) {
-  const successMarkers = ['worked', 'success', 'helped', 'cured', 'fixed', 'solved'];
-  const successComments = comments.filter(c =>
-    successMarkers.some(marker => (c.body || '').toLowerCase().includes(marker))
-  );
-
-  return {
-    count: successComments.length,
-    patterns: successComments.slice(0, 5).map(c => c.body.substring(0, 200))
-  };
-}
-
-function calculateSentimentDistribution(comments) {
-  let positive = 0, negative = 0, neutral = 0;
-
-  comments.forEach(comment => {
-    const body = (comment.body || '').toLowerCase();
-    const posWords = (body.match(/\b(good|great|amazing|love|best|helped|worked|success)\b/g) || []).length;
-    const negWords = (body.match(/\b(bad|terrible|hate|worst|failed|didn't work|awful)\b/g) || []).length;
-
-    if (posWords > negWords) positive++;
-    else if (negWords > posWords) negative++;
-    else neutral++;
-  });
-
-  return {
-    positive: Math.round((positive / comments.length) * 100),
-    negative: Math.round((negative / comments.length) * 100),
-    neutral: Math.round((neutral / comments.length) * 100)
-  };
-}
-
-function extractEnhancedInsights(posts, comments) {
-  const allText = [
-    ...posts.map(p => (p.title || '') + ' ' + (p.selftext || '')),
-    ...comments.map(c => c.body || '')
-  ].join(' ');
-  
-  return {
-    // Keep existing basic insights
-    moneyMentions: extractMoneyMentions(allText),
-    links: extractLinksWithContext(posts, comments),
-    sentiment: analyzeSentiment(allText),
-    
-    // Enhanced insights
-    contentGoldmines: extractContentGoldmines(comments),
-    entrepreneurialOpportunities: extractEntrepreneurialOpportunities(comments),
-    funnyMoments: extractFunnyMoments(comments),
-    deepRealizations: extractDeepRealizations(comments),
-    trendingThemes: extractExpandedTrendingThemes(comments), // Enhanced version
-    expertInsights: extractExpertInsights(comments)
-  };
-}
-
-// Enhanced trending themes with more context
-function extractExpandedTrendingThemes(comments) {
-  const themeData = {};
-  
-  // Expanded theme keywords
-  const themeKeywords = {
-    'AI/Technology': {
-      keywords: ['AI', 'artificial intelligence', 'machine learning', 'automation', 'robot', 'algorithm', 'software', 'tech', 'GPT', 'ChatGPT', 'coding', 'programming'],
-      questions: [],
-      topComments: [],
-      sentiment: { positive: 0, negative: 0 }
-    },
-    'Money/Finance': {
-      keywords: ['money', 'dollar', 'cost', 'price', 'expensive', 'cheap', 'invest', 'profit', 'salary', 'income', 'financial', 'economy', 'inflation'],
-      questions: [],
-      topComments: [],
-      sentiment: { positive: 0, negative: 0 }
-    },
-    'Work/Career': {
-      keywords: ['job', 'work', 'career', 'boss', 'employee', 'company', 'business', 'industry', 'hire', 'fired', 'remote', 'office', 'promotion'],
-      questions: [],
-      topComments: [],
-      sentiment: { positive: 0, negative: 0 }
-    },
-    'Health/Wellness': {
-      keywords: ['health', 'doctor', 'medical', 'hospital', 'disease', 'treatment', 'therapy', 'medicine', 'mental health', 'anxiety', 'depression', 'fitness'],
-      questions: [],
-      topComments: [],
-      sentiment: { positive: 0, negative: 0 }
-    },
-    'Education': {
-      keywords: ['school', 'university', 'college', 'student', 'teacher', 'education', 'learn', 'course', 'degree', 'study', 'exam', 'graduate'],
-      questions: [],
-      topComments: [],
-      sentiment: { positive: 0, negative: 0 }
-    }
-  };
-  
-  // Initialize theme data
-  Object.keys(themeKeywords).forEach(theme => {
-    themeData[theme] = {
-      count: 0,
-      questions: [],
-      topComments: [],
-      sentiment: { positive: 0, negative: 0, neutral: 0 },
-      keywords: themeKeywords[theme].keywords
-    };
-  });
-  
-  // Analyze comments
-  comments.forEach(comment => {
-    const body = (comment.body || '').toLowerCase();
-    const isQuestion = body.includes('?');
-    
-    Object.keys(themeKeywords).forEach(theme => {
-      const themeInfo = themeKeywords[theme];
-      const hasKeyword = themeInfo.keywords.some(keyword => body.includes(keyword.toLowerCase()));
-      
-      if (hasKeyword) {
-        themeData[theme].count++;
-        
-        // Collect questions
-        if (isQuestion && themeData[theme].questions.length < 3) {
-          themeData[theme].questions.push({
-            text: comment.body.substring(0, 200) + (comment.body.length > 200 ? '...' : ''),
-            score: comment.score,
-            author: comment.author
-          });
-        }
-        
-        // Collect top comments
-        if (comment.score > 50 && themeData[theme].topComments.length < 3) {
-          themeData[theme].topComments.push({
-            text: comment.body.substring(0, 200) + (comment.body.length > 200 ? '...' : ''),
-            score: comment.score,
-            author: comment.author,
-            permalink: comment.permalink
-          });
-        }
-        
-        // Analyze sentiment
-        const sentiment = analyzeSentiment(comment.body);
-        if (sentiment.overall === 'positive') {
-          themeData[theme].sentiment.positive++;
-        } else if (sentiment.overall === 'negative') {
-          themeData[theme].sentiment.negative++;
-        } else {
-          themeData[theme].sentiment.neutral++;
-        }
-      }
-    });
-  });
-  
-  // Convert to array and calculate percentages
-  const themes = Object.entries(themeData)
-    .filter(([theme, data]) => data.count > 0)
-    .map(([theme, data]) => ({
-      theme: theme,
-      mentions: data.count,
-      percentage: Math.round((data.count / comments.length) * 100),
-      questions: data.questions.sort((a, b) => b.score - a.score).slice(0, 2),
-      topComments: data.topComments.sort((a, b) => b.score - a.score).slice(0, 2),
-      sentiment: {
-        positive: Math.round((data.sentiment.positive / data.count) * 100),
-        negative: Math.round((data.sentiment.negative / data.count) * 100),
-        neutral: Math.round((data.sentiment.neutral / data.count) * 100)
-      }
-    }))
-    .sort((a, b) => b.mentions - a.mentions)
-    .slice(0, 5);
-  
-  return themes;
-}
-
-// Keep all existing extraction functions below...
-// (extractLinksWithContext, extractContentGoldmines, extractEntrepreneurialOpportunities, 
-//  extractFunnyMoments, extractDeepRealizations, extractExpertInsights, 
-//  extractMoneyMentions, analyzeSentiment)
-
-// Enhanced link extraction with context
-function extractLinksWithContext(posts, comments) {
-  const urlRegex = /https?:\/\/[^\s\)\]\}\>\<\"\'\`]+/g;
-  const linksWithContext = [];
-  
-  comments.forEach(comment => {
-    if (comment.body && typeof comment.body === 'string') {
-      const urls = comment.body.match(urlRegex) || [];
-      urls.forEach(url => {
-        const cleanUrl = url.replace(/[.,;!?)\]}\>\<\"\'\`]+$/, '');
-        if (cleanUrl.length > 15 &&
-            !cleanUrl.includes('reddit.com') && 
-            !cleanUrl.includes('imgur.com') && 
-            !cleanUrl.includes('i.redd.it') &&
-            !cleanUrl.includes('v.redd.it')) {
-          
-          const linkIndex = comment.body.indexOf(url);
-          const contextStart = Math.max(0, linkIndex - 50);
-          const contextEnd = Math.min(comment.body.length, linkIndex + url.length + 50);
-          const context = comment.body.substring(contextStart, contextEnd).replace(/\n/g, ' ').trim();
-          
-          linksWithContext.push({
-            url: cleanUrl,
-            author: comment.author,
-            score: comment.score,
-            context: context,
-            permalink: comment.permalink
-          });
-        }
-      });
-    }
-  });
-  
-  linksWithContext.sort((a, b) => b.score - a.score);
-  return linksWithContext.slice(0, 10);
-}
-
-function extractContentGoldmines(comments) {
-  const goldmines = [];
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    const score = comment.score || 0;
-    
-    if (score > 100 && body.length > 100 && body.length < 1000) {
-      const hasStoryElements = /\b(I |we |my |our |happened|realized|learned|discovered|found out)\b/i.test(body);
-      const hasInsightElements = /\b(actually|turns out|people don't realize|most people|the truth is|the key is|the secret is)\b/i.test(body);
-      
-      if (hasStoryElements || hasInsightElements) {
-        goldmines.push({
-          type: hasStoryElements ? 'story' : 'insight',
-          content: body.substring(0, 500) + (body.length > 500 ? '...' : ''),
-          author: comment.author,
-          score: score,
-          permalink: comment.permalink
-        });
-      }
-    }
-  });
-  
-  return goldmines.sort((a, b) => b.score - a.score).slice(0, 10);
-}
-
-function extractEntrepreneurialOpportunities(comments) {
-  const opportunities = [];
-  
-  const opportunityPatterns = [
-    /\b(nobody is|no one is|somebody should|someone should|wish there was|wish someone would|need[s]? to be|should exist)\b/i,
-    /\b(gap in the market|underserved|overlooked|huge opportunity|untapped|gold mine)\b/i,
-    /\b(would pay for|willing to pay|shut up and take my money|worth paying)\b/i,
-    /\b(frustrat\w+|annoying|painful|sucks|broken|doesn't work|waste[s]? time)\b.*\b(solution|fix|solve|better way)\b/i
-  ];
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    
-    opportunityPatterns.forEach(pattern => {
-      if (pattern.test(body)) {
-        const sentences = body.split(/[.!?]+/);
-        sentences.forEach(sentence => {
-          if (pattern.test(sentence) && sentence.length > 20) {
-            opportunities.push({
-              opportunity: sentence.trim(),
-              fullContext: body.substring(0, 300) + (body.length > 300 ? '...' : ''),
-              author: comment.author,
-              score: comment.score || 0,
-              permalink: comment.permalink
-            });
-          }
-        });
-      }
-    });
-  });
-  
-  const uniqueOpportunities = opportunities.reduce((acc, curr) => {
-    const exists = acc.find(item => 
-      item.opportunity.toLowerCase() === curr.opportunity.toLowerCase()
-    );
-    if (!exists) acc.push(curr);
-    return acc;
-  }, []);
-  
-  return uniqueOpportunities.sort((a, b) => b.score - a.score).slice(0, 10);
-}
-
-function extractFunnyMoments(comments) {
-  const funnyMoments = [];
-  
-  const humorIndicators = [
-    /\b(lol|lmao|lmfao|haha|😂|🤣|hilarious|comedy gold|spit out|lost it|dying|can't stop laughing)\b/i,
-    /\b(plot twist|wait what|had us in the first half|unexpected|didn't see that coming)\b/i,
-    /^(r\/[a-zA-Z]+)$/m
-  ];
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    const score = comment.score || 0;
-    
-    if (score > 50) {
-      let humorScore = 0;
-      humorIndicators.forEach(pattern => {
-        if (pattern.test(body)) humorScore++;
-      });
-      
-      if (body.length < 200 && body.length > 10) humorScore++;
-      if (body.includes('"') && body.split('"').length > 2) humorScore++;
-      
-      if (humorScore > 0) {
-        funnyMoments.push({
-          content: body,
-          humorScore: humorScore,
-          author: comment.author,
-          score: score,
-          permalink: comment.permalink
-        });
-      }
-    }
-  });
-  
-  return funnyMoments
-    .sort((a, b) => (b.score * b.humorScore) - (a.score * a.humorScore))
-    .slice(0, 10);
-}
-
-function extractDeepRealizations(comments) {
-  const realizations = [];
-  
-  const deepPatterns = [
-    /\b(realized|realize|revelation|epiphany|changed my perspective|opened my eyes|never thought about|made me think)\b/i,
-    /\b(the real|the actual|the true|fundamentally|essentially|at its core|when you think about it)\b/i,
-    /\b(life lesson|learned that|taught me|wisdom|profound|deep truth|universal truth)\b/i
-  ];
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    const score = comment.score || 0;
-    
-    if (score > 50 && body.length > 150) {
-      let depthScore = 0;
-      deepPatterns.forEach(pattern => {
-        if (pattern.test(body)) depthScore++;
-      });
-      
-      if (depthScore > 0) {
-        realizations.push({
-          insight: body.substring(0, 500) + (body.length > 500 ? '...' : ''),
-          depthScore: depthScore,
-          author: comment.author,
-          score: score,
-          permalink: comment.permalink
-        });
-      }
-    }
-  });
-  
-  return realizations
-    .sort((a, b) => (b.score * b.depthScore) - (a.score * a.depthScore))
-    .slice(0, 10);
-}
-
-function extractExpertInsights(comments) {
-  const expertComments = [];
-  
-  const expertIndicators = [
-    /\b(I work in|I'm a|I am a|as a|I've been|years of experience|professional|expert)\b/i,
-    /\b(source:|actually|technically|specifically|to clarify|to be precise)\b/i,
-    /\b(PhD|doctor|engineer|developer|analyst|researcher|scientist|professor)\b/i
-  ];
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    const score = comment.score || 0;
-    
-    if (score > 30 && body.length > 200) {
-      let expertScore = 0;
-      let credentials = '';
-      
-      expertIndicators.forEach(pattern => {
-        const match = body.match(pattern);
-        if (match) {
-          expertScore++;
-          if (!credentials && match[0]) {
-            const startIdx = Math.max(0, match.index - 20);
-            const endIdx = Math.min(body.length, match.index + 100);
-            credentials = body.substring(startIdx, endIdx).replace(/\n/g, ' ').trim();
-          }
-        }
-      });
-      
-      if (/\n[-*•]|\n\d+\./.test(body)) expertScore++;
-      
-      if (expertScore > 0) {
-        expertComments.push({
-          content: body.substring(0, 500) + (body.length > 500 ? '...' : ''),
-          credentials: credentials,
-          expertScore: expertScore,
-          author: comment.author,
-          score: score,
-          permalink: comment.permalink
-        });
-      }
-    }
-  });
-  
-  return expertComments
-    .sort((a, b) => (b.score * b.expertScore) - (a.score * a.expertScore))
-    .slice(0, 10);
-}
-
-function extractMoneyMentions(text) {
-  if (!text || typeof text !== 'string') return [];
-  
-  const patterns = [
-    /\$[\d,]+(?:\.\d{1,2})?(?:\s*(?:K|k|M|m|B|b|million|billion|thousand))?/g,
-    /₹[\d,]+(?:\.\d{1,2})?(?:\s*(?:K|k|M|m|B|b|crore|lakh))?/g,
-    /[\d,]+(?:\.\d{1,2})?\s*(?:dollars?|USD|usd|rupees?|INR)/g,
-    /[\d,]+(?:\.\d{1,2})?\s*(?:K|M|B)\s*(?:revenue|profit|ARR|MRR|valuation|salary)/g,
-    /\d+(?:,\d{3})*\s*(?:%|percent)/g
-  ];
-  
-  let matches = [];
-  patterns.forEach(pattern => {
-    const found = text.match(pattern) || [];
-    matches = matches.concat(found);
-  });
-  
-  return [...new Set(matches)]
-    .map(match => match.trim())
-    .filter(match => match.length > 1)
-    .slice(0, 15);
-}
-
-function analyzeSentiment(text) {
-  if (!text || typeof text !== 'string') {
-    return { positive: 0, negative: 0, overall: 'neutral', ratio: 50 };
-  }
-  
-  const positiveWords = [
-    'great', 'awesome', 'good', 'love', 'amazing', 'excellent', 'perfect', 'wonderful',
-    'success', 'successful', 'profitable', 'booming', 'growing', 'opportunity', 'valuable',
-    'incredible', 'fantastic', 'outstanding', 'impressive', 'brilliant', 'helpful',
-    'useful', 'effective', 'efficient', 'innovative', 'revolutionary', 'game-changing'
-  ];
-  
-  const negativeWords = [
-    'bad', 'awful', 'terrible', 'hate', 'worst', 'horrible', 'disgusting', 'trash',
-    'failed', 'failure', 'struggling', 'difficult', 'problem', 'challenging', 'impossible',
-    'frustrating', 'annoying', 'disappointing', 'useless', 'broken', 'disaster',
-    'nightmare', 'painful', 'expensive', 'overpriced', 'scam', 'waste'
-  ];
-  
-  const words = text.toLowerCase().split(/\s+/);
-  let positive = 0;
-  let negative = 0;
-  
-  words.forEach(word => {
-    if (positiveWords.includes(word)) positive++;
-    if (negativeWords.includes(word)) negative++;
-  });
-  
-  const total = positive + negative;
-  const ratio = total > 0 ? Math.round((positive / total) * 100) : 50;
-  
-  return {
-    positive,
-    negative,
-    overall: positive > negative ? 'positive' : negative > positive ? 'negative' : 'neutral',
-    ratio: ratio
-  };
-}
-
-// Test function
-function testRedditAuth() {
-  try {
-    const token = getRedditAccessToken();
-    console.log('Successfully authenticated! Token:', token.substring(0, 10) + '...');
-    return true;
-  } catch (error) {
-    console.error('Authentication failed:', error);
-    return false;
-  }
-}
-
-function testDirectFetch() {
-  try {
-    console.log('Test 1: Checking authentication...');
-    const token = getRedditAccessToken();
-    console.log('✓ Authentication successful');
-    
-    console.log('Test 2: Fetching Reddit data...');
-    const testUrl = 'https://oauth.reddit.com/r/AskReddit/hot.json?limit=1';
-    
-    const response = UrlFetchApp.fetch(testUrl, {
-      headers: {
-        'Authorization': `bearer ${token}`,
-        'User-Agent': REDDIT_CONFIG.userAgent
-      },
-      muteHttpExceptions: true
-    });
-    
-    const code = response.getResponseCode();
-    console.log('Response code:', code);
-    
-    if (code === 200) {
-      console.log('✓ Reddit API is accessible');
-      const data = JSON.parse(response.getContentText());
-      console.log('✓ Got data:', data.data.children.length, 'posts');
-      return 'SUCCESS: Reddit API is working';
-    } else {
-      console.log('✗ Reddit returned error:', code);
-      console.log('Response:', response.getContentText().substring(0, 200));
-      return 'ERROR: Reddit API returned ' + code;
-    }
-    
-  } catch (error) {
-    console.error('✗ Test failed:', error);
-    return 'ERROR: ' + error.toString();
-  }
-}
-// Add simplified insights
-try {
-  const simplifiedInsights = extractWhatMatters(posts, validComments);
-  if (simplifiedInsights) {
-    // Merge simplified insights with existing ones
-    insights.consensus = simplifiedInsights.consensus || [];
-    insights.problems = simplifiedInsights.problems || [];
-    insights.solutions = simplifiedInsights.solutions || [];
-    insights.discussions = simplifiedInsights.discussions || [];
-    insights.hiddenGems = simplifiedInsights.hiddenGems || [];
-    insights.patterns = simplifiedInsights.patterns || [];
-  }
-} catch (error) {
-  console.error('Simplified extraction error:', error);
-  // Continue with existing insights if simplified fails
-}
-// ========== NEW SIMPLIFIED EXTRACTION FUNCTIONS ==========
-
-function extractWhatMatters(posts, comments) {
-  return {
-    consensus: extractConsensus(comments),
-    problems: extractProblems(comments),
-    solutions: extractVerifiedSolutions(comments),
-    discussions: extractRealDiscussions(comments),
-    hiddenGems: extractHiddenGems(comments),
-    patterns: extractPatterns(comments)
-  };
-}
-
-function extractConsensus(comments) {
-  const statements = {};
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    const sentences = body.split(/[.!?]+/);
-    
-    sentences.forEach(sentence => {
-      if (sentence.length > 20 && sentence.length < 200) {
-        if (/\b(the best way|what works|always|never|everyone should)\b/i.test(sentence)) {
-          const cleaned = sentence.trim().toLowerCase().replace(/[^a-z0-9\s]/g, '');
-          
-          if (!statements[cleaned]) {
-            statements[cleaned] = {
-              text: sentence.trim(),
-              mentions: 0,
-              examples: []
-            };
-          }
-          
-          statements[cleaned].mentions++;
-          if (statements[cleaned].examples.length < 3) {
-            statements[cleaned].examples.push({
-              author: comment.author,
-              score: comment.score,
-              permalink: comment.permalink
-            });
-          }
-        }
-      }
-    });
-  });
-  
-  return Object.values(statements)
-    .filter(s => s.mentions >= 3)
-    .sort((a, b) => b.mentions - a.mentions)
-    .slice(0, 5);
-}
-
-function extractProblems(comments) {
-  const problems = [];
-  const problemPatterns = [
-    /\b(can't|cannot|unable to|struggle with|hard to|difficult to)\b/i,
-    /\b(my problem is|the problem is|doesn't work|not working)\b/i,
-    /\b(too tired|too anxious|too depressed|too scared)\b/i
-  ];
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    
-    problemPatterns.forEach(pattern => {
-      if (pattern.test(body)) {
-        const sentences = body.split(/[.!?]+/);
-        sentences.forEach(sentence => {
-          if (pattern.test(sentence) && sentence.length > 20) {
-            problems.push({
-              problem: sentence.trim(),
-              author: comment.author,
-              score: comment.score,
-              permalink: comment.permalink
-            });
-          }
-        });
-      }
-    });
-  });
-  
-  // Group similar problems
-  const grouped = {};
-  problems.forEach(p => {
-    const key = p.problem.toLowerCase().substring(0, 50);
-    if (!grouped[key]) {
-      grouped[key] = {
-        problem: p.problem,
-        count: 0,
-        examples: []
-      };
-    }
-    grouped[key].count++;
-    if (grouped[key].examples.length < 3) {
-      grouped[key].examples.push(p);
-    }
-  });
-  
-  return Object.values(grouped)
-    .filter(p => p.count >= 2)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
-}
-
-function extractVerifiedSolutions(comments) {
-  const solutions = [];
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    const score = comment.score || 0;
-    
-    if (score > 20 && /\b(this works|worked for me|try this|the solution)\b/i.test(body)) {
-      let confirmations = 0;
-      
-      // Check replies for confirmations
-      if (comment.replies && comment.replies.data && comment.replies.data.children) {
-        comment.replies.data.children.forEach(reply => {
-          if (reply.data && reply.data.body) {
-            if (/\b(works|confirm|thanks|helped)\b/i.test(reply.data.body)) {
-              confirmations++;
-            }
-          }
-        });
-      }
-      
-      if (confirmations >= 2 || score > 100) {
-        solutions.push({
-          solution: body.substring(0, 300) + (body.length > 300 ? '...' : ''),
-          author: comment.author,
-          score: score,
-          confirmations: confirmations,
-          permalink: comment.permalink
-        });
-      }
-    }
-  });
-  
-  return solutions
-    .sort((a, b) => (b.confirmations * 10 + b.score) - (a.confirmations * 10 + a.score))
-    .slice(0, 5);
-}
-
-function extractRealDiscussions(comments) {
-  const discussions = [];
-  
-  comments.forEach(comment => {
-    const replyCount = countReplies(comment);
-    const score = comment.score || 0;
-    
-    if (replyCount > 10) {
-      let debateScore = 0;
-      let supportScore = 0;
-      
-      if (comment.replies && comment.replies.data && comment.replies.data.children) {
-        comment.replies.data.children.forEach(reply => {
-          if (reply.data && reply.data.body) {
-            const replyBody = reply.data.body.toLowerCase();
-            if (/\b(disagree|wrong|actually|but|however)\b/.test(replyBody)) {
-              debateScore++;
-            }
-            if (/\b(agree|exactly|this|yes|true)\b/.test(replyBody)) {
-              supportScore++;
-            }
-          }
-        });
-      }
-      
-      const discussionType = debateScore > supportScore ? 'debate' : 'agreement';
-      
-      discussions.push({
-        comment: comment.body.substring(0, 200) + (comment.body.length > 200 ? '...' : ''),
-        author: comment.author,
-        score: score,
-        replyCount: replyCount,
-        discussionType: discussionType,
-        permalink: comment.permalink
-      });
-    }
-  });
-  
-  return discussions.sort((a, b) => b.replyCount - a.replyCount).slice(0, 5);
-}
-
-function extractHiddenGems(comments) {
-  const gems = [];
-  
-  comments.forEach(comment => {
-    const body = comment.body || '';
-    const score = comment.score || 0;
-    
-    // Low score but high value
-    if (score < 100 && score > 10 && body.length > 150) {
-      let valueScore = 0;
-      
-      if (/\b(pro tip|important|please read|source:|study shows|worked in|years of experience)\b/i.test(body)) {
-        valueScore += 2;
-      }
-      if (/https?:\/\//.test(body)) valueScore++;
-      if (/\n[-*•]|\n\d+\./.test(body)) valueScore++;
-      
-      if (valueScore >= 2) {
-        gems.push({
-          content: body.substring(0, 400) + (body.length > 400 ? '...' : ''),
-          author: comment.author,
-          score: score,
-          valueScore: valueScore,
-          permalink: comment.permalink,
-          reason: identifyGemReason(body)
-        });
-      }
-    }
-  });
-  
-  return gems.sort((a, b) => b.valueScore - a.valueScore).slice(0, 3);
-}
-
-function extractPatterns(comments) {
-  const phrases = {};
-  
-  comments.forEach(comment => {
-    const body = (comment.body || '').toLowerCase();
-    const words = body.split(/\s+/).filter(w => w.length > 3);
-    
-    // Look for 3-4 word phrases
-    for (let i = 0; i < words.length - 3; i++) {
-      const phrase = words.slice(i, i + 4).join(' ');
-      if (!phrases[phrase]) {
-        phrases[phrase] = { count: 0, users: new Set() };
-      }
-      phrases[phrase].count++;
-      phrases[phrase].users.add(comment.author);
-    }
-  });
-  
-  return Object.entries(phrases)
-    .filter(([phrase, data]) => data.users.size >= 3)
-    .map(([phrase, data]) => ({
-      pattern: phrase,
-      mentionedBy: data.users.size + ' different users'
-    }))
-    .slice(0, 10);
-}
-
-// Helper function
+// Helper function for extractHiddenGemsNew
 function identifyGemReason(body) {
   if (/\b(source:|study shows|research shows)\b/i.test(body)) return 'Contains sources/research';
   if (/\b(former|used to be|worked in|years of experience)\b/i.test(body)) return 'Expert perspective';
@@ -2600,4 +1449,501 @@ function identifyGemReason(body) {
   if (/\n[-*•]|\n\d+\./.test(body)) return 'Detailed breakdown';
   if (/https?:\/\//.test(body)) return 'Includes resources';
   return 'Valuable insight';
+}
+
+// ========== UNIVERSAL HUMAN-LIKE ANALYSIS SYSTEM ==========
+// This system reads comments like a human analyst would - no predetermined patterns
+
+function synthesizeStrategicInsights(post, comments, postContext, extractedInsights) {
+  const insights = [];
+  const totalComments = comments.length;
+
+  console.log('=== HUMAN-LIKE ANALYSIS START ===');
+  console.log('Reading', totalComments, 'comments for', postContext.type);
+
+  // STEP 1: READ AND LEARN (like a human would)
+  const learned = readAndLearnFromComments(comments);
+
+  // STEP 2: FIND PATTERNS (what repeats, what stands out)
+  const patterns = findNaturalPatterns(learned, comments, totalComments);
+
+  // STEP 3: SYNTHESIZE INSIGHTS (connect the dots)
+  const synthesized = synthesizeFromPatterns(patterns, learned, totalComments);
+
+  return {
+    id: 'strategic_insights',
+    title: '🎯 Strategic Insights',
+    description: 'Synthesized intelligence from reading all comments',
+    type: 'strategic',
+    data: synthesized
+  };
+}
+
+// STEP 1: Read comments and extract everything we can learn
+function readAndLearnFromComments(comments) {
+  console.log('Step 1: Reading and learning from comments...');
+
+  const learned = {
+    // What's being discussed (entities)
+    entities: {},
+
+    // What phrases keep repeating
+    phrases: {},
+
+    // Sentiment vocabulary found in THIS discussion
+    positiveWords: {},
+    negativeWords: {},
+
+    // Outcomes people report
+    outcomes: {worked: [], failed: [], mixed: []},
+
+    // Time-related mentions
+    timeMentions: {},
+
+    // Who's speaking (authority/experience)
+    speakers: {expert: 0, experienced: 0, novice: 0, unknown: 0},
+
+    // Personal vs reported
+    experienceType: {firsthand: 0, secondhand: 0},
+
+    // Numbers mentioned
+    numbers: {percentages: [], prices: [], quantities: []},
+
+    // Comparisons (X vs Y, better/worse)
+    comparisons: [],
+
+    // Questions being asked
+    questions: [],
+
+    // Emotional language
+    emotions: {},
+
+    // Geographic mentions
+    locations: {},
+
+    // Frequency words (always, never, sometimes, often)
+    frequency: {}
+  };
+
+  // Stopwords to filter out common words that aren't entities
+  const stopwords = new Set([
+    'The', 'This', 'That', 'These', 'Those', 'They', 'There', 'Their',
+    'What', 'When', 'Where', 'Which', 'Who', 'Why', 'How',
+    'Every', 'Each', 'Some', 'Many', 'More', 'Most', 'Much',
+    'From', 'With', 'About', 'Into', 'Through', 'During', 'Before', 'After',
+    'Just', 'Very', 'Really', 'Actually', 'Basically', 'Literally',
+    'Reddit', 'Edit', 'Update', 'Source', 'Yeah', 'Also', 'Because',
+    'People', 'Person', 'Someone', 'Anyone', 'Everyone', 'Nobody',
+    'Thing', 'Things', 'Something', 'Anything', 'Everything', 'Nothing',
+    'Good', 'Great', 'Best', 'Better', 'Worse', 'Worst',
+    'First', 'Second', 'Third', 'Last', 'Next', 'Other', 'Another',
+    'Data', 'Year', 'Years', 'Time', 'Times', 'Way', 'Ways',
+    'Work', 'Working', 'Works', 'Worked', 'Does', 'Did', 'Done',
+    'Make', 'Makes', 'Made', 'Making', 'Take', 'Takes', 'Took',
+    'Even', 'Still', 'Always', 'Never', 'Often', 'Sometimes',
+    'Here', 'There', 'Everywhere', 'Somewhere', 'Anywhere', 'Nowhere'
+  ]);
+
+  // Universal sentiment words (starting point)
+  const basePosWords = ['good', 'great', 'love', 'best', 'worked', 'helped', 'success', 'amazing', 'excellent', 'booming', 'growing'];
+  const baseNegWords = ['bad', 'terrible', 'hate', 'worst', 'failed', 'useless', 'awful', 'didn\'t work', 'dying', 'declining'];
+
+  comments.forEach((comment, index) => {
+    const body = comment.body || '';
+    const bodyLower = body.toLowerCase();
+
+    // Extract entities - multi-word capitalized phrases (up to 4 words)
+    const properNouns = body.match(/\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/g) || [];
+    properNouns.forEach(entity => {
+      const cleaned = entity.trim();
+
+      // Filter out stopwords
+      if (cleaned.length > 2 && !stopwords.has(cleaned)) {
+        // If multi-word, ensure at least one word isn't a stopword
+        const words = cleaned.split(/\s+/);
+        const hasNonStopword = words.some(w => !stopwords.has(w));
+
+        if (hasNonStopword) {
+          if (!learned.entities[cleaned]) {
+            learned.entities[cleaned] = {
+              count: 0,
+              contexts: [],
+              coOccurs: {},
+              sentiment: {pos: 0, neg: 0, neu: 0}
+            };
+          }
+          learned.entities[cleaned].count++;
+
+        // Context (60 chars before and after)
+        const idx = body.indexOf(cleaned);
+        const context = body.substring(Math.max(0, idx - 60), Math.min(body.length, idx + cleaned.length + 60));
+        if (learned.entities[cleaned].contexts.length < 5) {
+          learned.entities[cleaned].contexts.push({text: context, score: comment.score});
+        }
+
+        // Co-occurrence (what else is mentioned in same comment)
+        properNouns.forEach(other => {
+          if (other !== cleaned && other.length > 2) {
+            learned.entities[cleaned].coOccurs[other] = (learned.entities[cleaned].coOccurs[other] || 0) + 1;
+          }
+        });
+
+        // Sentiment from context
+        const contextLower = context.toLowerCase();
+        if (basePosWords.some(w => contextLower.includes(w))) {
+          learned.entities[cleaned].sentiment.pos++;
+        } else if (baseNegWords.some(w => contextLower.includes(w))) {
+          learned.entities[cleaned].sentiment.neg++;
+        } else {
+          learned.entities[cleaned].sentiment.neu++;
+        }
+      }
+    });
+
+    // Extract repeated phrases (3-4 words)
+    const words = bodyLower.split(/\s+/).filter(w => w.length > 2);
+    for (let i = 0; i < words.length - 2; i++) {
+      const phrase = words.slice(i, i + 3).join(' ');
+      if (phrase.length >= 12 && phrase.length <= 60) {
+        learned.phrases[phrase] = (learned.phrases[phrase] || 0) + 1;
+      }
+    }
+
+    // Learn sentiment vocabulary from this dataset
+    words.forEach(word => {
+      if (basePosWords.includes(word)) {
+        learned.positiveWords[word] = (learned.positiveWords[word] || 0) + 1;
+      } else if (baseNegWords.includes(word)) {
+        learned.negativeWords[word] = (learned.negativeWords[word] || 0) + 1;
+      }
+    });
+
+    // Extract outcomes
+    if (/\b(worked|helped|solved|fixed|cured|success)\b/i.test(body)) {
+      learned.outcomes.worked.push({text: body.substring(0, 300), score: comment.score});
+    }
+    if (/\b(failed|didn't work|worse|useless|no help|waste)\b/i.test(body)) {
+      learned.outcomes.failed.push({text: body.substring(0, 300), score: comment.score});
+    }
+    if (/\b(sometimes|depends|mixed|varies|hit or miss)\b/i.test(body)) {
+      learned.outcomes.mixed.push({text: body.substring(0, 300), score: comment.score});
+    }
+
+    // Extract time mentions
+    const timeMatches = body.match(/\b(immediately|instant|days?|weeks?|months?|years?|decades?|long.?term|short.?term)\b/gi) || [];
+    timeMatches.forEach(match => {
+      const normalized = match.toLowerCase();
+      learned.timeMentions[normalized] = (learned.timeMentions[normalized] || 0) + 1;
+    });
+
+    // Determine speaker type
+    if (/\b(I'm a|doctor|MD|PhD|professional|specialist|expert|work in)\b/i.test(body)) {
+      learned.speakers.expert++;
+    } else if (/\b(\d+\s*years?|experience|dealt with for)\b/i.test(body)) {
+      learned.speakers.experienced++;
+    } else if (/\b(new to|just started|beginner|first time)\b/i.test(body)) {
+      learned.speakers.novice++;
+    } else {
+      learned.speakers.unknown++;
+    }
+
+    // Experience type
+    if (/\b(I |my |me |I've|I'm)\b/.test(body)) {
+      learned.experienceType.firsthand++;
+    } else if (/\b(heard|read|told|people say|they say)\b/i.test(body)) {
+      learned.experienceType.secondhand++;
+    }
+
+    // Extract numbers
+    const percentages = body.match(/\d+%/g) || [];
+    learned.numbers.percentages.push(...percentages.map(p => ({value: p, context: body.substring(0, 200)})));
+
+    const prices = body.match(/\$\d+(?:,\d{3})*(?:\.\d{2})?/g) || [];
+    learned.numbers.prices.push(...prices.map(p => ({value: p, context: body.substring(0, 200)})));
+
+    const quantities = body.match(/\d+\s+(?:times|people|users|patients|months|years)/gi) || [];
+    learned.numbers.quantities.push(...quantities);
+
+    // Comparisons
+    const compMatches = body.match(/.{0,40}\b(better|worse|more|less|prefer)\s+than\b.{0,40}/gi) || [];
+    learned.comparisons.push(...compMatches);
+
+    // Questions
+    if (body.includes('?')) {
+      const questionSents = body.split(/[.!]/);
+      questionSents.forEach(sent => {
+        if (sent.includes('?') && sent.trim().length > 15) {
+          learned.questions.push(sent.trim());
+        }
+      });
+    }
+
+    // Emotions
+    const emotionMatches = body.match(/\b(frustrated|angry|happy|sad|excited|scared|worried|hopeful|desperate|relieved)\b/gi) || [];
+    emotionMatches.forEach(emotion => {
+      const normalized = emotion.toLowerCase();
+      learned.emotions[normalized] = (learned.emotions[normalized] || 0) + 1;
+    });
+
+    // Geographic mentions
+    const locations = body.match(/\b(US|USA|UK|Canada|Europe|Asia|America|Britain|Australia|India|China|Iran|France|Germany)\b/g) || [];
+    locations.forEach(loc => {
+      learned.locations[loc] = (learned.locations[loc] || 0) + 1;
+    });
+
+    // Frequency words
+    const freqMatches = body.match(/\b(always|never|sometimes|often|rarely|usually|frequently|occasionally)\b/gi) || [];
+    freqMatches.forEach(freq => {
+      const normalized = freq.toLowerCase();
+      learned.frequency[normalized] = (learned.frequency[normalized] || 0) + 1;
+    });
+  });
+
+  console.log('Learned:', Object.keys(learned.entities).length, 'entities');
+  console.log('Found:', Object.keys(learned.phrases).length, 'unique phrases');
+
+  return learned;
+}
+
+// STEP 2: Find natural patterns from what we learned
+function findNaturalPatterns(learned, comments, totalComments) {
+  console.log('Step 2: Finding natural patterns...');
+
+  const patterns = {
+    topEntities: [],
+    repeatedPhrases: [],
+    dominantSentiment: null,
+    outcomeRatio: null,
+    timelinePattern: null,
+    speakerProfile: null,
+    commonComparisons: [],
+    emotionalTone: null,
+    geographicPattern: null
+  };
+
+  // Top entities with full analysis
+  patterns.topEntities = Object.entries(learned.entities)
+    .filter(([_, data]) => data.count >= 3)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 10)
+    .map(([entity, data]) => {
+      const total = data.sentiment.pos + data.sentiment.neg + data.sentiment.neu;
+      const posRate = total > 0 ? Math.round((data.sentiment.pos / total) * 100) : 0;
+
+      // Find what co-occurs most
+      const topCoOccur = Object.entries(data.coOccurs)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([e, count]) => ({entity: e, count}));
+
+      return {
+        entity,
+        count: data.count,
+        percentage: Math.round((data.count / totalComments) * 100),
+        sentiment: posRate,
+        coOccurs: topCoOccur,
+        contexts: data.contexts
+      };
+    });
+
+  // Repeated phrases (what people actually say)
+  patterns.repeatedPhrases = Object.entries(learned.phrases)
+    .filter(([_, count]) => count >= 3)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([phrase, count]) => ({phrase, count, percentage: Math.round((count / totalComments) * 100)}));
+
+  // Outcome ratio
+  const totalOutcomes = learned.outcomes.worked.length + learned.outcomes.failed.length;
+  if (totalOutcomes >= 5) {
+    patterns.outcomeRatio = {
+      successRate: Math.round((learned.outcomes.worked.length / totalOutcomes) * 100),
+      worked: learned.outcomes.worked.length,
+      failed: learned.outcomes.failed.length,
+      mixed: learned.outcomes.mixed.length
+    };
+  }
+
+  // Timeline pattern
+  const topTime = Object.entries(learned.timeMentions)
+    .sort((a, b) => b[1] - a[1])[0];
+  if (topTime && topTime[1] >= 3) {
+    patterns.timelinePattern = {
+      dominant: topTime[0],
+      count: topTime[1],
+      percentage: Math.round((topTime[1] / totalComments) * 100)
+    };
+  }
+
+  // Speaker profile
+  const totalSpeakers = Object.values(learned.speakers).reduce((a, b) => a + b, 0);
+  patterns.speakerProfile = {
+    expertPct: Math.round((learned.speakers.expert / totalSpeakers) * 100),
+    experiencedPct: Math.round((learned.speakers.experienced / totalSpeakers) * 100),
+    novicePct: Math.round((learned.speakers.novice / totalSpeakers) * 100),
+    firsthandPct: Math.round((learned.experienceType.firsthand / totalComments) * 100)
+  };
+
+  // Common comparisons
+  const compCounts = {};
+  learned.comparisons.forEach(comp => {
+    const normalized = comp.trim().toLowerCase();
+    compCounts[normalized] = (compCounts[normalized] || 0) + 1;
+  });
+  patterns.commonComparisons = Object.entries(compCounts)
+    .filter(([_, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([comp, count]) => ({comparison: comp, count}));
+
+  // Emotional tone
+  const topEmotions = Object.entries(learned.emotions)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  if (topEmotions.length > 0 && topEmotions[0][1] >= 3) {
+    patterns.emotionalTone = topEmotions.map(([emotion, count]) => ({emotion, count}));
+  }
+
+  // Geographic pattern
+  const geoEntries = Object.entries(learned.locations);
+  if (geoEntries.length >= 2) {
+    patterns.geographicPattern = geoEntries
+      .sort((a, b) => b[1] - a[1])
+      .map(([location, count]) => ({location, count}));
+  }
+
+  return patterns;
+}
+
+// STEP 3: Synthesize insights from patterns (like a human would)
+function synthesizeFromPatterns(patterns, learned, totalComments) {
+  console.log('Step 3: Synthesizing insights...');
+
+  const insights = [];
+
+  // Insight: Top entities with context
+  if (patterns.topEntities.length > 0) {
+    patterns.topEntities.slice(0, 5).forEach(entity => {
+      let insight = `"${entity.entity}" discussed in ${entity.percentage}% of comments (${entity.count} mentions)`;
+
+      if (entity.sentiment >= 70) {
+        insight += ` with ${entity.sentiment}% positive sentiment - highly favored`;
+      } else if (entity.sentiment <= 30 && entity.sentiment > 0) {
+        insight += ` with only ${entity.sentiment}% positive sentiment - significant concerns`;
+      }
+
+      if (entity.coOccurs.length > 0) {
+        const topPair = entity.coOccurs[0];
+        insight += `. Often mentioned with "${topPair.entity}" (${topPair.count} times)`;
+      }
+
+      insights.push({
+        type: 'entity_analysis',
+        insight: insight,
+        entity: entity.entity,
+        data: entity
+      });
+    });
+  }
+
+  // Insight: Repeated phrases
+  if (patterns.repeatedPhrases.length > 0) {
+    patterns.repeatedPhrases.slice(0, 3).forEach(item => {
+      insights.push({
+        type: 'repeated_language',
+        insight: `"${item.phrase}" repeated ${item.count} times (${item.percentage}% of comments) - common shared experience`,
+        phrase: item.phrase,
+        count: item.count,
+        percentage: item.percentage
+      });
+    });
+  }
+
+  // Insight: Outcome ratio
+  if (patterns.outcomeRatio) {
+    const ratio = patterns.outcomeRatio;
+    let interpretation = '';
+    if (ratio.successRate >= 70) {
+      interpretation = 'highly effective';
+    } else if (ratio.successRate >= 50) {
+      interpretation = 'moderately effective';
+    } else if (ratio.successRate >= 30) {
+      interpretation = 'mixed results';
+    } else {
+      interpretation = 'low success rate - caution advised';
+    }
+
+    insights.push({
+      type: 'outcome_analysis',
+      insight: `${ratio.successRate}% success rate across reported attempts (${ratio.worked} worked vs ${ratio.failed} failed) - ${interpretation}`,
+      successRate: ratio.successRate,
+      data: ratio
+    });
+  }
+
+  // Insight: Timeline
+  if (patterns.timelinePattern) {
+    insights.push({
+      type: 'timeline',
+      insight: `"${patterns.timelinePattern.dominant}" mentioned in ${patterns.timelinePattern.percentage}% of comments - sets realistic timeline expectations`,
+      timeline: patterns.timelinePattern.dominant,
+      percentage: patterns.timelinePattern.percentage
+    });
+  }
+
+  // Insight: Speaker profile
+  if (patterns.speakerProfile) {
+    const prof = patterns.speakerProfile;
+    let insight = '';
+
+    if (prof.expertPct >= 20) {
+      insight = `${prof.expertPct}% expert/professional input, ${prof.firsthandPct}% firsthand experiences - balanced authoritative and personal perspectives`;
+    } else if (prof.firsthandPct >= 70) {
+      insight = `${prof.firsthandPct}% firsthand personal experiences - highly authentic, lived-experience based discussion`;
+    } else {
+      insight = `Community-driven discussion with ${prof.firsthandPct}% firsthand experiences`;
+    }
+
+    insights.push({
+      type: 'speaker_analysis',
+      insight: insight,
+      data: prof
+    });
+  }
+
+  // Insight: Comparisons
+  if (patterns.commonComparisons.length > 0) {
+    patterns.commonComparisons.forEach(comp => {
+      insights.push({
+        type: 'comparison',
+        insight: `Common comparison: "${comp.comparison}" (${comp.count} mentions) - indicates active evaluation`,
+        comparison: comp.comparison,
+        count: comp.count
+      });
+    });
+  }
+
+  // Insight: Emotional tone
+  if (patterns.emotionalTone) {
+    const emotions = patterns.emotionalTone.map(e => `${e.emotion} (${e.count})`).join(', ');
+    insights.push({
+      type: 'emotional_tone',
+      insight: `Dominant emotions: ${emotions} - high emotional engagement in discussion`,
+      emotions: patterns.emotionalTone
+    });
+  }
+
+  // Insight: Geographic
+  if (patterns.geographicPattern && patterns.geographicPattern.length >= 2) {
+    const locations = patterns.geographicPattern.map(g => `${g.location} (${g.count})`).join(', ');
+    insights.push({
+      type: 'geographic_variance',
+      insight: `Geographic differences noted: ${locations} - treatment/experience varies by location`,
+      locations: patterns.geographicPattern
+    });
+  }
+
+  console.log('=== GENERATED', insights.length, 'INSIGHTS ===');
+
+  return insights;
 }
