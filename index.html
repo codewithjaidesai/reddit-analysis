@@ -505,26 +505,94 @@
         function proceedToStep2() {
             if (!extractedData) return;
 
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('loadingMessage').textContent = 'Analyzing content and generating recommendations...';
+            // Run analysis in the browser - no backend call needed!
+            const recommendations = analyzeAndRecommendInBrowser(extractedData);
+            displayStep2(recommendations);
+        }
 
-            const callbackName = 'callback_' + Date.now();
-            window[callbackName] = function(response) {
-                document.getElementById('loading').style.display = 'none';
+        function analyzeAndRecommendInBrowser(contentData) {
+            const comments = contentData.valuableComments || [];
+            const recommendations = [];
 
-                if (response.success) {
-                    displayStep2(response.data);
-                } else {
-                    alert('Error: ' + (response.error || 'Unknown error'));
-                }
+            // 1. Entity & Topic Analysis
+            const entities = {};
+            comments.forEach(c => {
+                const matches = (c.body || '').match(/\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/g) || [];
+                matches.forEach(e => {
+                    if (e.length > 3) entities[e] = (entities[e] || 0) + 1;
+                });
+            });
+            const topEntities = Object.entries(entities).filter(([_, count]) => count >= 3).length;
+            if (topEntities > 0) {
+                recommendations.push({
+                    id: 'entity_analysis',
+                    name: 'Entity & Topic Analysis',
+                    description: 'Identify most discussed industries, products, or topics with sentiment',
+                    available: true,
+                    dataFound: `${topEntities} entities mentioned 3+ times`,
+                    estimatedInsights: Math.min(topEntities, 10)
+                });
+            }
 
-                delete window[callbackName];
+            // 2. Success/Failure Rate Analysis
+            const successCount = comments.filter(c => /\b(worked|success|helped|fixed|cured|solved|great|amazing)\b/i.test(c.body)).length;
+            const failureCount = comments.filter(c => /\b(failed|didn't work|worse|useless|no help|terrible|awful)\b/i.test(c.body)).length;
+            if (successCount + failureCount >= 10) {
+                recommendations.push({
+                    id: 'outcome_analysis',
+                    name: 'Success/Failure Rate Analysis',
+                    description: 'Calculate success rates and effectiveness',
+                    available: true,
+                    dataFound: `${successCount} success + ${failureCount} failure mentions`,
+                    estimatedInsights: 3
+                });
+            }
+
+            // 3. Expert vs Experience Mix
+            const expertCount = comments.filter(c => /\b(I work|professional|doctor|engineer|specialist|expert)\b/i.test(c.body)).length;
+            const experienceCount = comments.filter(c => /\b(I |my |me |I've|I'm|personally)\b/i.test(c.body)).length;
+            if (expertCount >= 5 || experienceCount >= 20) {
+                recommendations.push({
+                    id: 'speaker_analysis',
+                    name: 'Expert vs Personal Experience Mix',
+                    description: 'Balance between professional advice and lived experiences',
+                    available: true,
+                    dataFound: `${expertCount} expert comments, ${experienceCount} personal experiences`,
+                    estimatedInsights: 2
+                });
+            }
+
+            // 4. Pricing/Cost Analysis
+            const priceCount = comments.filter(c => /\$[\d,]+|\bcost\b|\bprice\b|\bexpensive\b|\bcheap\b|\baffordable\b/i.test(c.body)).length;
+            if (priceCount >= 10) {
+                recommendations.push({
+                    id: 'pricing_analysis',
+                    name: 'Pricing & Cost Analysis',
+                    description: 'Price sensitivity and value perception',
+                    available: true,
+                    dataFound: `${priceCount} comments mention pricing/cost`,
+                    estimatedInsights: 3
+                });
+            }
+
+            // 5. Timeline Expectations
+            const timeCount = comments.filter(c => /\b(immediate|instant|days?|weeks?|months?|years?|long.?term|short.?term)\b/i.test(c.body)).length;
+            if (timeCount >= 10) {
+                recommendations.push({
+                    id: 'timeline_analysis',
+                    name: 'Timeline Expectations',
+                    description: 'How long things take based on community experiences',
+                    available: true,
+                    dataFound: `${timeCount} comments mention timeframes`,
+                    estimatedInsights: 2
+                });
+            }
+
+            return {
+                totalRecommendations: recommendations.length,
+                availableAnalyses: recommendations.length,
+                recommendations: recommendations
             };
-
-            const scriptElement = document.createElement('script');
-            const url = document.getElementById('redditUrl').value.trim();
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step2_recommend&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
         }
 
         function displayStep2(data) {
@@ -576,27 +644,132 @@
         function proceedToStep3() {
             if (selectedAnalyses.size === 0 || !extractedData) return;
 
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('loadingMessage').textContent = 'Generating selected insights...';
+            // Run insights generation in the browser - no backend call!
+            const insights = generateInsightsInBrowser(extractedData, Array.from(selectedAnalyses));
+            displayStep3({insights: insights, totalInsights: insights.length, selectedAnalyses: Array.from(selectedAnalyses)});
+        }
 
-            const callbackName = 'callback_' + Date.now();
-            window[callbackName] = function(response) {
-                document.getElementById('loading').style.display = 'none';
+        function generateInsightsInBrowser(contentData, selectedAnalyses) {
+            const comments = contentData.valuableComments || [];
+            const insights = [];
 
-                if (response.success) {
-                    displayStep3(response.data);
-                } else {
-                    alert('Error: ' + (response.error || 'Unknown error'));
+            // Stopwords for entity extraction
+            const stopwords = new Set(['The', 'This', 'That', 'These', 'Those', 'They', 'There', 'What', 'When', 'Where', 'Every', 'Each', 'Some', 'Many', 'More', 'Most', 'From', 'With', 'Reddit', 'Edit', 'Update', 'People', 'Data']);
+
+            selectedAnalyses.forEach(analysisId => {
+                if (analysisId === 'entity_analysis') {
+                    // Entity & Topic Analysis
+                    const entities = {};
+                    const basePosWords = ['good', 'great', 'love', 'best', 'worked', 'helped', 'success', 'amazing', 'booming', 'growing'];
+                    const baseNegWords = ['bad', 'terrible', 'hate', 'worst', 'failed', 'useless', 'awful', 'dying', 'declining'];
+
+                    comments.forEach(c => {
+                        const body = c.body || '';
+                        const matches = body.match(/\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/g) || [];
+                        matches.forEach(entity => {
+                            if (entity.length > 3 && !stopwords.has(entity)) {
+                                if (!entities[entity]) entities[entity] = {count: 0, pos: 0, neg: 0, neu: 0};
+                                entities[entity].count++;
+
+                                const idx = body.indexOf(entity);
+                                const context = body.substring(Math.max(0, idx - 60), Math.min(body.length, idx + entity.length + 60)).toLowerCase();
+                                if (basePosWords.some(w => context.includes(w))) entities[entity].pos++;
+                                else if (baseNegWords.some(w => context.includes(w))) entities[entity].neg++;
+                                else entities[entity].neu++;
+                            }
+                        });
+                    });
+
+                    const topEntities = Object.entries(entities)
+                        .filter(([_, data]) => data.count >= 3)
+                        .sort((a, b) => b[1].count - a[1].count)
+                        .slice(0, 10);
+
+                    topEntities.forEach(([entity, data]) => {
+                        const total = data.pos + data.neg + data.neu;
+                        const sentiment = total > 0 ? Math.round((data.pos / total) * 100) : 0;
+                        const percentage = Math.round((data.count / comments.length) * 100);
+
+                        let sentimentText = '';
+                        if (sentiment >= 70) sentimentText = ` with ${sentiment}% positive sentiment - highly favored`;
+                        else if (sentiment <= 30 && sentiment > 0) sentimentText = ` with only ${sentiment}% positive sentiment - concerns noted`;
+
+                        insights.push({
+                            type: 'entity_analysis',
+                            insight: `"${entity}" discussed in ${percentage}% of comments (${data.count} mentions)${sentimentText}`
+                        });
+                    });
                 }
 
-                delete window[callbackName];
-            };
+                if (analysisId === 'outcome_analysis') {
+                    const worked = comments.filter(c => /\b(worked|success|helped|fixed|cured|solved)\b/i.test(c.body)).length;
+                    const failed = comments.filter(c => /\b(failed|didn't work|worse|useless|no help)\b/i.test(c.body)).length;
+                    const total = worked + failed;
 
-            const scriptElement = document.createElement('script');
-            const url = document.getElementById('redditUrl').value.trim();
-            const selectedParam = encodeURIComponent(JSON.stringify(Array.from(selectedAnalyses)));
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${selectedParam}&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
+                    if (total >= 10) {
+                        const successRate = Math.round((worked / total) * 100);
+                        let interpretation = successRate >= 70 ? 'highly effective' : successRate >= 50 ? 'moderately effective' : successRate >= 30 ? 'mixed results' : 'low success rate';
+
+                        insights.push({
+                            type: 'outcome_analysis',
+                            insight: `${successRate}% success rate across reported attempts (${worked} worked vs ${failed} failed) - ${interpretation}`
+                        });
+                    }
+                }
+
+                if (analysisId === 'speaker_analysis') {
+                    const expertCount = comments.filter(c => /\b(I work|professional|doctor|engineer|specialist|expert)\b/i.test(c.body)).length;
+                    const experienceCount = comments.filter(c => /\b(I |my |me |I've|I'm|personally)\b/i.test(c.body)).length;
+                    const expertPct = Math.round((expertCount / comments.length) * 100);
+                    const experiencePct = Math.round((experienceCount / comments.length) * 100);
+
+                    let insight = expertPct >= 20 ?
+                        `${expertPct}% expert/professional input, ${experiencePct}% firsthand experiences - balanced perspectives` :
+                        `${experiencePct}% firsthand personal experiences - highly authentic discussion`;
+
+                    insights.push({type: 'speaker_analysis', insight: insight});
+                }
+
+                if (analysisId === 'pricing_analysis') {
+                    const priceComments = comments.filter(c => /\$[\d,]+|\bcost\b|\bprice\b|\bexpensive\b|\bcheap\b|\baffordable\b/i.test(c.body));
+                    const expensiveMentions = priceComments.filter(c => /\bexpensive\b|\bpricey\b|\bcost\b|\$[\d,]{3,}/i.test(c.body)).length;
+                    const cheapMentions = priceComments.filter(c => /\bcheap\b|\baffordable\b|\bbudget\b/i.test(c.body)).length;
+                    const pricePct = Math.round((priceComments.length / comments.length) * 100);
+
+                    insights.push({
+                        type: 'pricing_analysis',
+                        insight: `Price discussed in ${pricePct}% of comments - ${expensiveMentions > cheapMentions ? 'Quality over price' : 'Budget-conscious'} audience`
+                    });
+                }
+
+                if (analysisId === 'timeline_analysis') {
+                    const timeMentions = {};
+                    const timePatterns = {
+                        'immediate': /\b(immediately|instant|right away|same day)\b/i,
+                        'days': /\b(days?|few days|couple days)\b/i,
+                        'weeks': /\b(weeks?|few weeks)\b/i,
+                        'months': /\b(months?|several months)\b/i,
+                        'years': /\b(years?|long time|forever)\b/i
+                    };
+
+                    comments.forEach(c => {
+                        Object.entries(timePatterns).forEach(([timeline, pattern]) => {
+                            if (pattern.test(c.body)) timeMentions[timeline] = (timeMentions[timeline] || 0) + 1;
+                        });
+                    });
+
+                    const dominant = Object.entries(timeMentions).sort((a, b) => b[1] - a[1])[0];
+                    if (dominant && dominant[1] >= 3) {
+                        const pct = Math.round((dominant[1] / comments.length) * 100);
+                        insights.push({
+                            type: 'timeline_analysis',
+                            insight: `Most common timeline: "${dominant[0]}" (${pct}% of comments) - sets realistic expectations`
+                        });
+                    }
+                }
+            });
+
+            return insights;
         }
 
         function displayStep3(data) {
