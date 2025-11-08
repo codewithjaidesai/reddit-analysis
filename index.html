@@ -3,52 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reddit Analyzer - What Actually Matters</title>
+    <title>Reddit Analyzer - 3-Step Interactive Analysis</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f5f5f5;
             padding: 20px;
             line-height: 1.6;
         }
-        
+
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             overflow: hidden;
         }
-        
+
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 30px;
             text-align: center;
         }
-        
+
         .header h1 {
             font-size: 2em;
             margin-bottom: 10px;
         }
-        
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+
         .input-section {
             padding: 30px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 2px solid #eee;
         }
-        
+
         .input-group {
             display: flex;
             gap: 10px;
+            margin-bottom: 10px;
         }
-        
+
         .input-group input {
             flex: 1;
             padding: 12px;
@@ -56,13 +62,13 @@
             border-radius: 8px;
             font-size: 16px;
         }
-        
+
         .input-group input:focus {
             outline: none;
             border-color: #667eea;
         }
-        
-        .analyze-btn {
+
+        .btn {
             background: #667eea;
             color: white;
             border: none;
@@ -71,579 +77,548 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s;
         }
-        
-        .analyze-btn:hover {
+
+        .btn:hover {
             background: #5a67d8;
+            transform: translateY(-1px);
         }
-        
+
+        .btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+        }
+
+        .btn-secondary:hover {
+            background: #38a169;
+        }
+
         .loading {
             text-align: center;
             padding: 60px;
             display: none;
         }
-        
-        .results {
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .step-container {
+            display: none;
+            padding: 30px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .step-title {
+            font-size: 1.5em;
+            color: #1a202c;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #718096;
+        }
+
+        .comment-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .comment-card {
+            background: #f9fafb;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .comment-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            color: #718096;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .comment-score {
+            color: #38a169;
+        }
+
+        .comment-body {
+            color: #2d3748;
+            white-space: pre-wrap;
+        }
+
+        .recommendations-grid {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .recommendation-card {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .recommendation-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .recommendation-card.selected {
+            border-color: #667eea;
+            background: #eef2ff;
+        }
+
+        .recommendation-card.unavailable {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .recommendation-card.unavailable:hover {
+            border-color: #e2e8f0;
+            box-shadow: none;
+        }
+
+        .recommendation-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #667eea;
+        }
+
+        .recommendation-title {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #1a202c;
+        }
+
+        .recommendation-desc {
+            color: #718096;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .recommendation-data {
+            font-size: 0.85em;
+            color: #48bb78;
+            font-weight: 500;
+        }
+
+        .recommendation-estimate {
+            font-size: 0.8em;
+            color: #667eea;
+            font-style: italic;
+        }
+
+        .insights-container {
             display: none;
             padding: 30px;
         }
-        
-        .insight-section {
-            margin-bottom: 30px;
+
+        .insight-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             padding: 20px;
-            background: #f9fafb;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-        
-        .insight-section h3 {
-            color: #1a202c;
             margin-bottom: 15px;
-            font-size: 1.2em;
-        }
-        
-        .consensus-item {
-            background: white;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-        }
-        
-        .consensus-count {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            margin-left: 10px;
-        }
-        
-        .problem-item {
-            background: #fff5f5;
-            border-left: 3px solid #ef4444;
-            padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-        }
-        
-        .problem-count {
-            color: #ef4444;
-            font-weight: 600;
-            font-size: 0.9em;
-        }
-        
-        .solution-item {
-            background: #f0fdf4;
-            border-left: 3px solid #10b981;
-            padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-        }
-        
-        .solution-confirmed {
-            color: #10b981;
-            font-size: 0.9em;
-            margin-top: 5px;
-        }
-        
-        .discussion-item {
-            background: white;
-            padding: 15px;
             border-radius: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        
-        .discussion-meta {
+
+        .insight-type {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .insight-text {
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+
+        .action-buttons {
             display: flex;
-            gap: 15px;
-            margin-top: 10px;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .collapse-btn {
+            background: #cbd5e0;
+            color: #2d3748;
+            padding: 8px 16px;
             font-size: 0.9em;
-            color: #6b7280;
         }
-        
-        .gem-item {
-            background: #fef3c7;
-            border-left: 3px solid #f59e0b;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-        }
-        
-        .gem-reason {
-            color: #92400e;
-            font-size: 0.85em;
-            margin-top: 5px;
-            font-weight: 600;
-        }
-        
-        .link-btn {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 0.9em;
-            margin-left: 10px;
-        }
-        
-        .link-btn:hover {
-            text-decoration: underline;
-        }
-        
-        .export-section {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
-            text-align: center;
-        }
-        
-        .export-btn {
-            background: #16a085;
-            color: white;
-            border: none;
-            padding: 10px 25px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        
-        .export-btn:hover {
-            background: #138f76;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #6b7280;
+
+        .collapse-btn:hover {
+            background: #a0aec0;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>What Actually Matters</h1>
-            <p>Extract real insights from Reddit discussions</p>
+            <h1>🔍 Reddit Analyzer</h1>
+            <p>3-Step Interactive Analysis - Extract → Recommend → Analyze</p>
         </div>
 
         <div class="input-section">
-            <div style="background:#f0f9ff; padding:15px; border-radius:8px; margin-bottom:20px; font-size:0.9em; line-height:1.6;">
-                <div style="font-weight:600; color:#1e40af; margin-bottom:5px;">🔍 Supported Modes:</div>
-                <div style="color:#475569;">
-                    <strong>Single Post:</strong> Paste a full Reddit post URL (e.g., /r/AskReddit/comments/...) for deep analysis<br>
-                    <strong>Subreddit Overview:</strong> Paste subreddit name (e.g., r/AskReddit) for 24hr trending posts
-                </div>
-            </div>
             <div class="input-group">
-                <input type="text" id="redditUrl" placeholder="Paste Reddit post URL or subreddit name (e.g., r/AskReddit)" value="https://www.reddit.com/r/AskReddit/comments/1mn7rx5/what_industry_is_booming_way_more_than_people/">
-                <button class="analyze-btn" onclick="analyze()">Analyze</button>
+                <input type="text" id="redditUrl" placeholder="Paste Reddit post URL here..." value="https://www.reddit.com/r/AskReddit/comments/1hqxo9o/what_industry_is_quietly_booming_right_now_but/">
+                <button class="btn" onclick="startAnalysis()">Step 1: Extract Content</button>
             </div>
         </div>
-        
-        <div class="loading">
-            <div>⏳ Extracting what matters...</div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p id="loadingMessage">Extracting valuable content...</p>
         </div>
-        
-        <div class="results" id="results">
-            <!-- Results will be inserted here -->
+
+        <!-- STEP 1: Extracted Content -->
+        <div class="step-container" id="step1Container">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">Valuable Content Extracted</div>
+            </div>
+
+            <div class="stats-grid" id="extractionStats"></div>
+
+            <div class="comment-list" id="commentList"></div>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="proceedToStep2()">Step 2: Analyze & Recommend →</button>
+                <button class="btn collapse-btn" onclick="collapseStep('step1Container')">Collapse</button>
+            </div>
+        </div>
+
+        <!-- STEP 2: Recommendations -->
+        <div class="step-container" id="step2Container">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">Available Analyses</div>
+            </div>
+
+            <p style="margin-bottom: 20px; color: #718096;">
+                Based on the extracted content, here are the analyses we can run. Select which insights you want to generate:
+            </p>
+
+            <div class="recommendations-grid" id="recommendationsGrid"></div>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="proceedToStep3()" id="generateBtn" disabled>
+                    Step 3: Generate Selected Insights →
+                </button>
+                <button class="btn collapse-btn" onclick="collapseStep('step2Container')">Collapse</button>
+            </div>
+        </div>
+
+        <!-- STEP 3: Insights -->
+        <div class="insights-container" id="insightsContainer">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">Strategic Insights</div>
+            </div>
+
+            <div id="insightsList"></div>
+
+            <div class="action-buttons">
+                <button class="btn" onclick="startNewAnalysis()">Analyze Another Post</button>
+            </div>
         </div>
     </div>
-    
-    <script>
-        let currentData = null;
-        let currentMode = 'single'; // 'single' or 'subreddit'
 
-        async function analyze() {
+    <script>
+        // Replace with your Google Apps Script web app URL
+        const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+
+        let extractedData = null;
+        let selectedAnalyses = new Set();
+
+        function startAnalysis() {
             const url = document.getElementById('redditUrl').value.trim();
             if (!url) {
                 alert('Please enter a Reddit URL');
                 return;
             }
 
-            // Detect mode based on URL
-            if (url.includes('/comments/')) {
-                currentMode = 'deep'; // single post deep dive
-            } else {
-                currentMode = 'overview'; // subreddit overview
-            }
+            // Reset
+            document.getElementById('step1Container').style.display = 'none';
+            document.getElementById('step2Container').style.display = 'none';
+            document.getElementById('insightsContainer').style.display = 'none';
+            extractedData = null;
+            selectedAnalyses.clear();
 
-            document.querySelector('.input-section').style.display = 'none';
-            document.querySelector('.loading').style.display = 'block';
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = 'Extracting valuable content from comments...';
 
-            try {
-                // Call your Google Apps Script
-                const data = await fetchRedditData(url, currentMode);
-                currentData = data;
-                displayResults(data);
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error analyzing thread: ' + error.message);
-                document.querySelector('.input-section').style.display = 'block';
-                document.querySelector('.loading').style.display = 'none';
-            }
-        }
-        
-        async function fetchRedditData(url, mode) {
-            // Your existing JSONP fetch logic
-            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLPQgHXv8RFFYDQS_eoEMoTOQp8gptNIUi9wJgvC-wK9WQI5XHn8yAVaH95WZR9WsP/exec';
+            // Call Step 1: Extract
+            const callbackName = 'callback_' + Date.now();
+            window[callbackName] = function(response) {
+                document.getElementById('loading').style.display = 'none';
 
-            return new Promise((resolve, reject) => {
-                const callbackName = 'callback_' + Date.now();
-                const script = document.createElement('script');
-                const scriptUrl = GOOGLE_SCRIPT_URL + '?url=' + encodeURIComponent(url) +
-                                 '&mode=' + mode +
-                                 '&callback=' + callbackName;
-
-                window[callbackName] = function(data) {
-                    document.head.removeChild(script);
-                    delete window[callbackName];
-
-                    if (data.error) {
-                        reject(new Error(data.error));
-                    } else {
-                        resolve(data.data);
-                    }
-                };
-
-                script.onerror = function() {
-                    document.head.removeChild(script);
-                    delete window[callbackName];
-                    reject(new Error('Failed to load'));
-                };
-
-                script.src = scriptUrl;
-                document.head.appendChild(script);
-            });
-        }
-        
-        function displayResults(data) {
-            let html = '';
-
-            // Display post context if available
-            if (data.postContext) {
-                const ctx = data.postContext;
-                html += '<div style="background:#f0f9ff; padding:20px; border-radius:8px; margin-bottom:20px; border-left:4px solid #3b82f6;">';
-                html += '<div style="font-weight:600; color:#1e40af; margin-bottom:8px;">Post Analysis</div>';
-                html += '<div style="font-size:1.1em; margin-bottom:10px;">' + escapeHtml(ctx.title) + '</div>';
-                html += '<div style="display:flex; gap:15px; font-size:0.9em; color:#64748b;">';
-                html += '<span>Type: <strong>' + ctx.type.replace(/_/g, ' ') + '</strong></span>';
-                if (ctx.topics && ctx.topics.length > 0) {
-                    html += '<span>Topics: <strong>' + ctx.topics.join(', ').replace(/_/g, ' ') + '</strong></span>';
+                if (response.success) {
+                    extractedData = response.data;
+                    displayStep1(response.data);
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error'));
                 }
-                html += '<span>Comments: <strong>' + (data.stats?.totalComments || 0) + '</strong></span>';
-                html += '</div>';
-                html += '</div>';
-            }
 
-            // Dynamically render insights
-            const insights = data.insights || [];
+                delete window[callbackName];
+            };
 
-            if (insights.length === 0) {
-                html += '<div class="empty-state">No insights found. Try a different post.</div>';
-            } else {
-                insights.forEach(insight => {
-                    if (!insight || !insight.data || insight.data.length === 0) return;
-
-                    html += '<div class="insight-section">';
-                    html += '<h3>' + insight.title + '</h3>';
-                    if (insight.description) {
-                        html += '<p style="color:#6b7280; font-size:0.9em; margin-bottom:15px;">' + insight.description + '</p>';
-                    }
-
-                    // Render based on type
-                    html += renderInsightByType(insight);
-
-                    html += '</div>';
-                });
-            }
-
-            // Stats section
-            if (data.stats) {
-                html += '<div style="background:#f9fafb; padding:15px; border-radius:8px; margin-top:20px;">';
-                html += '<div style="display:flex; gap:20px; font-size:0.9em; color:#6b7280; flex-wrap:wrap;">';
-                html += '<span>Total Comments: <strong>' + data.stats.totalComments + '</strong></span>';
-                html += '<span>Total Score: <strong>' + data.stats.totalScore.toLocaleString() + '</strong></span>';
-                html += '<span>Average Score: <strong>' + data.stats.averageScore + '</strong></span>';
-                html += '<span>Top Score: <strong>' + data.stats.topScore + '</strong></span>';
-                html += '</div>';
-                html += '</div>';
-            }
-
-            // Export Section
-            html += '<div class="export-section">';
-            html += '<button class="export-btn" onclick="exportData()">Export Data (JSON)</button>';
-            html += '</div>';
-
-            document.getElementById('results').innerHTML = html;
-            document.querySelector('.loading').style.display = 'none';
-            document.querySelector('.results').style.display = 'block';
+            const scriptElement = document.createElement('script');
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step1_extract&callback=${callbackName}`;
+            document.body.appendChild(scriptElement);
         }
 
-        function renderInsightByType(insight) {
-            const type = insight.type;
-            const data = insight.data;
-            let html = '';
+        function displayStep1(data) {
+            const container = document.getElementById('step1Container');
+            container.style.display = 'block';
 
-            switch(type) {
-                case 'quotes':
-                    data.forEach(item => {
-                        html += '<div class="discussion-item">';
-                        html += '<div>' + escapeHtml(item.content) + '</div>';
-                        html += '<div class="discussion-meta">';
-                        html += '<span>👤 u/' + item.author + '</span>';
-                        html += '<span>⬆️ ' + item.score + '</span>';
-                        if (item.awards && item.awards > 0) html += '<span>🏆 ' + item.awards + '</span>';
-                        html += '</div>';
-                        if (item.permalink) {
-                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+            // Display stats
+            const stats = data.extractionStats;
+            document.getElementById('extractionStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.total}</div>
+                    <div class="stat-label">Total Comments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.extracted}</div>
+                    <div class="stat-label">High-Value Extracted</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.percentageKept}%</div>
+                    <div class="stat-label">Kept</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.averageScore}</div>
+                    <div class="stat-label">Avg Score</div>
+                </div>
+            `;
 
-                case 'ranking':
-                    data.forEach((item, index) => {
-                        html += '<div class="consensus-item">';
-                        html += '<span style="font-weight:700; color:#667eea; margin-right:10px;">#' + (index + 1) + '</span>';
-                        if (item.recommendation) {
-                            html += escapeHtml(item.recommendation);
-                            if (item.mentions) html += '<span class="consensus-count">' + item.mentions + ' mentions</span>';
-                        } else if (item.item) {
-                            html += escapeHtml(item.item);
-                            if (item.mentions) html += '<span class="consensus-count">' + item.mentions + ' mentions</span>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+            // Display comments
+            const commentList = document.getElementById('commentList');
+            commentList.innerHTML = data.valuableComments.map(comment => `
+                <div class="comment-card">
+                    <div class="comment-meta">
+                        <span class="comment-author">👤 u/${escapeHtml(comment.author)}</span>
+                        <span class="comment-score">⬆️ ${comment.score}</span>
+                        ${comment.awards > 0 ? `<span>🏆 ${comment.awards}</span>` : ''}
+                    </div>
+                    <div class="comment-body">${escapeHtml(comment.body.substring(0, 400))}${comment.body.length > 400 ? '...' : ''}</div>
+                </div>
+            `).join('');
 
-                case 'categorized':
-                    data.forEach(category => {
-                        html += '<div style="margin-bottom:20px;">';
-                        html += '<div style="font-weight:600; color:#1a202c; margin-bottom:10px; font-size:1.05em;">' + category.category + '</div>';
-                        category.items.forEach(item => {
-                            html += '<div class="discussion-item" style="margin-bottom:8px;">';
-                            html += '<div>' + escapeHtml(item.content) + '</div>';
-                            html += '<div class="discussion-meta">';
-                            html += '<span>👤 u/' + item.author + '</span>';
-                            html += '<span>⬆️ ' + item.score + '</span>';
-                            html += '</div>';
-                            if (item.permalink) {
-                                html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                            }
-                            html += '</div>';
-                        });
-                        html += '</div>';
-                    });
-                    break;
+            // Scroll to step 1
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
 
-                case 'comparison':
-                    if (data.quickWins && data.quickWins.length > 0) {
-                        html += '<div style="margin-bottom:20px;">';
-                        html += '<div style="font-weight:600; color:#10b981; margin-bottom:10px;">⚡ Quick Wins</div>';
-                        data.quickWins.forEach(item => {
-                            html += '<div class="solution-item">';
-                            html += '<div>' + escapeHtml(item.content) + '</div>';
-                            html += '<div style="font-size:0.85em; color:#6b7280; margin-top:5px;">Score: ' + item.score + '</div>';
-                            html += '</div>';
-                        });
-                        html += '</div>';
-                    }
-                    if (data.longTerm && data.longTerm.length > 0) {
-                        html += '<div>';
-                        html += '<div style="font-weight:600; color:#3b82f6; margin-bottom:10px;">📅 Long-term Changes</div>';
-                        data.longTerm.forEach(item => {
-                            html += '<div class="solution-item">';
-                            html += '<div>' + escapeHtml(item.content) + '</div>';
-                            html += '<div style="font-size:0.85em; color:#6b7280; margin-top:5px;">Score: ' + item.score + '</div>';
-                            html += '</div>';
-                        });
-                        html += '</div>';
-                    }
-                    break;
+        function proceedToStep2() {
+            if (!extractedData) return;
 
-                case 'list':
-                    data.forEach(item => {
-                        html += '<div class="consensus-item">';
-                        html += '<div>' + escapeHtml(item.statement) + '</div>';
-                        if (item.agreementLevel) {
-                            html += '<div style="font-size:0.85em; color:#667eea; margin-top:5px;">' + item.agreementLevel + '</div>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = 'Analyzing content and generating recommendations...';
 
-                case 'debates':
-                    data.forEach(item => {
-                        html += '<div class="problem-item">';
-                        html += '<div>' + escapeHtml(item.content) + '</div>';
-                        if (item.debateLevel) {
-                            html += '<div style="font-size:0.85em; color:#ef4444; margin-top:5px;">' + item.debateLevel + '</div>';
-                        }
-                        html += '<div class="discussion-meta">';
-                        html += '<span>⬆️ ' + item.score + '</span>';
-                        html += '</div>';
-                        if (item.permalink) {
-                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+            const callbackName = 'callback_' + Date.now();
+            window[callbackName] = function(response) {
+                document.getElementById('loading').style.display = 'none';
 
-                case 'patterns':
-                    data.forEach(item => {
-                        html += '<div class="consensus-item">';
-                        html += '"' + escapeHtml(item.pattern) + '"';
-                        if (item.mentionedBy) {
-                            html += '<span class="consensus-count">' + item.mentionedBy + '</span>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+                if (response.success) {
+                    displayStep2(response.data);
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error'));
+                }
 
-                case 'themes':
-                    data.forEach(item => {
-                        html += '<div class="consensus-item">';
-                        html += '<strong>' + item.theme + '</strong>';
-                        html += '<span class="consensus-count">' + item.mentions + ' mentions</span>';
-                        html += '</div>';
-                    });
-                    break;
+                delete window[callbackName];
+            };
 
-                case 'discussions':
-                    data.forEach(item => {
-                        html += '<div class="discussion-item">';
-                        html += '<div>' + escapeHtml(item.content) + '</div>';
-                        html += '<div class="discussion-meta">';
-                        html += '<span>👤 u/' + item.author + '</span>';
-                        html += '<span>💬 ' + item.replyCount + ' replies</span>';
-                        html += '<span>⬆️ ' + item.score + '</span>';
-                        html += '</div>';
-                        if (item.permalink) {
-                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+            const scriptElement = document.createElement('script');
+            const contentDataParam = encodeURIComponent(JSON.stringify(extractedData));
+            scriptElement.src = `${SCRIPT_URL}?mode=step2_recommend&contentData=${contentDataParam}&callback=${callbackName}`;
+            document.body.appendChild(scriptElement);
+        }
 
-                case 'problems':
-                    data.forEach(item => {
-                        html += '<div class="problem-item">';
-                        html += '<div>' + escapeHtml(item.content) + '</div>';
-                        html += '<div class="problem-count">';
-                        if (item.replyCount) html += item.replyCount + ' replies • ';
-                        html += 'Score: ' + item.score;
-                        html += '</div>';
-                        if (item.permalink) {
-                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+        function displayStep2(data) {
+            const container = document.getElementById('step2Container');
+            container.style.display = 'block';
 
-                case 'solutions':
-                    data.forEach(item => {
-                        html += '<div class="solution-item">';
-                        html += '<div>' + escapeHtml(item.content) + '</div>';
-                        if (item.confirmations > 0) {
-                            html += '<div class="solution-confirmed">✓ ' + item.confirmations + ' confirmations</div>';
-                        }
-                        html += '<div style="font-size:0.85em; color:#6b7280; margin-top:5px;">Score: ' + item.score + '</div>';
-                        if (item.permalink) {
-                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+            const grid = document.getElementById('recommendationsGrid');
+            grid.innerHTML = data.recommendations.map(rec => `
+                <div class="recommendation-card ${rec.available ? '' : 'unavailable'}"
+                     onclick="${rec.available ? `toggleAnalysis('${rec.id}')` : ''}"
+                     id="rec_${rec.id}">
+                    <div class="recommendation-header">
+                        ${rec.available ? `<input type="checkbox" class="checkbox" id="check_${rec.id}" onchange="updateSelection()">` : ''}
+                        <div class="recommendation-title">${rec.available ? '✓' : '✗'} ${escapeHtml(rec.name)}</div>
+                    </div>
+                    <div class="recommendation-desc">${escapeHtml(rec.description)}</div>
+                    <div class="recommendation-data">📊 ${escapeHtml(rec.dataFound)}</div>
+                    ${rec.available ? `<div class="recommendation-estimate">~${rec.estimatedInsights} insights expected</div>` : ''}
+                </div>
+            `).join('');
 
-                case 'gems':
-                    data.forEach(item => {
-                        html += '<div class="gem-item">';
-                        html += '<div>' + escapeHtml(item.content) + '</div>';
-                        if (item.reason) {
-                            html += '<div class="gem-reason">' + item.reason + '</div>';
-                        }
-                        html += '<div style="font-size:0.85em; color:#92400e; margin-top:5px;">Score: ' + item.score + '</div>';
-                        if (item.permalink) {
-                            html += '<a href="https://reddit.com' + item.permalink + '" target="_blank" class="link-btn">View →</a>';
-                        }
-                        html += '</div>';
-                    });
-                    break;
+            // Scroll to step 2
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
 
-                case 'strategic':
-                    // Strategic insights with intelligence and percentages
-                    data.forEach(item => {
-                        html += '<div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:20px; border-radius:8px; margin-bottom:15px;">';
-                        html += '<div style="font-size:1.1em; font-weight:600; margin-bottom:10px;">💡 ' + escapeHtml(item.insight) + '</div>';
+        function toggleAnalysis(analysisId) {
+            const checkbox = document.getElementById('check_' + analysisId);
+            const card = document.getElementById('rec_' + analysisId);
 
-                        // Show additional data if available
-                        if (item.type === 'top_recommendation') {
-                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
-                            html += '<span>📊 ' + item.percentageOfComments + '% of comments</span>';
-                            html += '<span>😊 ' + item.satisfactionRate + '% positive</span>';
-                            html += '</div>';
-                        } else if (item.type === 'price_sensitivity') {
-                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
-                            html += '<span>💰 ' + item.priceAware + '% price-aware</span>';
-                            html += '<span>📈 Tendency: ' + item.tendency + '</span>';
-                            html += '</div>';
-                        } else if (item.type === 'solution_effectiveness') {
-                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
-                            html += '<span>✅ ' + item.workedCount + ' worked</span>';
-                            html += '<span>❌ ' + item.failedCount + ' failed</span>';
-                            html += '</div>';
-                        } else if (item.type === 'urgency_analysis') {
-                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
-                            html += '<span>🚨 Critical: ' + item.criticalPercentage + '%</span>';
-                            html += '<span>⚠️ High: ' + item.highPercentage + '%</span>';
-                            html += '<span>📌 Moderate: ' + item.moderatePercentage + '%</span>';
-                            html += '</div>';
-                        } else if (item.type === 'correlation') {
-                            html += '<div style="font-size:0.9em; opacity:0.9; margin-top:10px;">';
-                            html += '<span>🔗 Combination: "' + item.combination + '" (' + item.frequency + ' times)</span>';
-                            html += '</div>';
-                        } else if (item.type === 'growth_sentiment') {
-                            html += '<div style="display:flex; gap:20px; font-size:0.9em; opacity:0.9; margin-top:10px;">';
-                            html += '<span>📈 ' + item.growthCount + ' growth mentions</span>';
-                            html += '<span>📉 ' + item.declineCount + ' decline mentions</span>';
-                            html += '</div>';
-                        } else if (item.percentage) {
-                            html += '<div style="font-size:0.9em; opacity:0.9; margin-top:10px;">';
-                            html += '<span>📊 ' + item.percentage + '% of comments</span>';
-                            html += '</div>';
-                        }
-
-                        html += '</div>';
-                    });
-                    break;
-
-                default:
-                    // Fallback for unknown types
-                    html += '<pre style="background:#f3f4f6; padding:10px; border-radius:4px; overflow:auto; font-size:0.85em;">';
-                    html += JSON.stringify(data, null, 2);
-                    html += '</pre>';
+            if (checkbox.checked) {
+                selectedAnalyses.delete(analysisId);
+                checkbox.checked = false;
+                card.classList.remove('selected');
+            } else {
+                selectedAnalyses.add(analysisId);
+                checkbox.checked = true;
+                card.classList.add('selected');
             }
 
-            return html;
+            updateSelection();
+        }
+
+        function updateSelection() {
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = selectedAnalyses.size === 0;
+            btn.textContent = `Step 3: Generate ${selectedAnalyses.size} Selected Insight${selectedAnalyses.size !== 1 ? 's' : ''} →`;
+        }
+
+        function proceedToStep3() {
+            if (selectedAnalyses.size === 0 || !extractedData) return;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = 'Generating selected insights...';
+
+            const callbackName = 'callback_' + Date.now();
+            window[callbackName] = function(response) {
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.success) {
+                    displayStep3(response.data);
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error'));
+                }
+
+                delete window[callbackName];
+            };
+
+            const scriptElement = document.createElement('script');
+            const contentDataParam = encodeURIComponent(JSON.stringify(extractedData));
+            const selectedParam = encodeURIComponent(JSON.stringify(Array.from(selectedAnalyses)));
+            scriptElement.src = `${SCRIPT_URL}?mode=step3_analyze&contentData=${contentDataParam}&selectedAnalyses=${selectedParam}&callback=${callbackName}`;
+            document.body.appendChild(scriptElement);
+        }
+
+        function displayStep3(data) {
+            const container = document.getElementById('insightsContainer');
+            container.style.display = 'block';
+
+            const list = document.getElementById('insightsList');
+            list.innerHTML = data.insights.map(insight => `
+                <div class="insight-card">
+                    <div class="insight-type">${escapeHtml(insight.type.replace(/_/g, ' '))}</div>
+                    <div class="insight-text">💡 ${escapeHtml(insight.insight)}</div>
+                </div>
+            `).join('');
+
+            if (data.insights.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: #718096; padding: 40px;">No insights generated. Try selecting different analyses.</p>';
+            }
+
+            // Scroll to insights
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function collapseStep(stepId) {
+            document.getElementById(stepId).style.display = 'none';
+        }
+
+        function startNewAnalysis() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.getElementById('redditUrl').value = '';
+            document.getElementById('redditUrl').focus();
         }
 
         function escapeHtml(text) {
-            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
-        }
-        
-        function exportData() {
-            if (!currentData) return;
-
-            // Export as JSON
-            const jsonData = JSON.stringify(currentData, null, 2);
-            const blob = new Blob([jsonData], { type: 'application/json' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'reddit_insights_' + Date.now() + '.json';
-            a.click();
-            window.URL.revokeObjectURL(url);
         }
     </script>
 </body>
