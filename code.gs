@@ -1073,30 +1073,60 @@ function extractNotablePerspectives(comments) {
 function extractMentionRankings(comments) {
   const mentions = {};
 
+  // Comprehensive stopword list - common words that aren't entities
+  const stopwords = new Set([
+    'The', 'This', 'That', 'These', 'Those', 'They', 'There', 'Their',
+    'What', 'When', 'Where', 'Which', 'Who', 'Why', 'How',
+    'Every', 'Each', 'Some', 'Many', 'More', 'Most', 'Much',
+    'From', 'With', 'About', 'Into', 'Through', 'During', 'Before', 'After',
+    'Just', 'Very', 'Really', 'Actually', 'Basically', 'Literally',
+    'Reddit', 'Edit', 'Update', 'Source', 'Yeah', 'Also', 'Because',
+    'People', 'Person', 'Someone', 'Anyone', 'Everyone', 'Nobody',
+    'Thing', 'Things', 'Something', 'Anything', 'Everything', 'Nothing',
+    'Good', 'Great', 'Best', 'Better', 'Worse', 'Worst',
+    'First', 'Second', 'Third', 'Last', 'Next', 'Other', 'Another',
+    'Data', 'Year', 'Years', 'Time', 'Times', 'Way', 'Ways',
+    'Work', 'Working', 'Works', 'Worked', 'Does', 'Did', 'Done',
+    'Make', 'Makes', 'Made', 'Making', 'Take', 'Takes', 'Took',
+    'Even', 'Still', 'Always', 'Never', 'Often', 'Sometimes',
+    'Here', 'There', 'Everywhere', 'Somewhere', 'Anywhere', 'Nowhere'
+  ]);
+
   comments.forEach(comment => {
     const body = comment.body || '';
 
-    // Extract capitalized words or quoted terms (likely specific things)
-    const capitalizedWords = body.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) || [];
+    // Extract multi-word capitalized phrases (up to 4 words)
+    const capitalizedPhrases = body.match(/\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/g) || [];
 
-    capitalizedWords.forEach(word => {
-      if (word.length > 3 && word !== 'Reddit' && word !== 'Edit') {
-        if (!mentions[word]) {
-          mentions[word] = {
-            count: 0,
-            totalScore: 0,
-            examples: []
-          };
-        }
-        mentions[word].count++;
-        mentions[word].totalScore += comment.score || 0;
+    capitalizedPhrases.forEach(phrase => {
+      const trimmed = phrase.trim();
 
-        if (mentions[word].examples.length < 2) {
-          mentions[word].examples.push({
-            author: comment.author,
-            score: comment.score,
-            context: body.substring(0, 150)
-          });
+      // Filter out stopwords and very short words
+      if (trimmed.length > 2 && !stopwords.has(trimmed)) {
+        // Also filter if it's ONLY stopwords in a multi-word phrase
+        const words = trimmed.split(/\s+/);
+        const hasNonStopword = words.some(w => !stopwords.has(w));
+
+        if (hasNonStopword) {
+          if (!mentions[trimmed]) {
+            mentions[trimmed] = {
+              count: 0,
+              totalScore: 0,
+              examples: []
+            };
+          }
+          mentions[trimmed].count++;
+          mentions[trimmed].totalScore += comment.score || 0;
+
+          if (mentions[trimmed].examples.length < 2) {
+            const idx = body.indexOf(trimmed);
+            const context = body.substring(Math.max(0, idx - 50), Math.min(body.length, idx + trimmed.length + 100));
+            mentions[trimmed].examples.push({
+              author: comment.author,
+              score: comment.score,
+              context: context
+            });
+          }
         }
       }
     });
@@ -1105,7 +1135,7 @@ function extractMentionRankings(comments) {
   const ranked = Object.entries(mentions)
     .filter(([word, data]) => data.count >= 3)
     .sort((a, b) => (b[1].count * 10 + b[1].totalScore) - (a[1].count * 10 + a[1].totalScore))
-    .slice(0, 20)
+    .slice(0, 15)
     .map(([word, data]) => ({
       item: word,
       mentions: data.count,
@@ -1115,8 +1145,8 @@ function extractMentionRankings(comments) {
 
   return {
     id: 'mention_rankings',
-    title: '📈 Most Mentioned',
-    description: 'Ranked by frequency and score',
+    title: '📈 Industries & Topics',
+    description: 'Most discussed entities',
     type: 'ranking',
     data: ranked
   };
@@ -1495,28 +1525,54 @@ function readAndLearnFromComments(comments) {
     frequency: {}
   };
 
+  // Stopwords to filter out common words that aren't entities
+  const stopwords = new Set([
+    'The', 'This', 'That', 'These', 'Those', 'They', 'There', 'Their',
+    'What', 'When', 'Where', 'Which', 'Who', 'Why', 'How',
+    'Every', 'Each', 'Some', 'Many', 'More', 'Most', 'Much',
+    'From', 'With', 'About', 'Into', 'Through', 'During', 'Before', 'After',
+    'Just', 'Very', 'Really', 'Actually', 'Basically', 'Literally',
+    'Reddit', 'Edit', 'Update', 'Source', 'Yeah', 'Also', 'Because',
+    'People', 'Person', 'Someone', 'Anyone', 'Everyone', 'Nobody',
+    'Thing', 'Things', 'Something', 'Anything', 'Everything', 'Nothing',
+    'Good', 'Great', 'Best', 'Better', 'Worse', 'Worst',
+    'First', 'Second', 'Third', 'Last', 'Next', 'Other', 'Another',
+    'Data', 'Year', 'Years', 'Time', 'Times', 'Way', 'Ways',
+    'Work', 'Working', 'Works', 'Worked', 'Does', 'Did', 'Done',
+    'Make', 'Makes', 'Made', 'Making', 'Take', 'Takes', 'Took',
+    'Even', 'Still', 'Always', 'Never', 'Often', 'Sometimes',
+    'Here', 'There', 'Everywhere', 'Somewhere', 'Anywhere', 'Nowhere'
+  ]);
+
   // Universal sentiment words (starting point)
-  const basePosWords = ['good', 'great', 'love', 'best', 'worked', 'helped', 'success', 'amazing', 'excellent'];
-  const baseNegWords = ['bad', 'terrible', 'hate', 'worst', 'failed', 'useless', 'awful', 'didn\'t work'];
+  const basePosWords = ['good', 'great', 'love', 'best', 'worked', 'helped', 'success', 'amazing', 'excellent', 'booming', 'growing'];
+  const baseNegWords = ['bad', 'terrible', 'hate', 'worst', 'failed', 'useless', 'awful', 'didn\'t work', 'dying', 'declining'];
 
   comments.forEach((comment, index) => {
     const body = comment.body || '';
     const bodyLower = body.toLowerCase();
 
-    // Extract entities (things being discussed - proper nouns)
-    const properNouns = body.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}\b/g) || [];
+    // Extract entities - multi-word capitalized phrases (up to 4 words)
+    const properNouns = body.match(/\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,3}\b/g) || [];
     properNouns.forEach(entity => {
       const cleaned = entity.trim();
-      if (cleaned.length > 2 && !['Reddit', 'Edit', 'Update', 'Source', 'The', 'This', 'That', 'There'].includes(cleaned)) {
-        if (!learned.entities[cleaned]) {
-          learned.entities[cleaned] = {
-            count: 0,
-            contexts: [],
-            coOccurs: {},
-            sentiment: {pos: 0, neg: 0, neu: 0}
-          };
-        }
-        learned.entities[cleaned].count++;
+
+      // Filter out stopwords
+      if (cleaned.length > 2 && !stopwords.has(cleaned)) {
+        // If multi-word, ensure at least one word isn't a stopword
+        const words = cleaned.split(/\s+/);
+        const hasNonStopword = words.some(w => !stopwords.has(w));
+
+        if (hasNonStopword) {
+          if (!learned.entities[cleaned]) {
+            learned.entities[cleaned] = {
+              count: 0,
+              contexts: [],
+              coOccurs: {},
+              sentiment: {pos: 0, neg: 0, neu: 0}
+            };
+          }
+          learned.entities[cleaned].count++;
 
         // Context (60 chars before and after)
         const idx = body.indexOf(cleaned);
