@@ -122,7 +122,9 @@ function doGet(e) {
     } else if (mode === 'step2_recommend') {
       // Step 2: Analyze content and recommend analyses
       // Re-fetch and extract to avoid URL length issues
+      console.log('Step2: Starting recommendation analysis');
       const rawRedditData = fetchAuthenticatedRedditData(url);
+      console.log('Step2: Reddit data fetched');
 
       let post = null;
       let comments = [];
@@ -146,12 +148,16 @@ function doGet(e) {
         comment.body.trim().length > 10
       );
 
+      console.log('Step2: Valid comments:', validComments.length);
+
       const contentData = extractValuableContentOnly({
         post: post,
         comments: validComments
       });
 
+      console.log('Step2: Content extracted, calling analyzeAndRecommend');
       processedData = analyzeAndRecommend(contentData);
+      console.log('Step2: Recommendations generated:', processedData.totalRecommendations);
     } else if (mode === 'step3_analyze') {
       // Step 3: Generate selected insights
       // Re-fetch to avoid URL length issues
