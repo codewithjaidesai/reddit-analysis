@@ -73,16 +73,124 @@ function doGet(e) {
       processedData = processSubredditOverview(redditData, url);
     } else if (mode === 'step1_extract') {
       // Step 1: Extract valuable content only
-      const redditData = fetchAuthenticatedRedditData(url);
-      processedData = extractValuableContentOnly(redditData);
+      const rawRedditData = fetchAuthenticatedRedditData(url);
+
+      console.log('Step1: Raw Reddit data received, length:', rawRedditData ? rawRedditData.length : 'null');
+
+      // Parse raw Reddit API data structure
+      let post = null;
+      let comments = [];
+
+      if (Array.isArray(rawRedditData) && rawRedditData.length >= 1) {
+        // Extract post data
+        if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
+          post = rawRedditData[0].data.children[0].data;
+          console.log('Step1: Extracted post:', post ? post.title : 'null');
+        }
+
+        // Extract comments data
+        if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
+          const rawComments = rawRedditData[1].data.children;
+          console.log('Step1: Raw comments found:', rawComments.length);
+          comments = extractAllComments(rawComments);
+          console.log('Step1: Extracted comments (recursive):', comments.length);
+        } else {
+          console.log('Step1: No comments data found in rawRedditData[1]');
+        }
+      } else {
+        console.log('Step1: rawRedditData is not an array or empty');
+      }
+
+      // Filter valid comments
+      const validComments = comments.filter(comment =>
+        comment.body &&
+        comment.body !== '[deleted]' &&
+        comment.body !== '[removed]' &&
+        comment.author &&
+        comment.author !== '[deleted]' &&
+        comment.body.trim().length > 10
+      );
+
+      console.log('Step1: Valid comments after filtering:', validComments.length);
+      console.log('Step1: First 3 comment bodies:', validComments.slice(0, 3).map(c => c.body ? c.body.substring(0, 50) : 'no body'));
+
+      // Pass structured data to extraction function
+      processedData = extractValuableContentOnly({
+        post: post,
+        comments: validComments
+      });
     } else if (mode === 'step2_recommend') {
       // Step 2: Analyze content and recommend analyses
-      const contentData = JSON.parse(e.parameter.contentData || '{}');
+      // Re-fetch and extract to avoid URL length issues
+      console.log('Step2: Starting recommendation analysis');
+      const rawRedditData = fetchAuthenticatedRedditData(url);
+      console.log('Step2: Reddit data fetched');
+
+      let post = null;
+      let comments = [];
+
+      if (Array.isArray(rawRedditData) && rawRedditData.length >= 1) {
+        if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
+          post = rawRedditData[0].data.children[0].data;
+        }
+        if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
+          const rawComments = rawRedditData[1].data.children;
+          comments = extractAllComments(rawComments);
+        }
+      }
+
+      const validComments = comments.filter(comment =>
+        comment.body &&
+        comment.body !== '[deleted]' &&
+        comment.body !== '[removed]' &&
+        comment.author &&
+        comment.author !== '[deleted]' &&
+        comment.body.trim().length > 10
+      );
+
+      console.log('Step2: Valid comments:', validComments.length);
+
+      const contentData = extractValuableContentOnly({
+        post: post,
+        comments: validComments
+      });
+
+      console.log('Step2: Content extracted, calling analyzeAndRecommend');
       processedData = analyzeAndRecommend(contentData);
+      console.log('Step2: Recommendations generated:', processedData.totalRecommendations);
     } else if (mode === 'step3_analyze') {
       // Step 3: Generate selected insights
-      const contentData = JSON.parse(e.parameter.contentData || '{}');
+      // Re-fetch to avoid URL length issues
+      const rawRedditData = fetchAuthenticatedRedditData(url);
       const selectedAnalyses = JSON.parse(e.parameter.selectedAnalyses || '[]');
+
+      let post = null;
+      let comments = [];
+
+      if (Array.isArray(rawRedditData) && rawRedditData.length >= 1) {
+        if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
+          post = rawRedditData[0].data.children[0].data;
+        }
+        if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
+          const rawComments = rawRedditData[1].data.children;
+          comments = extractAllComments(rawComments);
+        }
+      }
+
+      const validComments = comments.filter(comment =>
+        comment.body &&
+        comment.body !== '[deleted]' &&
+        comment.body !== '[removed]' &&
+        comment.author &&
+        comment.author !== '[deleted]' &&
+        comment.body.trim().length > 10
+      );
+
+      const contentData = extractValuableContentOnly({
+        post: post,
+        comments: validComments
+      });
+
       processedData = generateSelectedInsights(contentData, selectedAnalyses);
     } else {
       // Deep dive mode for single post
@@ -1965,6 +2073,12 @@ function synthesizeFromPatterns(patterns, learned, totalComments) {
 
 // STEP 1: Extract valuable content only (no analysis yet)
 function extractValuableContentOnly(redditData) {
+  console.log('STEP 1: Received redditData:', redditData);
+
+  if (!redditData || !redditData.post) {
+    throw new Error('Invalid data: Missing post data. RedditData structure: ' + JSON.stringify(Object.keys(redditData || {})));
+  }
+
   const post = redditData.post;
   const allComments = redditData.comments || [];
 

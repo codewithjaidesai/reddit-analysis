@@ -361,6 +361,7 @@
 
             <div class="action-buttons">
                 <button class="btn btn-secondary" onclick="proceedToStep2()">Step 2: Analyze & Recommend →</button>
+                <button class="btn" onclick="exportToPDF()" style="background: #ed8936;">📄 Export as PDF</button>
                 <button class="btn collapse-btn" onclick="collapseStep('step1Container')">Collapse</button>
             </div>
         </div>
@@ -402,8 +403,8 @@
     </div>
 
     <script>
-        // Replace with your Google Apps Script web app URL
-        const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+        // Google Apps Script web app URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLPQgHXv8RFFYDQS_eoEMoTOQp8gptNIUi9wJgvC-wK9WQI5XHn8yAVaH95WZR9WsP/exec';
 
         let extractedData = null;
         let selectedAnalyses = new Set();
@@ -449,6 +450,19 @@
         function displayStep1(data) {
             const container = document.getElementById('step1Container');
             container.style.display = 'block';
+
+            // Display post title
+            const postTitle = document.createElement('div');
+            postTitle.style.cssText = 'background: #eef2ff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #667eea;';
+            postTitle.innerHTML = `
+                <div style="font-size: 1.2em; font-weight: 600; color: #1a202c; margin-bottom: 10px;">
+                    📄 ${escapeHtml(data.post.title)}
+                </div>
+                <div style="font-size: 0.9em; color: #718096;">
+                    Posted by u/${escapeHtml(data.post.author)} • ${data.post.score} upvotes • ${data.post.num_comments} comments
+                </div>
+            `;
+            document.getElementById('step1Container').insertBefore(postTitle, document.getElementById('extractionStats'));
 
             // Display stats
             const stats = data.extractionStats;
@@ -508,8 +522,8 @@
             };
 
             const scriptElement = document.createElement('script');
-            const contentDataParam = encodeURIComponent(JSON.stringify(extractedData));
-            scriptElement.src = `${SCRIPT_URL}?mode=step2_recommend&contentData=${contentDataParam}&callback=${callbackName}`;
+            const url = document.getElementById('redditUrl').value.trim();
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step2_recommend&callback=${callbackName}`;
             document.body.appendChild(scriptElement);
         }
 
@@ -579,9 +593,9 @@
             };
 
             const scriptElement = document.createElement('script');
-            const contentDataParam = encodeURIComponent(JSON.stringify(extractedData));
+            const url = document.getElementById('redditUrl').value.trim();
             const selectedParam = encodeURIComponent(JSON.stringify(Array.from(selectedAnalyses)));
-            scriptElement.src = `${SCRIPT_URL}?mode=step3_analyze&contentData=${contentDataParam}&selectedAnalyses=${selectedParam}&callback=${callbackName}`;
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${selectedParam}&callback=${callbackName}`;
             document.body.appendChild(scriptElement);
         }
 
@@ -619,6 +633,163 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function exportToPDF() {
+            if (!extractedData) {
+                alert('No data to export');
+                return;
+            }
+
+            // Create a new window for PDF export
+            const printWindow = window.open('', '', 'width=800,height=600');
+
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${escapeHtml(extractedData.post.title)}</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            line-height: 1.6;
+                            max-width: 800px;
+                            margin: 20px;
+                            color: #333;
+                        }
+                        .header {
+                            border-bottom: 3px solid #667eea;
+                            padding-bottom: 15px;
+                            margin-bottom: 20px;
+                        }
+                        h1 {
+                            color: #667eea;
+                            font-size: 1.5em;
+                            margin-bottom: 10px;
+                        }
+                        .meta {
+                            color: #666;
+                            font-size: 0.9em;
+                            margin-bottom: 20px;
+                        }
+                        .stats {
+                            background: #f5f5f5;
+                            padding: 15px;
+                            border-radius: 5px;
+                            margin-bottom: 20px;
+                        }
+                        .stats-grid {
+                            display: grid;
+                            grid-template-columns: repeat(4, 1fr);
+                            gap: 15px;
+                        }
+                        .stat {
+                            text-align: center;
+                        }
+                        .stat-value {
+                            font-size: 1.5em;
+                            font-weight: bold;
+                            color: #667eea;
+                        }
+                        .stat-label {
+                            font-size: 0.85em;
+                            color: #666;
+                        }
+                        .comment {
+                            border-left: 3px solid #667eea;
+                            padding: 15px;
+                            margin-bottom: 15px;
+                            background: #f9f9f9;
+                            page-break-inside: avoid;
+                        }
+                        .comment-meta {
+                            font-size: 0.9em;
+                            color: #666;
+                            margin-bottom: 8px;
+                        }
+                        .comment-author {
+                            font-weight: bold;
+                            color: #667eea;
+                        }
+                        .comment-score {
+                            color: #48bb78;
+                            margin-left: 10px;
+                        }
+                        .comment-body {
+                            white-space: pre-wrap;
+                            word-wrap: break-word;
+                        }
+                        .footer {
+                            margin-top: 30px;
+                            padding-top: 15px;
+                            border-top: 1px solid #ddd;
+                            text-align: center;
+                            color: #999;
+                            font-size: 0.85em;
+                        }
+                        @media print {
+                            body { margin: 15px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>📄 ${escapeHtml(extractedData.post.title)}</h1>
+                        <div class="meta">
+                            Posted by u/${escapeHtml(extractedData.post.author)} •
+                            ${extractedData.post.score} upvotes •
+                            ${extractedData.post.num_comments} comments
+                        </div>
+                    </div>
+
+                    <div class="stats">
+                        <div class="stats-grid">
+                            <div class="stat">
+                                <div class="stat-value">${extractedData.extractionStats.total}</div>
+                                <div class="stat-label">Total Comments</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${extractedData.extractionStats.extracted}</div>
+                                <div class="stat-label">High-Value Extracted</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${extractedData.extractionStats.percentageKept}%</div>
+                                <div class="stat-label">Kept</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">${extractedData.extractionStats.averageScore}</div>
+                                <div class="stat-label">Avg Score</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 style="color: #667eea; margin-bottom: 15px;">Valuable Comments (${extractedData.valuableComments.length})</h2>
+
+                    ${extractedData.valuableComments.map((comment, index) => `
+                        <div class="comment">
+                            <div class="comment-meta">
+                                <span class="comment-author">#${index + 1} • u/${escapeHtml(comment.author)}</span>
+                                <span class="comment-score">⬆️ ${comment.score}</span>
+                                ${comment.awards > 0 ? `<span>🏆 ${comment.awards}</span>` : ''}
+                            </div>
+                            <div class="comment-body">${escapeHtml(comment.body)}</div>
+                        </div>
+                    `).join('')}
+
+                    <div class="footer">
+                        Generated by Reddit Analyzer • ${new Date().toLocaleString()}
+                    </div>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(html);
+            printWindow.document.close();
+
+            // Wait for content to load, then trigger print dialog
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
         }
     </script>
 </body>
