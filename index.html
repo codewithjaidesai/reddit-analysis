@@ -508,8 +508,8 @@
             };
 
             const scriptElement = document.createElement('script');
-            const contentDataParam = encodeURIComponent(JSON.stringify(extractedData));
-            scriptElement.src = `${SCRIPT_URL}?mode=step2_recommend&contentData=${contentDataParam}&callback=${callbackName}`;
+            const url = document.getElementById('redditUrl').value.trim();
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step2_recommend&callback=${callbackName}`;
             document.body.appendChild(scriptElement);
         }
 
@@ -579,9 +579,9 @@
             };
 
             const scriptElement = document.createElement('script');
-            const contentDataParam = encodeURIComponent(JSON.stringify(extractedData));
+            const url = document.getElementById('redditUrl').value.trim();
             const selectedParam = encodeURIComponent(JSON.stringify(Array.from(selectedAnalyses)));
-            scriptElement.src = `${SCRIPT_URL}?mode=step3_analyze&contentData=${contentDataParam}&selectedAnalyses=${selectedParam}&callback=${callbackName}`;
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${selectedParam}&callback=${callbackName}`;
             document.body.appendChild(scriptElement);
         }
 

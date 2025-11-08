@@ -121,12 +121,70 @@ function doGet(e) {
       });
     } else if (mode === 'step2_recommend') {
       // Step 2: Analyze content and recommend analyses
-      const contentData = JSON.parse(e.parameter.contentData || '{}');
+      // Re-fetch and extract to avoid URL length issues
+      const rawRedditData = fetchAuthenticatedRedditData(url);
+
+      let post = null;
+      let comments = [];
+
+      if (Array.isArray(rawRedditData) && rawRedditData.length >= 1) {
+        if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
+          post = rawRedditData[0].data.children[0].data;
+        }
+        if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
+          const rawComments = rawRedditData[1].data.children;
+          comments = extractAllComments(rawComments);
+        }
+      }
+
+      const validComments = comments.filter(comment =>
+        comment.body &&
+        comment.body !== '[deleted]' &&
+        comment.body !== '[removed]' &&
+        comment.author &&
+        comment.author !== '[deleted]' &&
+        comment.body.trim().length > 10
+      );
+
+      const contentData = extractValuableContentOnly({
+        post: post,
+        comments: validComments
+      });
+
       processedData = analyzeAndRecommend(contentData);
     } else if (mode === 'step3_analyze') {
       // Step 3: Generate selected insights
-      const contentData = JSON.parse(e.parameter.contentData || '{}');
+      // Re-fetch to avoid URL length issues
+      const rawRedditData = fetchAuthenticatedRedditData(url);
       const selectedAnalyses = JSON.parse(e.parameter.selectedAnalyses || '[]');
+
+      let post = null;
+      let comments = [];
+
+      if (Array.isArray(rawRedditData) && rawRedditData.length >= 1) {
+        if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
+          post = rawRedditData[0].data.children[0].data;
+        }
+        if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
+          const rawComments = rawRedditData[1].data.children;
+          comments = extractAllComments(rawComments);
+        }
+      }
+
+      const validComments = comments.filter(comment =>
+        comment.body &&
+        comment.body !== '[deleted]' &&
+        comment.body !== '[removed]' &&
+        comment.author &&
+        comment.author !== '[deleted]' &&
+        comment.body.trim().length > 10
+      );
+
+      const contentData = extractValuableContentOnly({
+        post: post,
+        comments: validComments
+      });
+
       processedData = generateSelectedInsights(contentData, selectedAnalyses);
     } else {
       // Deep dive mode for single post
