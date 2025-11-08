@@ -1597,6 +1597,7 @@ function readAndLearnFromComments(comments) {
         } else {
           learned.entities[cleaned].sentiment.neu++;
         }
+        }
       }
     });
 
