@@ -73,8 +73,40 @@ function doGet(e) {
       processedData = processSubredditOverview(redditData, url);
     } else if (mode === 'step1_extract') {
       // Step 1: Extract valuable content only
-      const redditData = fetchAuthenticatedRedditData(url);
-      processedData = extractValuableContentOnly(redditData);
+      const rawRedditData = fetchAuthenticatedRedditData(url);
+
+      // Parse raw Reddit API data structure
+      let post = null;
+      let comments = [];
+
+      if (Array.isArray(rawRedditData) && rawRedditData.length >= 1) {
+        // Extract post data
+        if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
+          post = rawRedditData[0].data.children[0].data;
+        }
+
+        // Extract comments data
+        if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
+          const rawComments = rawRedditData[1].data.children;
+          comments = extractAllComments(rawComments);
+        }
+      }
+
+      // Filter valid comments
+      const validComments = comments.filter(comment =>
+        comment.body &&
+        comment.body !== '[deleted]' &&
+        comment.body !== '[removed]' &&
+        comment.author &&
+        comment.author !== '[deleted]' &&
+        comment.body.trim().length > 10
+      );
+
+      // Pass structured data to extraction function
+      processedData = extractValuableContentOnly({
+        post: post,
+        comments: validComments
+      });
     } else if (mode === 'step2_recommend') {
       // Step 2: Analyze content and recommend analyses
       const contentData = JSON.parse(e.parameter.contentData || '{}');
