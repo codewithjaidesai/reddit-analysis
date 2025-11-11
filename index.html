@@ -362,6 +362,8 @@
             <div class="action-buttons">
                 <button class="btn btn-secondary" onclick="proceedToStep2()">Step 2: Analyze & Recommend →</button>
                 <button class="btn" onclick="exportToPDF()" style="background: #ed8936;">📄 Export as PDF</button>
+                <button class="btn" onclick="saveToGoogleDrive()" style="background: #48bb78;">💾 Save to Google Drive</button>
+                <button class="btn" onclick="copyForClaude()" style="background: #9f7aea;">📋 Copy for Claude</button>
                 <button class="btn collapse-btn" onclick="collapseStep('step1Container')">Collapse</button>
             </div>
         </div>
@@ -588,6 +590,79 @@
                 });
             }
 
+            // 6. Consensus vs Controversy
+            const agreeCount = comments.filter(c => /\b(agree|exactly|this|same|correct|absolutely)\b/i.test(c.body)).length;
+            const disagreeCount = comments.filter(c => /\b(disagree|wrong|false|actually|but |however)\b/i.test(c.body)).length;
+            if (agreeCount + disagreeCount >= 15) {
+                const controversyRatio = disagreeCount / (agreeCount + disagreeCount);
+                recommendations.push({
+                    id: 'consensus_analysis',
+                    name: controversyRatio > 0.4 ? 'Controversy Analysis' : 'Consensus Patterns',
+                    description: controversyRatio > 0.4 ? 'Divisive topic with conflicting viewpoints' : 'Community alignment and agreement patterns',
+                    available: true,
+                    dataFound: `${Math.round(controversyRatio * 100)}% disagreement rate`,
+                    estimatedInsights: 3
+                });
+            }
+
+            // 7. Question/Answer Patterns
+            const questionCount = comments.filter(c => /\?/.test(c.body)).length;
+            const answerIndicators = comments.filter(c => /\b(here's|this is|you should|try|check out|look at)\b/i.test(c.body)).length;
+            if (questionCount >= 5 && answerIndicators >= 5) {
+                recommendations.push({
+                    id: 'qa_analysis',
+                    name: 'Question/Answer Dynamics',
+                    description: 'Problem-solving and knowledge-sharing patterns',
+                    available: true,
+                    dataFound: `${questionCount} questions, ${answerIndicators} solution-oriented responses`,
+                    estimatedInsights: 2
+                });
+            }
+
+            // 8. Evidence & Source Quality
+            const sourcedCount = comments.filter(c => /\b(source|study|research|according to|data shows)\b/i.test(c.body) || /https?:\/\//.test(c.body)).length;
+            const anecdotalCount = comments.filter(c => /\b(in my experience|I think|I feel|personally|IMO|IMHO)\b/i.test(c.body)).length;
+            if (sourcedCount + anecdotalCount >= 15) {
+                const evidenceRatio = sourcedCount / (sourcedCount + anecdotalCount);
+                recommendations.push({
+                    id: 'evidence_analysis',
+                    name: 'Evidence Quality Analysis',
+                    description: 'Evidence-based vs opinion-based discussion balance',
+                    available: true,
+                    dataFound: `${Math.round(evidenceRatio * 100)}% sourced/evidence-based`,
+                    estimatedInsights: 2
+                });
+            }
+
+            // 9. Comparison Patterns (X vs Y)
+            const comparisonCount = comments.filter(c => /\b(vs|versus|compared to|better than|worse than|instead of)\b/i.test(c.body)).length;
+            if (comparisonCount >= 8) {
+                recommendations.push({
+                    id: 'comparison_analysis',
+                    name: 'Comparison & Decision Analysis',
+                    description: 'What people compare and evaluation criteria',
+                    available: true,
+                    dataFound: `${comparisonCount} comparison statements`,
+                    estimatedInsights: 3
+                });
+            }
+
+            // 10. Emotional Tone
+            const positiveCount = comments.filter(c => /\b(love|excited|happy|grateful|amazing|fantastic|incredible)\b/i.test(c.body)).length;
+            const negativeCount = comments.filter(c => /\b(hate|angry|frustrated|disappointed|terrible|awful|horrible)\b/i.test(c.body)).length;
+            const neutralCount = comments.length - positiveCount - negativeCount;
+            if (positiveCount + negativeCount >= 15) {
+                const sentiment = positiveCount > negativeCount * 1.5 ? 'Positive' : negativeCount > positiveCount * 1.5 ? 'Negative' : 'Mixed';
+                recommendations.push({
+                    id: 'emotion_analysis',
+                    name: `Emotional Tone: ${sentiment}`,
+                    description: 'Community emotional response and sentiment',
+                    available: true,
+                    dataFound: `${positiveCount} positive, ${negativeCount} negative, ${neutralCount} neutral`,
+                    estimatedInsights: 2
+                });
+            }
+
             return {
                 totalRecommendations: recommendations.length,
                 availableAnalyses: recommendations.length,
@@ -764,6 +839,138 @@
                         insights.push({
                             type: 'timeline_analysis',
                             insight: `Most common timeline: "${dominant[0]}" (${pct}% of comments) - sets realistic expectations`
+                        });
+                    }
+                }
+
+                if (analysisId === 'consensus_analysis') {
+                    const agreeCount = comments.filter(c => /\b(agree|exactly|this|same|correct|absolutely)\b/i.test(c.body)).length;
+                    const disagreeCount = comments.filter(c => /\b(disagree|wrong|false|actually|but |however)\b/i.test(c.body)).length;
+                    const controversyRatio = disagreeCount / (agreeCount + disagreeCount);
+                    const controversyPct = Math.round(controversyRatio * 100);
+
+                    if (controversyRatio > 0.4) {
+                        insights.push({
+                            type: 'consensus_analysis',
+                            insight: `${controversyPct}% disagreement rate - Divisive topic with multiple conflicting viewpoints`
+                        });
+                        insights.push({
+                            type: 'consensus_analysis',
+                            insight: `Community split between perspectives - Deeper research needed to understand nuances`
+                        });
+                    } else {
+                        insights.push({
+                            type: 'consensus_analysis',
+                            insight: `${100 - controversyPct}% consensus rate - Strong community agreement on key points`
+                        });
+                        insights.push({
+                            type: 'consensus_analysis',
+                            insight: `Unified perspective signals reliable information - Lower risk of misinformation`
+                        });
+                    }
+                }
+
+                if (analysisId === 'qa_analysis') {
+                    const questionCount = comments.filter(c => /\?/.test(c.body)).length;
+                    const answerCount = comments.filter(c => /\b(here's|this is|you should|try|check out|look at)\b/i.test(c.body)).length;
+                    const qaRatio = answerCount / questionCount;
+
+                    insights.push({
+                        type: 'qa_analysis',
+                        insight: `${questionCount} questions, ${answerCount} solution-oriented responses (${qaRatio.toFixed(1)}:1 ratio)`
+                    });
+
+                    if (qaRatio > 1.5) {
+                        insights.push({
+                            type: 'qa_analysis',
+                            insight: `High answer-to-question ratio indicates helpful, solution-focused community`
+                        });
+                    } else {
+                        insights.push({
+                            type: 'qa_analysis',
+                            insight: `Many unanswered questions - indicates emerging topic or knowledge gaps`
+                        });
+                    }
+                }
+
+                if (analysisId === 'evidence_analysis') {
+                    const sourcedCount = comments.filter(c => /\b(source|study|research|according to|data shows)\b/i.test(c.body) || /https?:\/\//.test(c.body)).length;
+                    const anecdotalCount = comments.filter(c => /\b(in my experience|I think|I feel|personally|IMO|IMHO)\b/i.test(c.body)).length;
+                    const evidenceRatio = sourcedCount / (sourcedCount + anecdotalCount);
+                    const evidencePct = Math.round(evidenceRatio * 100);
+
+                    insights.push({
+                        type: 'evidence_analysis',
+                        insight: `${evidencePct}% evidence-based, ${100 - evidencePct}% opinion-based - ${evidencePct > 60 ? 'High credibility' : evidencePct > 40 ? 'Mixed credibility' : 'Mostly anecdotal'}`
+                    });
+
+                    if (evidencePct > 50) {
+                        insights.push({
+                            type: 'evidence_analysis',
+                            insight: `Strong sourcing indicates trustworthy information - Can be cited with confidence`
+                        });
+                    } else {
+                        insights.push({
+                            type: 'evidence_analysis',
+                            insight: `Opinion-heavy discussion - Verify claims independently before relying on them`
+                        });
+                    }
+                }
+
+                if (analysisId === 'comparison_analysis') {
+                    const comparisons = [];
+                    comments.forEach(c => {
+                        const matches = (c.body || '').match(/([A-Za-z\s]+)\s+(vs|versus|compared to|better than|worse than|instead of)\s+([A-Za-z\s]+)/gi);
+                        if (matches) matches.forEach(m => comparisons.push(m));
+                    });
+
+                    insights.push({
+                        type: 'comparison_analysis',
+                        insight: `${comparisons.length} comparison statements found - Active evaluation and decision-making`
+                    });
+
+                    if (comparisons.length > 0) {
+                        const examples = comparisons.slice(0, 3).join(', ');
+                        insights.push({
+                            type: 'comparison_analysis',
+                            insight: `Sample comparisons: ${examples.substring(0, 150)}...`
+                        });
+                    }
+
+                    insights.push({
+                        type: 'comparison_analysis',
+                        insight: `Comparison-rich discussions indicate buyers/decision-makers seeking optimal choices`
+                    });
+                }
+
+                if (analysisId === 'emotion_analysis') {
+                    const positiveCount = comments.filter(c => /\b(love|excited|happy|grateful|amazing|fantastic|incredible)\b/i.test(c.body)).length;
+                    const negativeCount = comments.filter(c => /\b(hate|angry|frustrated|disappointed|terrible|awful|horrible)\b/i.test(c.body)).length;
+                    const neutralCount = comments.length - positiveCount - negativeCount;
+
+                    const posPct = Math.round((positiveCount / comments.length) * 100);
+                    const negPct = Math.round((negativeCount / comments.length) * 100);
+                    const neuPct = Math.round((neutralCount / comments.length) * 100);
+
+                    insights.push({
+                        type: 'emotion_analysis',
+                        insight: `Emotional breakdown: ${posPct}% positive, ${negPct}% negative, ${neuPct}% neutral`
+                    });
+
+                    if (posPct > negPct * 2) {
+                        insights.push({
+                            type: 'emotion_analysis',
+                            insight: `Overwhelmingly positive tone - Strong community satisfaction and enthusiasm`
+                        });
+                    } else if (negPct > posPct * 2) {
+                        insights.push({
+                            type: 'emotion_analysis',
+                            insight: `Predominantly negative tone - Significant frustration or disappointment present`
+                        });
+                    } else {
+                        insights.push({
+                            type: 'emotion_analysis',
+                            insight: `Balanced emotional tone - Mature, objective discussion`
                         });
                     }
                 }
@@ -963,6 +1170,167 @@
             setTimeout(() => {
                 printWindow.print();
             }, 250);
+        }
+
+        // ========================================================================
+        // SAVE TO GOOGLE DRIVE (for Claude Pro analysis)
+        // ========================================================================
+
+        function saveToGoogleDrive() {
+            if (!extractedData) {
+                alert('No data to save. Please extract comments first.');
+                return;
+            }
+
+            // Show loading state
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ Saving...';
+            btn.disabled = true;
+
+            // Call backend to save to Drive
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+
+                    if (result.success) {
+                        // Show success message with clickable link
+                        const message = `✅ File saved successfully!\n\nFile: ${result.fileName}\n\nClick OK to open in Google Drive, then share with Claude Pro for AI analysis.`;
+                        if (confirm(message)) {
+                            window.open(result.fileUrl, '_blank');
+                        }
+
+                        // Show instructions
+                        showClaudeInstructions();
+                    } else {
+                        alert('❌ Error: ' + result.message + '\n\n' + (result.error || ''));
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    alert('❌ Failed to save to Google Drive:\n\n' + error.message);
+                })
+                .saveToGoogleDrive(extractedData);
+        }
+
+        // ========================================================================
+        // COPY FOR CLAUDE (clipboard with embedded prompt)
+        // ========================================================================
+
+        function copyForClaude() {
+            if (!extractedData) {
+                alert('No data to copy. Please extract comments first.');
+                return;
+            }
+
+            // Show loading state
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ Formatting...';
+            btn.disabled = true;
+
+            // Get formatted content from backend
+            google.script.run
+                .withSuccessHandler(function(formattedText) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+
+                    // Copy to clipboard
+                    navigator.clipboard.writeText(formattedText)
+                        .then(() => {
+                            // Show success message
+                            btn.innerHTML = '✅ Copied!';
+                            setTimeout(() => {
+                                btn.innerHTML = originalText;
+                            }, 2000);
+
+                            // Show instructions
+                            showClaudeInstructions();
+                        })
+                        .catch(err => {
+                            alert('❌ Failed to copy to clipboard:\n\n' + err);
+                        });
+                })
+                .withFailureHandler(function(error) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    alert('❌ Failed to format content:\n\n' + error.message);
+                })
+                .formatForClaudeAnalysis(extractedData);
+        }
+
+        // ========================================================================
+        // CLAUDE PRO INSTRUCTIONS
+        // ========================================================================
+
+        function showClaudeInstructions() {
+            const instructions = `
+═══════════════════════════════════════════════════════════════
+HOW TO USE WITH CLAUDE PRO
+═══════════════════════════════════════════════════════════════
+
+OPTION 1: If you saved to Google Drive
+1. Go to claude.ai and start a new chat
+2. Click the 📎 attachment icon
+3. Select "From Google Drive"
+4. Choose the file you just saved
+5. Claude will automatically read the analysis prompt and provide insights!
+
+OPTION 2: If you copied to clipboard
+1. Go to claude.ai and start a new chat
+2. Paste (Ctrl+V / Cmd+V) the copied content
+3. Press Enter
+4. Claude will automatically read the analysis prompt and provide insights!
+
+NOTE: The universal analysis prompt is already embedded in the exported data.
+You don't need to write anything - Claude will automatically analyze it!
+
+═══════════════════════════════════════════════════════════════
+`;
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                max-width: 600px;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            `;
+
+            content.innerHTML = `
+                <h2 style="color: #667eea; margin-bottom: 20px;">🤖 Use with Claude Pro</h2>
+                <pre style="white-space: pre-wrap; font-family: monospace; font-size: 0.9em; line-height: 1.6; background: #f5f5f5; padding: 20px; border-radius: 5px; overflow-x: auto;">${escapeHtml(instructions)}</pre>
+                <button onclick="this.closest('div').parentElement.remove()" style="background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 1em; margin-top: 20px; width: 100%;">Got it!</button>
+            `;
+
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
         }
     </script>
 </body>

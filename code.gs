@@ -2609,3 +2609,169 @@ function generateSelectedInsights(contentData, selectedAnalyses) {
     insights: insights
   };
 }
+
+// ============================================================================
+// EXPORT TO GOOGLE DRIVE & CLAUDE PRO ANALYSIS
+// ============================================================================
+
+/**
+ * Format extracted data for Claude Pro analysis
+ * Includes universal analysis prompt at the top
+ */
+function formatForClaudeAnalysis(extractedData) {
+  const post = extractedData.post;
+  const comments = extractedData.valuableComments;
+  const stats = extractedData.extractionStats;
+
+  // Universal analysis prompt
+  const prompt = `═══════════════════════════════════════════════════════════════════════════
+REDDIT CONTENT ANALYSIS REQUEST
+═══════════════════════════════════════════════════════════════════════════
+
+You are an expert Reddit content analyst. Below is a Reddit post with extracted high-value comments. Provide deep, actionable insights that go beyond surface-level observations.
+
+═══════════════════════════════════════════════════════════════════════════
+ANALYSIS FRAMEWORK
+═══════════════════════════════════════════════════════════════════════════
+
+1. CONTENT INTELLIGENCE
+   • What type of discussion is this? (Don't force categories - describe what you observe)
+   • What makes this content engaging to this audience?
+   • What patterns emerge that might not be immediately obvious?
+
+2. ENGAGEMENT DYNAMICS
+   • Why did certain comments get high upvotes? What resonated?
+   • Is there consensus, controversy, or something else driving engagement?
+   • What's the upvote distribution telling us?
+
+3. HIDDEN PATTERNS
+   Look for non-obvious patterns:
+   • Cognitive biases (confirmation bias, survivorship bias, etc.)
+   • Emotional triggers (fear, hope, identity, validation)
+   • Social dynamics (expertise vs experience, contrarian vs conformist)
+   • Temporal patterns (immediate vs long-term thinking)
+   • Economic factors (price sensitivity, value perception)
+
+4. AUDIENCE INSIGHTS
+   • Who is participating? (experts, enthusiasts, beginners, skeptics)
+   • What do they care about? (practical advice, validation, entertainment, learning)
+   • What assumptions do they share?
+   • What questions are they really asking (vs what they explicitly say)?
+
+5. CONTENT STRATEGY INTELLIGENCE
+   If someone wanted to create similar engaging content:
+   • What elements should they replicate?
+   • What format works best? (question, story, controversy, education)
+   • What tone resonates?
+   • What timing/context matters?
+
+6. SURPRISING FINDINGS
+   • What's unexpected or counter-intuitive?
+   • What would most people miss on first read?
+   • What does this reveal about the community/topic/culture?
+
+7. ACTIONABLE RECOMMENDATIONS
+   Provide 3-5 specific, actionable takeaways for:
+   • Content creators (how to replicate engagement)
+   • Marketers (audience insights for targeting)
+   • Researchers (cultural/social patterns)
+   • The original poster (what they can learn)
+
+IMPORTANT ANALYSIS GUIDELINES:
+• Don't just summarize - analyze WHY things are the way they are
+• Look for patterns across multiple comments, not just individual standouts
+• Consider context: subreddit culture, current events, audience demographics
+• Be honest if something is unclear or if the data is too limited
+• Cite specific examples from the comments to support your insights
+
+═══════════════════════════════════════════════════════════════════════════
+POST DATA
+═══════════════════════════════════════════════════════════════════════════
+
+TITLE: ${post.title}
+
+METADATA:
+• Posted by: u/${post.author}
+• Subreddit: r/${post.subreddit || 'unknown'}
+• Post Score: ${post.score} upvotes
+• Total Comments: ${post.num_comments}
+
+EXTRACTION STATISTICS:
+• Total Comments Processed: ${stats.total}
+• High-Value Comments Extracted: ${stats.extracted} (${stats.percentageKept}% kept)
+• Average Comment Score: ${stats.averageScore}
+• Extraction Quality: ${stats.percentageKept}% retention indicates ${stats.percentageKept > 50 ? 'diverse quality' : 'highly selective filtering'}
+
+POST BODY:
+${post.selftext ? post.selftext : '[No body text - link or image post]'}
+
+═══════════════════════════════════════════════════════════════════════════
+HIGH-VALUE COMMENTS (${comments.length} comments)
+═══════════════════════════════════════════════════════════════════════════
+
+${comments.map((comment, index) => {
+  return `
+────────────────────────────────────────────────────────────────────────────
+COMMENT #${index + 1}
+────────────────────────────────────────────────────────────────────────────
+Author: u/${comment.author}
+Score: ${comment.score} upvotes${comment.awards > 0 ? ` | Awards: ${comment.awards}` : ''}
+Engagement Rank: #${index + 1} of ${comments.length}
+
+${comment.body}
+`;
+}).join('\n')}
+
+═══════════════════════════════════════════════════════════════════════════
+END OF DATA
+═══════════════════════════════════════════════════════════════════════════
+
+Exported: ${new Date().toISOString()}
+Analysis Tool: Reddit Analyzer v1.0
+
+Now please provide your comprehensive analysis following the framework above.
+`;
+
+  return prompt;
+}
+
+/**
+ * Save formatted content to Google Drive
+ * Returns file URL for user to access
+ */
+function saveToGoogleDrive(extractedData) {
+  try {
+    // Format content for Claude Pro
+    const content = formatForClaudeAnalysis(extractedData);
+
+    // Generate filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+    const postTitle = extractedData.post.title.substring(0, 50).replace(/[^a-z0-9]/gi, '_');
+    const fileName = `Reddit_Analysis_${postTitle}_${timestamp}.txt`;
+
+    // Create file in user's Google Drive root
+    const file = DriveApp.createFile(fileName, content, MimeType.PLAIN_TEXT);
+
+    // Get file URL
+    const fileUrl = file.getUrl();
+    const fileId = file.getId();
+
+    console.log('File saved to Drive:', fileName);
+
+    return {
+      success: true,
+      fileName: fileName,
+      fileUrl: fileUrl,
+      fileId: fileId,
+      message: 'File saved to Google Drive successfully!'
+    };
+
+  } catch (error) {
+    console.error('Error saving to Drive:', error);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'Failed to save to Google Drive. Make sure the script has Drive permissions.'
+    };
+  }
+}
