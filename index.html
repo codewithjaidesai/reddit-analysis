@@ -327,6 +327,53 @@
         .collapse-btn:hover {
             background: #a0aec0;
         }
+
+        /* Data Table Styles */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .data-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .data-table th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #2d3748;
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .data-table tbody tr:nth-child(even):hover {
+            background: #f0f2f5;
+        }
     </style>
 </head>
 <body>
@@ -979,12 +1026,192 @@
             return insights;
         }
 
+        // ========================================================================
+        // GENERATE DATA TABLES (for UI display)
+        // ========================================================================
+
+        function generateDataTables(data) {
+            const comments = extractedData.valuableComments || [];
+            const tables = [];
+
+            // UNIVERSAL TABLE 1: Upvote Performance Tiers
+            const tiers = [
+                {name: 'Viral', min: 5000, comments: []},
+                {name: 'High', min: 1000, max: 4999, comments: []},
+                {name: 'Medium', min: 100, max: 999, comments: []},
+                {name: 'Low', min: 0, max: 99, comments: []}
+            ];
+
+            comments.forEach((c, idx) => {
+                const score = c.score || 0;
+                if (score >= 5000) tiers[0].comments.push({...c, pos: idx + 1});
+                else if (score >= 1000) tiers[1].comments.push({...c, pos: idx + 1});
+                else if (score >= 100) tiers[2].comments.push({...c, pos: idx + 1});
+                else tiers[3].comments.push({...c, pos: idx + 1});
+            });
+
+            const tierTableRows = tiers
+                .filter(t => t.comments.length > 0)
+                .map(t => {
+                    const avgPos = Math.round(t.comments.reduce((sum, c) => sum + c.pos, 0) / t.comments.length);
+                    const range = t.min === 5000 ? `${t.min}+` : `${t.min}-${t.max}`;
+                    return `<tr>
+                        <td><strong>${t.name}</strong></td>
+                        <td>${range}</td>
+                        <td>${t.comments.length}</td>
+                        <td>#${avgPos}</td>
+                    </tr>`;
+                }).join('');
+
+            if (tierTableRows) {
+                tables.push({
+                    title: '📊 Upvote Performance Tiers',
+                    html: `<table class="data-table">
+                        <thead>
+                            <tr><th>Tier</th><th>Range</th><th># Comments</th><th>Avg Position</th></tr>
+                        </thead>
+                        <tbody>${tierTableRows}</tbody>
+                    </table>`
+                });
+            }
+
+            // UNIVERSAL TABLE 2: Top 10 Comments Breakdown
+            const top10 = comments.slice(0, Math.min(10, comments.length));
+            if (top10.length > 0) {
+                const top10Rows = top10.map((c, idx) => `<tr>
+                    <td>${idx + 1}</td>
+                    <td>u/${escapeHtml(c.author)}</td>
+                    <td>${c.score}</td>
+                    <td>${c.body.length} chars</td>
+                    <td>${c.awards || 0}</td>
+                </tr>`).join('');
+
+                tables.push({
+                    title: '🏆 Top 10 Comments Performance',
+                    html: `<table class="data-table">
+                        <thead>
+                            <tr><th>Rank</th><th>Author</th><th>Upvotes</th><th>Length</th><th>Awards</th></tr>
+                        </thead>
+                        <tbody>${top10Rows}</tbody>
+                    </table>`
+                });
+            }
+
+            // UNIVERSAL TABLE 3: Word Count vs Engagement
+            const wordCountBuckets = [
+                {range: '1-50', min: 1, max: 50, comments: []},
+                {range: '51-150', min: 51, max: 150, comments: []},
+                {range: '151-300', min: 151, max: 300, comments: []},
+                {range: '300+', min: 301, max: 999999, comments: []}
+            ];
+
+            comments.forEach(c => {
+                const wordCount = (c.body || '').split(/\s+/).length;
+                const bucket = wordCountBuckets.find(b => wordCount >= b.min && wordCount <= b.max);
+                if (bucket) bucket.comments.push(c);
+            });
+
+            const wordCountRows = wordCountBuckets
+                .filter(b => b.comments.length > 0)
+                .map(b => {
+                    const avgUpvotes = Math.round(b.comments.reduce((sum, c) => sum + (c.score || 0), 0) / b.comments.length);
+                    const optimal = avgUpvotes === Math.max(...wordCountBuckets.map(x => x.comments.length > 0 ? Math.round(x.comments.reduce((s, c) => s + (c.score || 0), 0) / x.comments.length) : 0)) ? '✓' : '';
+                    return `<tr>
+                        <td>${b.range} words</td>
+                        <td>${b.comments.length}</td>
+                        <td>${avgUpvotes}</td>
+                        <td>${optimal}</td>
+                    </tr>`;
+                }).join('');
+
+            if (wordCountRows) {
+                tables.push({
+                    title: '📝 Word Count vs Engagement',
+                    html: `<table class="data-table">
+                        <thead>
+                            <tr><th>Range</th><th># Comments</th><th>Avg Upvotes</th><th>Optimal</th></tr>
+                        </thead>
+                        <tbody>${wordCountRows}</tbody>
+                    </table>`
+                });
+            }
+
+            // UNIVERSAL TABLE 4: Sentiment Distribution (if emotion analysis was selected)
+            if (data.selectedAnalyses.includes('emotion_analysis')) {
+                const positive = comments.filter(c => /\b(love|excited|happy|grateful|amazing|fantastic|incredible)\b/i.test(c.body));
+                const negative = comments.filter(c => /\b(hate|angry|frustrated|disappointed|terrible|awful|horrible)\b/i.test(c.body));
+                const neutral = comments.length - positive.length - negative.length;
+
+                const avgPosUpvotes = positive.length > 0 ? Math.round(positive.reduce((s, c) => s + (c.score || 0), 0) / positive.length) : 0;
+                const avgNegUpvotes = negative.length > 0 ? Math.round(negative.reduce((s, c) => s + (c.score || 0), 0) / negative.length) : 0;
+                const avgNeuUpvotes = neutral > 0 ? Math.round(comments.filter(c => !positive.includes(c) && !negative.includes(c)).reduce((s, c) => s + (c.score || 0), 0) / neutral) : 0;
+
+                tables.push({
+                    title: '😊 Sentiment Distribution',
+                    html: `<table class="data-table">
+                        <thead>
+                            <tr><th>Sentiment</th><th># Comments</th><th>% of Total</th><th>Avg Upvotes</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>😊 Positive</td><td>${positive.length}</td><td>${Math.round(positive.length/comments.length*100)}%</td><td>${avgPosUpvotes}</td></tr>
+                            <tr><td>😠 Negative</td><td>${negative.length}</td><td>${Math.round(negative.length/comments.length*100)}%</td><td>${avgNegUpvotes}</td></tr>
+                            <tr><td>😐 Neutral</td><td>${neutral}</td><td>${Math.round(neutral/comments.length*100)}%</td><td>${avgNeuUpvotes}</td></tr>
+                        </tbody>
+                    </table>`
+                });
+            }
+
+            // Content-specific table: Success Rates (if outcome_analysis selected)
+            if (data.selectedAnalyses.includes('outcome_analysis')) {
+                const worked = comments.filter(c => /\b(worked|success|helped|fixed|cured|solved)\b/i.test(c.body));
+                const failed = comments.filter(c => /\b(failed|didn't work|worse|useless|no help)\b/i.test(c.body));
+
+                if (worked.length + failed.length >= 5) {
+                    const successRate = Math.round((worked.length / (worked.length + failed.length)) * 100);
+                    tables.push({
+                        title: '✅ Success vs Failure Breakdown',
+                        html: `<table class="data-table">
+                            <thead>
+                                <tr><th>Outcome</th><th># Comments</th><th>% of Total</th><th>Success Rate</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>✅ Worked</td><td>${worked.length}</td><td>${Math.round(worked.length/comments.length*100)}%</td><td rowspan="2" style="font-size: 1.3em; font-weight: bold; vertical-align: middle;">${successRate}%</td></tr>
+                                <tr><td>❌ Failed</td><td>${failed.length}</td><td>${Math.round(failed.length/comments.length*100)}%</td></tr>
+                            </tbody>
+                        </table>`
+                    });
+                }
+            }
+
+            return tables;
+        }
+
         function displayStep3(data) {
             const container = document.getElementById('insightsContainer');
             container.style.display = 'block';
 
+            // Generate tables
+            const tables = generateDataTables(data);
+
             const list = document.getElementById('insightsList');
-            list.innerHTML = data.insights.map(insight => `
+
+            let html = '';
+
+            // Display data tables first
+            if (tables.length > 0) {
+                html += '<div style="margin-bottom: 30px;"><h3 style="color: #667eea; margin-bottom: 20px;">📊 Data Analysis</h3>';
+                tables.forEach(table => {
+                    html += `<div style="margin-bottom: 30px;">
+                        <h4 style="color: #4a5568; margin-bottom: 15px;">${table.title}</h4>
+                        ${table.html}
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            // Display insights
+            html += '<h3 style="color: #667eea; margin-bottom: 20px;">💡 Key Insights</h3>';
+            html += data.insights.map(insight => `
                 <div class="insight-card">
                     <div class="insight-type">${escapeHtml(insight.type.replace(/_/g, ' '))}</div>
                     <div class="insight-text">💡 ${escapeHtml(insight.insight)}</div>
@@ -992,8 +1219,10 @@
             `).join('');
 
             if (data.insights.length === 0) {
-                list.innerHTML = '<p style="text-align: center; color: #718096; padding: 40px;">No insights generated. Try selecting different analyses.</p>';
+                html = '<p style="text-align: center; color: #718096; padding: 40px;">No insights generated. Try selecting different analyses.</p>';
             }
+
+            list.innerHTML = html;
 
             // Scroll to insights
             container.scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -1,10 +1,17 @@
-# UNIVERSAL REDDIT ANALYSIS PROMPT
+# UNIVERSAL REDDIT ANALYSIS PROMPT WITH DATA TABLES
 
 This prompt is embedded at the top of exported Reddit analyses. When shared with Claude Pro, Claude automatically reads this and analyzes the data below.
 
+## KEY FEATURES:
+- 8-point analysis framework (includes data table generation)
+- Universal tables (work for all post types)
+- Content-specific tables (adaptive based on discussion type)
+- Markdown table format for easy reading
+- 5-8 tables generated per analysis
+
 ---
 
-## THE PROMPT:
+## THE FULL PROMPT:
 
 You are an expert Reddit content analyst. Below is a Reddit post with extracted high-value comments. Your task is to provide deep, actionable insights that go beyond surface-level observations.
 

@@ -2677,12 +2677,91 @@ ANALYSIS FRAMEWORK
    • Researchers (cultural/social patterns)
    • The original poster (what they can learn)
 
+8. DATA ANALYSIS WITH TABLES
+   Generate data-driven tables that are RELEVANT to this specific content type.
+   Choose 5-8 tables from the options below based on what makes sense for THIS discussion:
+
+   UNIVERSAL TABLES (apply to most posts):
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ Table 1: Upvote Performance Tiers                                │
+   │ Columns: Tier | Range | # Comments | Avg Position | Patterns    │
+   └─────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ Table 2: Top 10-20 Comments Breakdown                            │
+   │ Columns: Rank | Author | Upvotes | Theme | Key Factor          │
+   └─────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ Table 3: Theme Distribution & Engagement                         │
+   │ Columns: Theme | # Comments | Avg Upvotes | % of Discussion    │
+   └─────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ Table 4: Word Count vs Engagement                                │
+   │ Columns: Range | # Comments | Avg Upvotes | Optimal?           │
+   └─────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────┐
+   │ Table 5: Sentiment Distribution                                  │
+   │ Columns: Sentiment | # Comments | Avg Upvotes | Characteristics│
+   └─────────────────────────────────────────────────────────────────┘
+
+   CONTENT-SPECIFIC TABLES (choose relevant ones):
+
+   For FACTUAL/TIL content:
+   • Cognitive Violation Types (Type | Definition | Avg Upvotes | Examples)
+   • "Feels Fake" Intensity Spectrum (Level | Description | # Comments | Avg Upvotes)
+   • Fact Verifiability Matrix (Type | # Comments | Trust Level | Examples)
+   • Temporal Reference Distribution (Time Period | # Comments | Patterns)
+
+   For PRODUCT/REVIEW content:
+   • Product Feature Sentiment (Feature | Positive | Negative | Net Score)
+   • Price Sensitivity Analysis (Price Tier | # Mentions | Sentiment | Willingness)
+   • Comparison Matrix (Product A vs B | Mentions | Preference | Reasons)
+   • Purchase Intent Signals (Signal Type | Frequency | Confidence Level)
+
+   For OPINION/DEBATE content:
+   • Viewpoint Distribution (Position | % Support | Avg Upvotes | Key Arguments)
+   • Argument Quality Matrix (Type | Frequency | Evidence Level | Effectiveness)
+   • Polarization Metrics (Metric | Score | Interpretation)
+   • Logical Fallacies Detected (Fallacy | Occurrences | Impact on Discussion)
+
+   For ADVICE/HOW-TO content:
+   • Solution Success Rates (Approach | Worked | Failed | Success % | Sample Size)
+   • Expert vs Experience Split (Source Type | # Comments | Credibility | Agreement)
+   • Timeline Expectations (Duration | # Mentions | Success Correlation)
+   • Common Mistakes Mentioned (Mistake | Frequency | Impact | How to Avoid)
+
+   For STORY/EXPERIENCE content:
+   • Emotional Response Distribution (Emotion | % of Comments | Typical Phrasing)
+   • Advice vs Empathy Ratio (Type | Count | % of Total | Upvote Performance)
+   • Support Tone Analysis (Tone | Frequency | Effectiveness | Examples)
+   • Similar Experience Clusters (Experience Type | # Sharing | Common Patterns)
+
+   ANALYSIS-SPECIFIC TABLES (if data supports):
+   • Response Chain Analysis (Parent Topic | Upvotes | # Replies | Chain Depth | Total Engagement)
+   • Missing Topics Analysis (Expected Topic | Presence | Possible Reasons)
+   • Humor vs Serious Performance (Tone | # Comments | Avg Upvotes | Engagement Quality)
+   • Time-of-Response Impact (Posted When | # Comments | Avg Performance)
+   • Author Activity Patterns (Repeat Commenters | # Comments | Total Upvotes)
+
+   TABLE GENERATION RULES:
+   • Use markdown table format for easy reading
+   • Include column headers and clear data
+   • Add brief interpretation after each table
+   • Only include tables that have sufficient data (minimum 5-10 data points)
+   • Prioritize tables that reveal non-obvious insights
+   • Calculate percentages, averages, and ratios where meaningful
+
 IMPORTANT ANALYSIS GUIDELINES:
 • Don't just summarize - analyze WHY things are the way they are
 • Look for patterns across multiple comments, not just individual standouts
 • Consider context: subreddit culture, current events, audience demographics
 • Be honest if something is unclear or if the data is too limited
 • Cite specific examples from the comments to support your insights
+• Generate tables in markdown format for clarity
+• Choose 5-8 most relevant tables based on content type - don't force irrelevant tables
 
 ═══════════════════════════════════════════════════════════════════════════
 POST DATA
