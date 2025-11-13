@@ -391,6 +391,14 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
 }
 
 function doGet(e) {
+  // If no URL parameter, serve the HTML interface
+  if (!e.parameter.url) {
+    return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('Reddit Analyzer')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // Otherwise, handle JSONP requests for URL extraction
   const output = ContentService.createTextOutput();
 
   try {
