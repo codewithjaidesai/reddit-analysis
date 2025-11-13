@@ -977,28 +977,11 @@
 
             if (mode === 'separate') {
                 // Analyze each post separately
-                alert(`Extracting and analyzing ${selectedPostsData.length} posts separately.\n\nThis feature will extract comments from each post one by one.\n\nNote: Multi-post analysis is coming soon!`);
-
-                // For now, just analyze the first selected post
-                if (selectedPostsData.length > 0) {
-                    const firstPost = selectedPostsData[0];
-                    document.getElementById('redditUrl').value = firstPost.url;
-                    switchTab('url');
-                    document.querySelectorAll('.tab-btn')[1].classList.add('active');
-                    document.querySelectorAll('.tab-btn')[0].classList.remove('active');
-                    startAnalysis();
-                }
+                startMultiPostExtraction(selectedPostsData);
             } else {
                 // Combine all posts
-                alert('Combine mode coming soon!\n\nFor now, analyzing first selected post separately.');
-                if (selectedPostsData.length > 0) {
-                    const firstPost = selectedPostsData[0];
-                    document.getElementById('redditUrl').value = firstPost.url;
-                    switchTab('url');
-                    document.querySelectorAll('.tab-btn')[1].classList.add('active');
-                    document.querySelectorAll('.tab-btn')[0].classList.remove('active');
-                    startAnalysis();
-                }
+                alert('Combine mode coming soon!\n\nFor now, analyzing posts separately.');
+                startMultiPostExtraction(selectedPostsData);
             }
         }
 
@@ -1123,29 +1106,255 @@
 
             if (mode === 'separate') {
                 // Analyze each post separately
-                alert(`Extracting and analyzing ${selectedPostsData.length} posts separately.\n\nThis feature will extract comments from each post one by one.\n\nNote: Multi-post analysis is coming soon!`);
-
-                // For now, just analyze the first selected post
-                if (selectedPostsData.length > 0) {
-                    const firstPost = selectedPostsData[0];
-                    document.getElementById('redditUrl').value = firstPost.url;
-                    switchTab('url');
-                    document.querySelectorAll('.tab-btn')[2].classList.add('active');
-                    document.querySelectorAll('.tab-btn')[1].classList.remove('active');
-                    startAnalysis();
-                }
+                startMultiPostExtraction(selectedPostsData);
             } else {
                 // Combine all posts
-                alert('Combine mode coming soon!\n\nFor now, analyzing first selected post separately.');
-                if (selectedPostsData.length > 0) {
-                    const firstPost = selectedPostsData[0];
-                    document.getElementById('redditUrl').value = firstPost.url;
-                    switchTab('url');
-                    document.querySelectorAll('.tab-btn')[2].classList.add('active');
-                    document.querySelectorAll('.tab-btn')[1].classList.remove('active');
-                    startAnalysis();
-                }
+                alert('Combine mode coming soon!\n\nFor now, analyzing posts separately.');
+                startMultiPostExtraction(selectedPostsData);
             }
+        }
+
+        // ========================================================================
+        // MULTI-POST EXTRACTION
+        // ========================================================================
+
+        let postsQueue = [];
+        let currentPostIndex = 0;
+        let multiPostResults = [];
+
+        function startMultiPostExtraction(posts) {
+            postsQueue = posts;
+            currentPostIndex = 0;
+            multiPostResults = [];
+
+            // Hide tabs, show multi-post container
+            document.getElementById('topicTab').style.display = 'none';
+            document.getElementById('subredditTab').style.display = 'none';
+            document.getElementById('urlTab').style.display = 'none';
+            document.getElementById('step1Container').style.display = 'none';
+            document.getElementById('step2Container').style.display = 'none';
+            document.getElementById('insightsContainer').style.display = 'none';
+
+            // Create or show multi-post container
+            let multiPostContainer = document.getElementById('multiPostContainer');
+            if (!multiPostContainer) {
+                multiPostContainer = document.createElement('div');
+                multiPostContainer.id = 'multiPostContainer';
+                multiPostContainer.style.padding = '30px';
+                document.querySelector('.container').appendChild(multiPostContainer);
+            }
+            multiPostContainer.style.display = 'block';
+            multiPostContainer.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h2 style="color: #667eea;">📊 Extracting ${posts.length} Posts</h2>
+                    <div id="multiPostProgress" style="background: #eef2ff; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <div style="font-weight: 500; margin-bottom: 5px;">Progress: <span id="progressText">Starting...</span></div>
+                        <div style="background: #cbd5e0; height: 10px; border-radius: 5px; overflow: hidden;">
+                            <div id="progressBar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="multiPostResults"></div>
+                <div id="multiPostActions" style="display: none; margin-top: 20px;">
+                    <button class="btn" onclick="backToSearch()" style="background: #667eea;">← Back to Search</button>
+                </div>
+            `;
+
+            // Start processing first post
+            processNextPost();
+        }
+
+        function processNextPost() {
+            if (currentPostIndex >= postsQueue.length) {
+                // All posts processed
+                document.getElementById('progressText').textContent = `✅ Completed ${postsQueue.length} posts!`;
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('multiPostActions').style.display = 'block';
+                return;
+            }
+
+            const post = postsQueue[currentPostIndex];
+            const progressPercent = (currentPostIndex / postsQueue.length) * 100;
+
+            document.getElementById('progressText').textContent = `Extracting post ${currentPostIndex + 1} of ${postsQueue.length}...`;
+            document.getElementById('progressBar').style.width = progressPercent + '%';
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = `Extracting post ${currentPostIndex + 1} of ${postsQueue.length}: ${post.title.substring(0, 50)}...`;
+
+            // Extract this post
+            const callbackName = 'multiPostCallback_' + Date.now();
+            window[callbackName] = function(response) {
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.success) {
+                    multiPostResults.push({
+                        post: post,
+                        data: response.data
+                    });
+                    displayMultiPostResult(post, response.data, currentPostIndex);
+                } else {
+                    displayMultiPostError(post, response.error, currentPostIndex);
+                }
+
+                // Move to next post
+                currentPostIndex++;
+                setTimeout(processNextPost, 500); // Small delay between posts
+            };
+
+            const script = document.createElement('script');
+            script.src = `${SCRIPT_URL}?url=${encodeURIComponent(post.url)}&mode=step1_extract&callback=${callbackName}&t=${Date.now()}`;
+            script.onerror = function() {
+                document.getElementById('loading').style.display = 'none';
+                displayMultiPostError(post, 'Network error or timeout', currentPostIndex);
+                currentPostIndex++;
+                setTimeout(processNextPost, 500);
+            };
+            document.body.appendChild(script);
+        }
+
+        function displayMultiPostResult(post, data, index) {
+            const resultsContainer = document.getElementById('multiPostResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'step-container';
+            resultDiv.style.marginBottom = '20px';
+            resultDiv.id = `multiPost_${index}`;
+
+            const stats = data.extractionStats;
+
+            resultDiv.innerHTML = `
+                <div class="step-header">
+                    <div class="step-number">${index + 1}</div>
+                    <div class="step-title">${escapeHtml(post.title)}</div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <span style="background: #eef2ff; padding: 5px 10px; border-radius: 4px; font-size: 0.9em;">
+                        <strong>r/${escapeHtml(post.subreddit)}</strong>
+                    </span>
+                    <span style="background: #f0fdf4; padding: 5px 10px; border-radius: 4px; font-size: 0.9em;">
+                        ⬆️ ${post.score.toLocaleString()} upvotes
+                    </span>
+                    <span style="background: #fef3c7; padding: 5px 10px; border-radius: 4px; font-size: 0.9em;">
+                        💬 ${post.num_comments.toLocaleString()} comments
+                    </span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.totalComments || 0}</div>
+                        <div class="stat-label">Total Comments</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.valuableComments || 0}</div>
+                        <div class="stat-label">Valuable Comments</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.totalUpvotes || 0}</div>
+                        <div class="stat-label">Total Upvotes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.avgWordCount || 0}</div>
+                        <div class="stat-label">Avg Word Count</div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn" onclick="downloadSinglePostPDF(${index})" style="background: #ed8936;">📄 Export as PDF</button>
+                    <button class="btn" onclick="downloadSinglePostForClaude(${index})" style="background: #48bb78;">💾 Download for Claude</button>
+                    <button class="btn" onclick="copySinglePostForClaude(${index})" style="background: #9f7aea;">📋 Copy for Claude</button>
+                    <button class="btn collapse-btn" onclick="collapseMultiPost(${index})">Collapse</button>
+                </div>
+            `;
+
+            resultsContainer.appendChild(resultDiv);
+        }
+
+        function displayMultiPostError(post, error, index) {
+            const resultsContainer = document.getElementById('multiPostResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'step-container';
+            resultDiv.style.marginBottom = '20px';
+            resultDiv.style.borderColor = '#f56565';
+
+            resultDiv.innerHTML = `
+                <div class="step-header">
+                    <div class="step-number" style="background: #f56565;">${index + 1}</div>
+                    <div class="step-title">❌ Failed: ${escapeHtml(post.title)}</div>
+                </div>
+                <div style="color: #c53030; padding: 15px; background: #fff5f5; border-radius: 8px;">
+                    <strong>Error:</strong> ${escapeHtml(error)}
+                </div>
+            `;
+
+            resultsContainer.appendChild(resultDiv);
+        }
+
+        function collapseMultiPost(index) {
+            const container = document.getElementById(`multiPost_${index}`);
+            if (container) {
+                const statsGrid = container.querySelector('.stats-grid');
+                const actionButtons = container.querySelector('.action-buttons');
+                const isCollapsed = statsGrid.style.display === 'none';
+
+                statsGrid.style.display = isCollapsed ? 'grid' : 'none';
+                actionButtons.style.display = isCollapsed ? 'flex' : 'none';
+
+                const collapseBtn = container.querySelector('.collapse-btn');
+                collapseBtn.textContent = isCollapsed ? 'Collapse' : 'Expand';
+            }
+        }
+
+        function downloadSinglePostPDF(index) {
+            if (multiPostResults[index]) {
+                const oldData = extractedData;
+                extractedData = multiPostResults[index].data;
+                exportToPDF();
+                extractedData = oldData;
+            }
+        }
+
+        function downloadSinglePostForClaude(index) {
+            if (multiPostResults[index]) {
+                const result = multiPostResults[index];
+                const formattedText = formatForClaudeAnalysis(result.data);
+                const fileName = `reddit_analysis_${result.post.subreddit}_${Date.now()}.txt`;
+
+                const blob = new Blob([formattedText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function copySinglePostForClaude(index) {
+            if (multiPostResults[index]) {
+                const result = multiPostResults[index];
+                const formattedText = formatForClaudeAnalysis(result.data);
+
+                navigator.clipboard.writeText(formattedText).then(() => {
+                    alert('✅ Content copied to clipboard! Paste it into Claude for analysis.');
+                }).catch(err => {
+                    alert('Failed to copy: ' + err);
+                });
+            }
+        }
+
+        function backToSearch() {
+            // Hide multi-post container
+            document.getElementById('multiPostContainer').style.display = 'none';
+
+            // Show the appropriate tab
+            document.getElementById('subredditTab').style.display = 'block';
+
+            // Reset multi-post state
+            postsQueue = [];
+            currentPostIndex = 0;
+            multiPostResults = [];
         }
 
         // ========================================================================
