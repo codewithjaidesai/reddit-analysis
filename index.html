@@ -506,6 +506,9 @@
             <button class="tab-btn active" onclick="switchTab('topic')">
                 🔍 Search by Topic
             </button>
+            <button class="tab-btn" onclick="switchTab('subreddit')">
+                📊 Analyze Subreddit
+            </button>
             <button class="tab-btn" onclick="switchTab('url')">
                 🔗 Analyze Single URL
             </button>
@@ -579,6 +582,75 @@
                                 <span style="color: #4a5568;">Combine All</span>
                             </label>
                             <button class="btn" onclick="extractSelectedPosts()" style="font-size: 1.1em; padding: 15px 30px;">
+                                📊 Extract & Analyze
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subreddit Analysis Tab -->
+        <div class="input-section" id="subredditTab" style="display: none;">
+            <div class="search-form">
+                <div class="input-group">
+                    <label style="display: block; margin-bottom: 8px; color: #4a5568; font-weight: 500;">
+                        Which subreddit do you want to analyze?
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #667eea; font-size: 1.2em; font-weight: 600;">r/</span>
+                        <input type="text" id="subredditName" placeholder="e.g., MachineLearning, startups, fitness" style="flex: 1;">
+                    </div>
+                    <small style="display: block; margin-top: 5px; color: #718096;">Enter subreddit name without the r/ prefix</small>
+                </div>
+
+                <div style="margin-top: 15px; display: flex; gap: 15px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; color: #4a5568; font-size: 0.9em;">Time Range</label>
+                        <select id="subredditTimeRange" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
+                            <option value="day">Last 24 hours</option>
+                            <option value="week" selected>Last 7 days</option>
+                            <option value="month">Last 30 days</option>
+                            <option value="year">Last year</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; color: #4a5568; font-size: 0.9em;">Max Results</label>
+                        <select id="subredditMaxResults" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
+                            <option value="10">Top 10</option>
+                            <option value="15" selected>Top 15</option>
+                            <option value="25">Top 25</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="searchSubreddit()" style="flex-shrink: 0; white-space: nowrap;">
+                        📊 Get Top Posts
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Results (reuse same structure) -->
+            <div id="subredditResults" style="display: none; margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin: 0;">Top Posts</h3>
+                    <div id="subredditResultsSummary" style="color: #718096; font-size: 0.9em;"></div>
+                </div>
+                <div id="subredditPostsList"></div>
+                <div id="subredditSelectedPostsActions" style="display: none; margin-top: 20px; padding: 20px; background: #eef2ff; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #667eea; font-size: 1.1em;" id="subredditSelectedCount">0 posts selected</strong>
+                            <p style="margin: 5px 0 0 0; color: #718096; font-size: 0.9em;">Choose how to analyze selected posts</p>
+                        </div>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="subredditAnalysisMode" value="separate" checked style="margin-right: 8px;">
+                                <span style="color: #4a5568;">Analyze Separately</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="subredditAnalysisMode" value="combine" style="margin-right: 8px;">
+                                <span style="color: #4a5568;">Combine All</span>
+                            </label>
+                            <button class="btn" onclick="extractSubredditSelectedPosts()" style="font-size: 1.1em; padding: 15px 30px;">
                                 📊 Extract & Analyze
                             </button>
                         </div>
@@ -679,10 +751,12 @@
 
             // Show/hide tabs
             document.getElementById('topicTab').style.display = tab === 'topic' ? 'block' : 'none';
+            document.getElementById('subredditTab').style.display = tab === 'subreddit' ? 'block' : 'none';
             document.getElementById('urlTab').style.display = tab === 'url' ? 'block' : 'none';
 
             // Hide search results when switching
             document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('subredditResults').style.display = 'none';
         }
 
         function toggleSubredditInput() {
@@ -853,6 +927,152 @@
                     switchTab('url');
                     document.querySelectorAll('.tab-btn')[1].classList.add('active');
                     document.querySelectorAll('.tab-btn')[0].classList.remove('active');
+                    startAnalysis();
+                }
+            }
+        }
+
+        // ========================================================================
+        // SUBREDDIT ANALYSIS
+        // ========================================================================
+
+        let subredditSearchResults = [];
+        let subredditSelectedPosts = new Set();
+
+        function searchSubreddit() {
+            const subreddit = document.getElementById('subredditName').value.trim();
+            if (!subreddit) {
+                alert('Please enter a subreddit name');
+                return;
+            }
+
+            const timeRange = document.getElementById('subredditTimeRange').value;
+            const maxResults = parseInt(document.getElementById('subredditMaxResults').value);
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = `Searching r/${subreddit} for top posts...`;
+
+            // Call backend search function
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.getElementById('loading').style.display = 'none';
+
+                    if (result.success) {
+                        subredditSearchResults = result.posts;
+                        subredditSelectedPosts.clear();
+                        displaySubredditResults(result);
+                    } else {
+                        alert('Search failed: ' + result.message);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    alert('Search error: ' + error.message);
+                })
+                .searchSubredditTopPosts(subreddit, timeRange, maxResults);
+        }
+
+        function displaySubredditResults(result) {
+            const searchResultsDiv = document.getElementById('subredditResults');
+            const postsListDiv = document.getElementById('subredditPostsList');
+            const summaryDiv = document.getElementById('subredditResultsSummary');
+
+            // Show results section
+            searchResultsDiv.style.display = 'block';
+
+            // Update summary
+            summaryDiv.innerHTML = `Found <strong>${result.afterFiltering}</strong> high-engagement posts ${result.totalFound > result.afterFiltering ? `(filtered from ${result.totalFound} total)` : ''} from <strong>r/${result.subreddit}</strong>`;
+
+            // Generate post cards
+            postsListDiv.innerHTML = result.posts.map(post => {
+                const stars = '⭐'.repeat(post.engagementStars);
+                const upvotePercent = Math.round(post.upvote_ratio * 100);
+
+                return `
+                    <div class="post-card" onclick="toggleSubredditPostSelection('${post.id}')" id="subreddit-post-${post.id}">
+                        <div style="display: flex; align-items: flex-start;">
+                            <input type="checkbox" class="post-checkbox" id="subreddit-check-${post.id}" onclick="event.stopPropagation(); toggleSubredditPostSelection('${post.id}')">
+                            <div style="flex: 1;">
+                                <div class="post-title">${escapeHtml(post.title)}</div>
+                                <div class="post-meta">
+                                    <strong>r/${escapeHtml(post.subreddit)}</strong>
+                                    • ⬆️ ${post.score.toLocaleString()}
+                                    • 💬 ${post.num_comments.toLocaleString()}
+                                    • 📊 ${upvotePercent}% upvoted
+                                    • 🕐 ${post.ageText}
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <span class="engagement-stars">${stars}</span>
+                                    <span style="color: #667eea; font-weight: 500; margin-left: 10px;">
+                                        Engagement Score: ${post.engagementScore.toLocaleString()}
+                                        (${post.engagementRate}/10k subscribers)
+                                    </span>
+                                </div>
+                                ${post.selftext ? `<div class="post-preview">${escapeHtml(post.selftext)}</div>` : ''}
+                                <a href="${post.url}" target="_blank" onclick="event.stopPropagation()" style="color: #667eea; text-decoration: none; font-size: 0.9em; margin-top: 8px; display: inline-block;">
+                                    🔗 View on Reddit
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleSubredditPostSelection(postId) {
+            if (subredditSelectedPosts.has(postId)) {
+                subredditSelectedPosts.delete(postId);
+                document.getElementById(`subreddit-post-${postId}`).classList.remove('selected');
+                document.getElementById(`subreddit-check-${postId}`).checked = false;
+            } else {
+                subredditSelectedPosts.add(postId);
+                document.getElementById(`subreddit-post-${postId}`).classList.add('selected');
+                document.getElementById(`subreddit-check-${postId}`).checked = true;
+            }
+            updateSubredditSelectedCount();
+        }
+
+        function updateSubredditSelectedCount() {
+            const count = subredditSelectedPosts.size;
+            document.getElementById('subredditSelectedCount').textContent = `${count} post${count !== 1 ? 's' : ''} selected`;
+
+            // Show/hide actions
+            const actionsDiv = document.getElementById('subredditSelectedPostsActions');
+            actionsDiv.style.display = count > 0 ? 'block' : 'none';
+        }
+
+        function extractSubredditSelectedPosts() {
+            if (subredditSelectedPosts.size === 0) {
+                alert('Please select at least one post');
+                return;
+            }
+
+            const mode = document.querySelector('input[name="subredditAnalysisMode"]:checked').value;
+            const selectedPostsData = subredditSearchResults.filter(post => subredditSelectedPosts.has(post.id));
+
+            if (mode === 'separate') {
+                // Analyze each post separately
+                alert(`Extracting and analyzing ${selectedPostsData.length} posts separately.\n\nThis feature will extract comments from each post one by one.\n\nNote: Multi-post analysis is coming soon!`);
+
+                // For now, just analyze the first selected post
+                if (selectedPostsData.length > 0) {
+                    const firstPost = selectedPostsData[0];
+                    document.getElementById('redditUrl').value = firstPost.url;
+                    switchTab('url');
+                    document.querySelectorAll('.tab-btn')[2].classList.add('active');
+                    document.querySelectorAll('.tab-btn')[1].classList.remove('active');
+                    startAnalysis();
+                }
+            } else {
+                // Combine all posts
+                alert('Combine mode coming soon!\n\nFor now, analyzing first selected post separately.');
+                if (selectedPostsData.length > 0) {
+                    const firstPost = selectedPostsData[0];
+                    document.getElementById('redditUrl').value = firstPost.url;
+                    switchTab('url');
+                    document.querySelectorAll('.tab-btn')[2].classList.add('active');
+                    document.querySelectorAll('.tab-btn')[1].classList.remove('active');
                     startAnalysis();
                 }
             }
