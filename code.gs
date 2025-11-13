@@ -5,6 +5,33 @@ const REDDIT_CONFIG = {
   userAgent: 'web:RedditAnalyzer:v1.0.0 (by /u/gamestopfan)'
 };
 
+// Test function to verify backend is working
+function testBackendConnection() {
+  return {
+    success: true,
+    message: 'Backend connection working!',
+    timestamp: new Date().toISOString()
+  };
+}
+
+// Test Reddit OAuth
+function testRedditAuth() {
+  try {
+    const token = getRedditAccessToken();
+    return {
+      success: true,
+      message: 'OAuth token obtained successfully',
+      tokenLength: token ? token.length : 0
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'OAuth failed: ' + error.message,
+      error: error.toString()
+    };
+  }
+}
+
 // Cache Reddit access token in Script Properties
 function getRedditAccessToken() {
   const scriptProperties = PropertiesService.getScriptProperties();

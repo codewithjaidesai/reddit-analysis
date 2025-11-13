@@ -514,6 +514,20 @@
             </button>
         </div>
 
+        <!-- Diagnostic Section -->
+        <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin: 20px; border-radius: 8px;">
+            <strong style="color: #856404;">🔧 Diagnostic Tools</strong>
+            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                <button onclick="testBackend()" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Test Backend
+                </button>
+                <button onclick="testAuth()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Test OAuth
+                </button>
+            </div>
+            <div id="diagnosticResults" style="margin-top: 10px; font-size: 0.9em; color: #856404;"></div>
+        </div>
+
         <!-- Topic Search Tab -->
         <div class="input-section" id="topicTab">
             <div class="search-form">
@@ -739,6 +753,62 @@
         let selectedAnalyses = new Set();
         let searchResults = [];
         let selectedPosts = new Set();
+
+        // ========================================================================
+        // DIAGNOSTIC FUNCTIONS
+        // ========================================================================
+
+        function testBackend() {
+            const resultsDiv = document.getElementById('diagnosticResults');
+            resultsDiv.innerHTML = '⏳ Testing backend connection...';
+
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    resultsDiv.innerHTML = `✅ ${result.message}<br>Timestamp: ${result.timestamp}`;
+                    resultsDiv.style.color = '#155724';
+                    resultsDiv.style.background = '#d4edda';
+                    resultsDiv.style.padding = '10px';
+                    resultsDiv.style.borderRadius = '4px';
+                })
+                .withFailureHandler(function(error) {
+                    resultsDiv.innerHTML = `❌ Backend test failed: ${error.message}`;
+                    resultsDiv.style.color = '#721c24';
+                    resultsDiv.style.background = '#f8d7da';
+                    resultsDiv.style.padding = '10px';
+                    resultsDiv.style.borderRadius = '4px';
+                })
+                .testBackendConnection();
+        }
+
+        function testAuth() {
+            const resultsDiv = document.getElementById('diagnosticResults');
+            resultsDiv.innerHTML = '⏳ Testing Reddit OAuth...';
+
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        resultsDiv.innerHTML = `✅ ${result.message}<br>Token length: ${result.tokenLength} characters`;
+                        resultsDiv.style.color = '#155724';
+                        resultsDiv.style.background = '#d4edda';
+                        resultsDiv.style.padding = '10px';
+                        resultsDiv.style.borderRadius = '4px';
+                    } else {
+                        resultsDiv.innerHTML = `❌ OAuth failed: ${result.message}<br>Error: ${result.error}`;
+                        resultsDiv.style.color = '#721c24';
+                        resultsDiv.style.background = '#f8d7da';
+                        resultsDiv.style.padding = '10px';
+                        resultsDiv.style.borderRadius = '4px';
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    resultsDiv.innerHTML = `❌ OAuth test failed: ${error.message}`;
+                    resultsDiv.style.color = '#721c24';
+                    resultsDiv.style.background = '#f8d7da';
+                    resultsDiv.style.padding = '10px';
+                    resultsDiv.style.borderRadius = '4px';
+                })
+                .testRedditAuth();
+        }
 
         // ========================================================================
         // TAB SWITCHING
