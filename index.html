@@ -120,6 +120,124 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1em;
+            color: #718096;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+            background: #f7fafc;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        /* Post Cards */
+        .post-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .post-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .post-card.selected {
+            border-color: #667eea;
+            background: #eef2ff;
+        }
+
+        .post-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            margin-right: 15px;
+        }
+
+        .post-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .post-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.9em;
+            color: #718096;
+            margin-bottom: 10px;
+        }
+
+        .post-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .engagement-stars {
+            color: #f59e0b;
+            font-size: 1.1em;
+            letter-spacing: 2px;
+        }
+
+        .post-preview {
+            font-size: 0.9em;
+            color: #4a5568;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+            line-height: 1.5;
+        }
+
+        .post-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .post-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9em;
+            padding: 5px 10px;
+            border: 1px solid #667eea;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+
+        .post-link:hover {
+            background: #667eea;
+            color: white;
+        }
+
         .step-container {
             display: none;
             padding: 30px;
@@ -380,13 +498,103 @@
     <div class="container">
         <div class="header">
             <h1>🔍 Reddit Analyzer</h1>
-            <p>3-Step Interactive Analysis - Extract → Recommend → Analyze</p>
+            <p>Discover & Analyze High-Engagement Reddit Content</p>
         </div>
 
-        <div class="input-section">
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('topic')">
+                🔍 Search by Topic
+            </button>
+            <button class="tab-btn" onclick="switchTab('url')">
+                🔗 Analyze Single URL
+            </button>
+        </div>
+
+        <!-- Topic Search Tab -->
+        <div class="input-section" id="topicTab">
+            <div class="search-form">
+                <div class="input-group">
+                    <label style="display: block; margin-bottom: 8px; color: #4a5568; font-weight: 500;">
+                        What topic are you researching?
+                    </label>
+                    <input type="text" id="topicInput" placeholder="e.g., AI and machine learning, climate change, startup advice..." style="width: 100%;">
+                </div>
+
+                <div style="margin-top: 15px; padding: 15px; background: #f7fafc; border-radius: 8px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; color: #4a5568; font-weight: 500;">
+                        <input type="checkbox" id="subredditFilter" onchange="toggleSubredditInput()" style="margin-right: 10px;">
+                        🎯 Search specific subreddits only
+                    </label>
+                    <div id="subredditInputDiv" style="display: none; margin-top: 10px;">
+                        <input type="text" id="subredditInput" placeholder="e.g., MachineLearning, artificial, OpenAI" style="width: 100%;">
+                        <small style="color: #718096;">Comma-separated, no r/ prefix</small>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; display: flex; gap: 15px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; color: #4a5568; font-size: 0.9em;">Time Range</label>
+                        <select id="timeRange" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
+                            <option value="day">Last 24 hours</option>
+                            <option value="week" selected>Last 7 days</option>
+                            <option value="month">Last 30 days</option>
+                            <option value="year">Last year</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; color: #4a5568; font-size: 0.9em;">Max Results</label>
+                        <select id="maxResults" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
+                            <option value="10">Top 10</option>
+                            <option value="15" selected>Top 15</option>
+                            <option value="25">Top 25</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="searchByTopic()" style="flex-shrink: 0; white-space: nowrap;">
+                        🔍 Search Reddit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResults" style="display: none; margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin: 0;">Search Results</h3>
+                    <div id="searchResultsSummary" style="color: #718096; font-size: 0.9em;"></div>
+                </div>
+                <div id="postsList"></div>
+                <div id="selectedPostsActions" style="display: none; margin-top: 20px; padding: 20px; background: #eef2ff; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #667eea; font-size: 1.1em;" id="selectedCount">0 posts selected</strong>
+                            <p style="margin: 5px 0 0 0; color: #718096; font-size: 0.9em;">Choose how to analyze selected posts</p>
+                        </div>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="analysisMode" value="separate" checked style="margin-right: 8px;">
+                                <span style="color: #4a5568;">Analyze Separately</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="analysisMode" value="combine" style="margin-right: 8px;">
+                                <span style="color: #4a5568;">Combine All</span>
+                            </label>
+                            <button class="btn" onclick="extractSelectedPosts()" style="font-size: 1.1em; padding: 15px 30px;">
+                                📊 Extract & Analyze
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Single URL Tab -->
+        <div class="input-section" id="urlTab" style="display: none;">
             <div class="input-group">
-                <input type="text" id="redditUrl" placeholder="Paste Reddit post URL here..." value="https://www.reddit.com/r/AskReddit/comments/1hqxo9o/what_industry_is_quietly_booming_right_now_but/">
-                <button class="btn" onclick="startAnalysis()">Step 1: Extract Content</button>
+                <label style="display: block; margin-bottom: 8px; color: #4a5568; font-weight: 500;">
+                    Paste Reddit Post URL
+                </label>
+                <input type="text" id="redditUrl" placeholder="https://www.reddit.com/r/subreddit/comments/..." value="">
+                <button class="btn" onclick="startAnalysis()" style="margin-top: 10px;">Step 1: Extract Content</button>
             </div>
         </div>
 
@@ -457,6 +665,202 @@
 
         let extractedData = null;
         let selectedAnalyses = new Set();
+        let searchResults = [];
+        let selectedPosts = new Set();
+
+        // ========================================================================
+        // TAB SWITCHING
+        // ========================================================================
+
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Show/hide tabs
+            document.getElementById('topicTab').style.display = tab === 'topic' ? 'block' : 'none';
+            document.getElementById('urlTab').style.display = tab === 'url' ? 'block' : 'none';
+
+            // Hide search results when switching
+            document.getElementById('searchResults').style.display = 'none';
+        }
+
+        function toggleSubredditInput() {
+            const checkbox = document.getElementById('subredditFilter');
+            const div = document.getElementById('subredditInputDiv');
+            div.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        // ========================================================================
+        // TOPIC SEARCH
+        // ========================================================================
+
+        function searchByTopic() {
+            const topic = document.getElementById('topicInput').value.trim();
+            if (!topic) {
+                alert('Please enter a topic to search');
+                return;
+            }
+
+            const timeRange = document.getElementById('timeRange').value;
+            const maxResults = parseInt(document.getElementById('maxResults').value);
+            const subredditFilter = document.getElementById('subredditFilter').checked
+                ? document.getElementById('subredditInput').value.trim()
+                : '';
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = 'Searching Reddit for high-engagement posts...';
+
+            // Call backend search function
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.getElementById('loading').style.display = 'none';
+
+                    if (result.success) {
+                        searchResults = result.posts;
+                        selectedPosts.clear();
+                        displaySearchResults(result);
+                    } else {
+                        alert('Search failed: ' + result.message);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    alert('Search error: ' + error.message);
+                })
+                .searchRedditByTopic(topic, timeRange, subredditFilter, maxResults);
+        }
+
+        function displaySearchResults(result) {
+            const searchResultsDiv = document.getElementById('searchResults');
+            const postsListDiv = document.getElementById('postsList');
+            const summaryDiv = document.getElementById('searchResultsSummary');
+
+            // Show results section
+            searchResultsDiv.style.display = 'block';
+
+            // Update summary
+            summaryDiv.innerHTML = `Found <strong>${result.afterFiltering}</strong> high-engagement posts ${result.totalFound > result.afterFiltering ? `(filtered from ${result.totalFound} total)` : ''}`;
+
+            // Generate post cards
+            postsListDiv.innerHTML = result.posts.map(post => {
+                const stars = '⭐'.repeat(post.engagementStars);
+                const upvotePercent = Math.round(post.upvote_ratio * 100);
+
+                return `
+                    <div class="post-card" onclick="togglePostSelection('${post.id}')" id="post-${post.id}">
+                        <div style="display: flex; align-items: flex-start;">
+                            <input type="checkbox" class="post-checkbox" id="check-${post.id}" onclick="event.stopPropagation(); togglePostSelection('${post.id}')">
+                            <div style="flex: 1;">
+                                <div class="post-title">${escapeHtml(post.title)}</div>
+                                <div class="post-meta">
+                                    <div class="post-meta-item">
+                                        <strong>r/${escapeHtml(post.subreddit)}</strong>
+                                    </div>
+                                    <div class="post-meta-item">
+                                        ⬆️ ${post.score.toLocaleString()}
+                                    </div>
+                                    <div class="post-meta-item">
+                                        💬 ${post.num_comments.toLocaleString()}
+                                    </div>
+                                    <div class="post-meta-item">
+                                        📊 ${upvotePercent}% upvoted
+                                    </div>
+                                    <div class="post-meta-item">
+                                        🕐 ${post.ageText}
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                    <span class="engagement-stars" title="Engagement: ${post.engagementTier}">${stars}</span>
+                                    <span style="font-size: 0.85em; color: #718096;">
+                                        Engagement Score: ${post.engagementScore.toLocaleString()}
+                                        ${post.engagementRate > 0 ? `(${post.engagementRate}/10k subscribers)` : ''}
+                                    </span>
+                                </div>
+                                ${post.selftext ? `
+                                    <div class="post-preview">
+                                        ${escapeHtml(post.selftext)}${post.selftext.length >= 200 ? '...' : ''}
+                                    </div>
+                                ` : ''}
+                                <div class="post-actions" onclick="event.stopPropagation();">
+                                    <a href="${post.url}" target="_blank" class="post-link">🔗 View on Reddit</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Hide action buttons initially
+            document.getElementById('selectedPostsActions').style.display = 'none';
+
+            // Scroll to results
+            searchResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function togglePostSelection(postId) {
+            const card = document.getElementById('post-' + postId);
+            const checkbox = document.getElementById('check-' + postId);
+
+            if (selectedPosts.has(postId)) {
+                selectedPosts.delete(postId);
+                card.classList.remove('selected');
+                checkbox.checked = false;
+            } else {
+                selectedPosts.add(postId);
+                card.classList.add('selected');
+                checkbox.checked = true;
+            }
+
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const count = selectedPosts.size;
+            document.getElementById('selectedCount').textContent = `${count} post${count !== 1 ? 's' : ''} selected`;
+            document.getElementById('selectedPostsActions').style.display = count > 0 ? 'block' : 'none';
+        }
+
+        function extractSelectedPosts() {
+            if (selectedPosts.size === 0) {
+                alert('Please select at least one post');
+                return;
+            }
+
+            const mode = document.querySelector('input[name="analysisMode"]:checked').value;
+            const selectedPostsData = searchResults.filter(post => selectedPosts.has(post.id));
+
+            if (mode === 'separate') {
+                // Analyze each post separately
+                alert(`Extracting and analyzing ${selectedPostsData.length} posts separately.\n\nThis feature will extract comments from each post one by one.\n\nNote: Multi-post analysis is coming soon!`);
+
+                // For now, just analyze the first selected post
+                if (selectedPostsData.length > 0) {
+                    const firstPost = selectedPostsData[0];
+                    document.getElementById('redditUrl').value = firstPost.url;
+                    switchTab('url');
+                    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                    document.querySelectorAll('.tab-btn')[0].classList.remove('active');
+                    startAnalysis();
+                }
+            } else {
+                // Combine all posts
+                alert('Combine mode coming soon!\n\nFor now, analyzing first selected post separately.');
+                if (selectedPostsData.length > 0) {
+                    const firstPost = selectedPostsData[0];
+                    document.getElementById('redditUrl').value = firstPost.url;
+                    switchTab('url');
+                    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                    document.querySelectorAll('.tab-btn')[0].classList.remove('active');
+                    startAnalysis();
+                }
+            }
+        }
+
+        // ========================================================================
+        // SINGLE URL ANALYSIS
+        // ========================================================================
 
         function startAnalysis() {
             const url = document.getElementById('redditUrl').value.trim();
