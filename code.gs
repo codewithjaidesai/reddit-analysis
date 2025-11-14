@@ -105,8 +105,8 @@ function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit =
     let params = {
       'q': topic,
       't': timeRange, // hour, day, week, month, year, all
-      'sort': 'top', // Use 'top' to get most upvoted
-      'limit': 50, // Get more than we need for filtering
+      'sort': 'relevance', // Use Reddit's relevance algorithm for best keyword matching
+      'limit': 100, // Get more posts to filter by engagement
       'restrict_sr': 'false',
       'type': 'link' // Only posts, not comments
     };
