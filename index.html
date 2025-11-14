@@ -743,6 +743,23 @@
                 <button class="btn" onclick="startNewAnalysis()">Analyze Another Post</button>
             </div>
         </div>
+
+        <!-- MULTI-POST EXTRACTION RESULTS -->
+        <div id="multiPostContainer" style="display: none; padding: 30px;">
+            <div style="margin-bottom: 20px;">
+                <h2 style="color: #667eea;" id="multiPostTitle">📊 Extracting Posts</h2>
+                <div id="multiPostProgress" style="background: #eef2ff; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                    <div style="font-weight: 500; margin-bottom: 5px;">Progress: <span id="progressText">Starting...</span></div>
+                    <div style="background: #cbd5e0; height: 10px; border-radius: 5px; overflow: hidden;">
+                        <div id="progressBar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="multiPostResults"></div>
+            <div id="multiPostActions" style="display: none; margin-top: 20px;">
+                <button class="btn" onclick="backToSearch()" style="background: #667eea;">← Back to Search</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1123,11 +1140,12 @@
         let multiPostResults = [];
 
         function startMultiPostExtraction(posts) {
+            console.log('Starting multi-post extraction for', posts.length, 'posts');
             postsQueue = posts;
             currentPostIndex = 0;
             multiPostResults = [];
 
-            // Hide tabs, show multi-post container
+            // Hide tabs
             document.getElementById('topicTab').style.display = 'none';
             document.getElementById('subredditTab').style.display = 'none';
             document.getElementById('urlTab').style.display = 'none';
@@ -1135,30 +1153,18 @@
             document.getElementById('step2Container').style.display = 'none';
             document.getElementById('insightsContainer').style.display = 'none';
 
-            // Create or show multi-post container
-            let multiPostContainer = document.getElementById('multiPostContainer');
-            if (!multiPostContainer) {
-                multiPostContainer = document.createElement('div');
-                multiPostContainer.id = 'multiPostContainer';
-                multiPostContainer.style.padding = '30px';
-                document.querySelector('.container').appendChild(multiPostContainer);
-            }
+            // Show multi-post container
+            const multiPostContainer = document.getElementById('multiPostContainer');
             multiPostContainer.style.display = 'block';
-            multiPostContainer.innerHTML = `
-                <div style="margin-bottom: 20px;">
-                    <h2 style="color: #667eea;">📊 Extracting ${posts.length} Posts</h2>
-                    <div id="multiPostProgress" style="background: #eef2ff; padding: 15px; border-radius: 8px; margin-top: 10px;">
-                        <div style="font-weight: 500; margin-bottom: 5px;">Progress: <span id="progressText">Starting...</span></div>
-                        <div style="background: #cbd5e0; height: 10px; border-radius: 5px; overflow: hidden;">
-                            <div id="progressBar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                        </div>
-                    </div>
-                </div>
-                <div id="multiPostResults"></div>
-                <div id="multiPostActions" style="display: none; margin-top: 20px;">
-                    <button class="btn" onclick="backToSearch()" style="background: #667eea;">← Back to Search</button>
-                </div>
-            `;
+
+            // Update title and reset results
+            document.getElementById('multiPostTitle').textContent = `📊 Extracting ${posts.length} Posts`;
+            document.getElementById('progressText').textContent = 'Starting...';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('multiPostResults').innerHTML = '';
+            document.getElementById('multiPostActions').style.display = 'none';
+
+            console.log('Multi-post container shown, starting extraction...');
 
             // Start processing first post
             processNextPost();
