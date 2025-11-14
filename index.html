@@ -1247,6 +1247,12 @@
             const stats = data.extractionStats || {};
             console.log('Stats for post', index, ':', stats);
 
+            // Map backend field names to display values
+            const totalComments = stats.total || stats.totalComments || 0;
+            const valuableComments = stats.extracted || stats.valuableComments || 0;
+            const totalUpvotes = stats.averageScore || stats.totalUpvotes || 0;
+            const avgWordCount = stats.avgWordCount || 0;
+
             // Create simple card with ONLY inline styles
             const card = document.createElement('div');
             card.style.cssText = 'background: white; border: 3px solid #667eea; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
@@ -1270,19 +1276,19 @@
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0;">
                     <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 2em; font-weight: bold; color: #667eea;">${stats.totalComments || 0}</div>
+                        <div style="font-size: 2em; font-weight: bold; color: #667eea;">${totalComments}</div>
                         <div style="color: #718096; font-size: 0.9em;">Total Comments</div>
                     </div>
                     <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 2em; font-weight: bold; color: #48bb78;">${stats.valuableComments || 0}</div>
+                        <div style="font-size: 2em; font-weight: bold; color: #48bb78;">${valuableComments}</div>
                         <div style="color: #718096; font-size: 0.9em;">Valuable Comments</div>
                     </div>
                     <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 2em; font-weight: bold; color: #f59e0b;">${stats.totalUpvotes || 0}</div>
-                        <div style="color: #718096; font-size: 0.9em;">Total Upvotes</div>
+                        <div style="font-size: 2em; font-weight: bold; color: #f59e0b;">${totalUpvotes}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Avg Upvotes</div>
                     </div>
                     <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 2em; font-weight: bold; color: #9f7aea;">${stats.avgWordCount || 0}</div>
+                        <div style="font-size: 2em; font-weight: bold; color: #9f7aea;">${avgWordCount}</div>
                         <div style="color: #718096; font-size: 0.9em;">Avg Word Count</div>
                     </div>
                 </div>
