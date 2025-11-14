@@ -1251,7 +1251,16 @@
             const totalComments = stats.total || stats.totalComments || 0;
             const valuableComments = stats.extracted || stats.valuableComments || 0;
             const totalUpvotes = stats.averageScore || stats.totalUpvotes || 0;
-            const avgWordCount = stats.avgWordCount || 0;
+
+            // Calculate avg word count from comments
+            let avgWordCount = 0;
+            if (data.valuableComments && data.valuableComments.length > 0) {
+                const totalWords = data.valuableComments.reduce((sum, comment) => {
+                    const words = comment.body ? comment.body.split(/\s+/).length : 0;
+                    return sum + words;
+                }, 0);
+                avgWordCount = Math.round(totalWords / data.valuableComments.length);
+            }
 
             // Create simple card with ONLY inline styles
             const card = document.createElement('div');
