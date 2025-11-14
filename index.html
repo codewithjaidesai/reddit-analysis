@@ -1240,75 +1240,69 @@
                 return;
             }
 
-            const resultDiv = document.createElement('div');
-            resultDiv.className = 'step-container';
-            resultDiv.style.marginBottom = '20px';
-            resultDiv.id = `multiPost_${index}`;
+            // Clear the placeholder text on first post
+            if (index === 0) {
+                resultsContainer.innerHTML = '';
+            }
 
             const stats = data.extractionStats || {};
             console.log('Stats for post', index, ':', stats);
 
-            resultDiv.innerHTML = `
-                <div class="step-header">
-                    <div class="step-number">${index + 1}</div>
-                    <div class="step-title">${escapeHtml(post.title)}</div>
-                </div>
+            // Create simple card with ONLY inline styles
+            const card = document.createElement('div');
+            card.style.cssText = 'background: white; border: 3px solid #667eea; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
 
-                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                    <span style="background: #eef2ff; padding: 5px 10px; border-radius: 4px; font-size: 0.9em;">
+            card.innerHTML = `
+                <h3 style="color: #667eea; font-size: 1.5em; margin: 0 0 15px 0;">
+                    ${index + 1}. ${escapeHtml(post.title)}
+                </h3>
+
+                <div style="margin-bottom: 20px;">
+                    <span style="background: #eef2ff; padding: 8px 12px; border-radius: 4px; margin-right: 10px; display: inline-block;">
                         <strong>r/${escapeHtml(post.subreddit)}</strong>
                     </span>
-                    <span style="background: #f0fdf4; padding: 5px 10px; border-radius: 4px; font-size: 0.9em;">
-                        ⬆️ ${post.score.toLocaleString()} upvotes
+                    <span style="background: #f0fdf4; padding: 8px 12px; border-radius: 4px; margin-right: 10px; display: inline-block;">
+                        ⬆️ ${post.score.toLocaleString()}
                     </span>
-                    <span style="background: #fef3c7; padding: 5px 10px; border-radius: 4px; font-size: 0.9em;">
-                        💬 ${post.num_comments.toLocaleString()} comments
+                    <span style="background: #fef3c7; padding: 8px 12px; border-radius: 4px; display: inline-block;">
+                        💬 ${post.num_comments.toLocaleString()}
                     </span>
                 </div>
 
-                <div class="stats-grid" id="multiPostStats_${index}">
-                    <div class="stat-card">
-                        <div class="stat-number">${stats.totalComments || 0}</div>
-                        <div class="stat-label">Total Comments</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #667eea;">${stats.totalComments || 0}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Total Comments</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${stats.valuableComments || 0}</div>
-                        <div class="stat-label">Valuable Comments</div>
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #48bb78;">${stats.valuableComments || 0}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Valuable Comments</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${stats.totalUpvotes || 0}</div>
-                        <div class="stat-label">Total Upvotes</div>
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #f59e0b;">${stats.totalUpvotes || 0}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Total Upvotes</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${stats.avgWordCount || 0}</div>
-                        <div class="stat-label">Avg Word Count</div>
-                    </div>
-                </div>
-
-                <!-- AI Analysis Section (Collapsed by default) -->
-                <div id="analysisSection_${index}" style="display: none; margin-top: 20px; padding: 20px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
-                    <div id="analysisContent_${index}">
-                        <div style="text-align: center; padding: 40px; color: #718096;">
-                            <div style="font-size: 3em; margin-bottom: 10px;">🤖</div>
-                            <div style="font-size: 1.2em; font-weight: 500; margin-bottom: 10px;">AI Analysis Ready</div>
-                            <div style="font-size: 0.9em;">Click "Generate Analysis" to analyze this post with AI</div>
-                        </div>
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #9f7aea;">${stats.avgWordCount || 0}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Avg Word Count</div>
                     </div>
                 </div>
 
-                <div class="action-buttons" id="multiPostActions_${index}">
-                    <button class="btn" onclick="toggleAnalysis(${index})" style="background: #667eea; font-weight: 600;">
-                        📊 <span id="analysisBtn_${index}">Show Analysis</span>
+                <div style="margin-top: 25px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="downloadSinglePostPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em;">
+                        📄 Export PDF
                     </button>
-                    <button class="btn" onclick="downloadSinglePostPDF(${index})" style="background: #ed8936;">📄 Export as PDF</button>
-                    <button class="btn" onclick="downloadSinglePostForClaude(${index})" style="background: #48bb78;">💾 Download for Claude</button>
-                    <button class="btn" onclick="copySinglePostForClaude(${index})" style="background: #9f7aea;">📋 Copy for Claude</button>
-                    <button class="btn collapse-btn" onclick="collapseMultiPost(${index})">Collapse</button>
+                    <button onclick="downloadSinglePostForClaude(${index})" style="background: #48bb78; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em;">
+                        💾 Download for Claude
+                    </button>
+                    <button onclick="copySinglePostForClaude(${index})" style="background: #9f7aea; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em;">
+                        📋 Copy
+                    </button>
                 </div>
             `;
 
-            resultsContainer.appendChild(resultDiv);
-            console.log('Post card added to DOM for index:', index);
+            resultsContainer.appendChild(card);
+            console.log('Simple card added to DOM for index:', index);
         }
 
         function displayMultiPostError(post, error, index) {
