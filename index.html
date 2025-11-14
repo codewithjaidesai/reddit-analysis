@@ -745,22 +745,21 @@
         </div>
 
         <!-- MULTI-POST EXTRACTION RESULTS -->
-        <div id="multiPostContainer" style="display: none;">
-            <div style="margin-bottom: 20px; padding: 30px; background: #fef2f2; border: 5px solid red;">
-                <h2 style="color: #dc2626; font-size: 2em;" id="multiPostTitle">📊 Extracting Posts - CONTAINER VISIBLE!</h2>
-                <div id="multiPostProgress" style="background: #fee2e2; padding: 15px; border-radius: 8px; margin-top: 10px; border: 3px solid #ef4444;">
-                    <div style="font-weight: 700; margin-bottom: 5px; color: #991b1b; font-size: 1.2em;">Progress: <span id="progressText">Starting...</span></div>
-                    <div style="background: #cbd5e0; height: 30px; border-radius: 5px; overflow: hidden; border: 3px solid #000;">
+        <div id="multiPostContainer" style="display: none; padding: 30px;">
+            <div style="margin-bottom: 30px;">
+                <h2 style="color: #667eea; font-size: 2em; margin: 0 0 20px 0;" id="multiPostTitle">📊 Extracting Posts</h2>
+                <div id="multiPostProgress" style="background: #eef2ff; padding: 20px; border-radius: 12px; border: 2px solid #c7d2fe;">
+                    <div style="font-weight: 600; margin-bottom: 10px; color: #4c1d95; font-size: 1.1em;">Progress: <span id="progressText">Starting...</span></div>
+                    <div style="background: #cbd5e0; height: 20px; border-radius: 10px; overflow: hidden;">
                         <div id="progressBar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s;"></div>
                     </div>
                 </div>
             </div>
-            <div id="multiPostResults" style="background: #ffff00; padding: 30px; min-height: 300px; border: 10px dashed #0000ff;">
-                <p style="color: #ff0000; font-size: 3em; font-weight: bold; text-align: center;">⚠️ RESULTS CONTAINER EXISTS! ⚠️</p>
-                <p style="color: #000; font-size: 1.5em; text-align: center;">If you see this yellow background, the container is rendering</p>
-            </div>
-            <div id="multiPostActions" style="display: none; margin-top: 20px; padding: 30px; background: #00ff00; border: 5px solid purple;">
-                <button class="btn" onclick="backToSearch()" style="background: #667eea; font-size: 1.5em; padding: 20px;">← Back to Search</button>
+            <div id="multiPostResults" style="margin-bottom: 30px;"></div>
+            <div id="multiPostActions" style="display: none; text-align: center; margin-top: 30px;">
+                <button onclick="backToSearch()" style="background: #667eea; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: 600;">
+                    ← Back to Search
+                </button>
             </div>
         </div>
     </div>
