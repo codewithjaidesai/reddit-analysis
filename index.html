@@ -1186,26 +1186,34 @@
             // Extract this post
             const callbackName = 'multiPostCallback_' + Date.now();
             window[callbackName] = function(response) {
+                console.log('Multi-post callback received for post', currentPostIndex + 1, response);
                 document.getElementById('loading').style.display = 'none';
 
                 if (response.success) {
+                    console.log('Success! Data:', response.data);
                     multiPostResults.push({
                         post: post,
                         data: response.data
                     });
                     displayMultiPostResult(post, response.data, currentPostIndex);
                 } else {
-                    displayMultiPostError(post, response.error, currentPostIndex);
+                    console.error('Error in response:', response.error);
+                    displayMultiPostError(post, response.error || 'Unknown error', currentPostIndex);
                 }
 
                 // Move to next post
                 currentPostIndex++;
                 setTimeout(processNextPost, 500); // Small delay between posts
+
+                // Clean up
+                delete window[callbackName];
             };
 
+            console.log('Fetching:', post.url, 'Callback:', callbackName);
             const script = document.createElement('script');
             script.src = `${SCRIPT_URL}?url=${encodeURIComponent(post.url)}&mode=step1_extract&callback=${callbackName}&t=${Date.now()}`;
             script.onerror = function() {
+                console.error('Script load error for:', post.url);
                 document.getElementById('loading').style.display = 'none';
                 displayMultiPostError(post, 'Network error or timeout', currentPostIndex);
                 currentPostIndex++;
@@ -1215,13 +1223,21 @@
         }
 
         function displayMultiPostResult(post, data, index) {
+            console.log('displayMultiPostResult called for index:', index, 'post:', post.title);
             const resultsContainer = document.getElementById('multiPostResults');
+
+            if (!resultsContainer) {
+                console.error('multiPostResults container not found!');
+                return;
+            }
+
             const resultDiv = document.createElement('div');
             resultDiv.className = 'step-container';
             resultDiv.style.marginBottom = '20px';
             resultDiv.id = `multiPost_${index}`;
 
-            const stats = data.extractionStats;
+            const stats = data.extractionStats || {};
+            console.log('Stats for post', index, ':', stats);
 
             resultDiv.innerHTML = `
                 <div class="step-header">
@@ -1241,7 +1257,7 @@
                     </span>
                 </div>
 
-                <div class="stats-grid">
+                <div class="stats-grid" id="multiPostStats_${index}">
                     <div class="stat-card">
                         <div class="stat-number">${stats.totalComments || 0}</div>
                         <div class="stat-label">Total Comments</div>
@@ -1260,7 +1276,21 @@
                     </div>
                 </div>
 
-                <div class="action-buttons">
+                <!-- AI Analysis Section (Collapsed by default) -->
+                <div id="analysisSection_${index}" style="display: none; margin-top: 20px; padding: 20px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
+                    <div id="analysisContent_${index}">
+                        <div style="text-align: center; padding: 40px; color: #718096;">
+                            <div style="font-size: 3em; margin-bottom: 10px;">🤖</div>
+                            <div style="font-size: 1.2em; font-weight: 500; margin-bottom: 10px;">AI Analysis Ready</div>
+                            <div style="font-size: 0.9em;">Click "Generate Analysis" to analyze this post with AI</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons" id="multiPostActions_${index}">
+                    <button class="btn" onclick="toggleAnalysis(${index})" style="background: #667eea; font-weight: 600;">
+                        📊 <span id="analysisBtn_${index}">Show Analysis</span>
+                    </button>
                     <button class="btn" onclick="downloadSinglePostPDF(${index})" style="background: #ed8936;">📄 Export as PDF</button>
                     <button class="btn" onclick="downloadSinglePostForClaude(${index})" style="background: #48bb78;">💾 Download for Claude</button>
                     <button class="btn" onclick="copySinglePostForClaude(${index})" style="background: #9f7aea;">📋 Copy for Claude</button>
@@ -1269,6 +1299,7 @@
             `;
 
             resultsContainer.appendChild(resultDiv);
+            console.log('Post card added to DOM for index:', index);
         }
 
         function displayMultiPostError(post, error, index) {
@@ -1355,6 +1386,130 @@
             postsQueue = [];
             currentPostIndex = 0;
             multiPostResults = [];
+        }
+
+        // ========================================================================
+        // ANALYSIS FUNCTIONS
+        // ========================================================================
+
+        let analysisCache = {}; // Store generated analyses
+
+        function toggleAnalysis(index) {
+            const section = document.getElementById(`analysisSection_${index}`);
+            const btnText = document.getElementById(`analysisBtn_${index}`);
+
+            if (section.style.display === 'none') {
+                // Show analysis section
+                section.style.display = 'block';
+                btnText.textContent = 'Hide Analysis';
+
+                // If not already generated, generate it now
+                if (!analysisCache[index]) {
+                    generateAnalysis(index);
+                }
+            } else {
+                // Hide analysis section
+                section.style.display = 'none';
+                btnText.textContent = 'Show Analysis';
+            }
+        }
+
+        function generateAnalysis(index) {
+            const contentDiv = document.getElementById(`analysisContent_${index}`);
+            const result = multiPostResults[index];
+
+            if (!result) {
+                contentDiv.innerHTML = '<div style="color: #c53030;">Error: No data found for this post</div>';
+                return;
+            }
+
+            // Show loading
+            contentDiv.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <div style="color: #667eea; font-weight: 500;">Generating analysis...</div>
+                    <div style="color: #718096; font-size: 0.9em; margin-top: 10px;">This may take a few moments</div>
+                </div>
+            `;
+
+            // For now, use the existing regex-based analysis
+            // In the future, this will call AI API
+            setTimeout(() => {
+                const data = result.data;
+                const comments = data.valuableComments || [];
+
+                // Generate insights using existing functions
+                const insights = generateDataTables(data);
+
+                // Build HTML
+                let analysisHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">💡 Analysis Results</h3>
+                        <p style="color: #718096; margin-bottom: 20px;">
+                            Based on ${comments.length} valuable comments from this discussion
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 25px;">
+                        <h4 style="color: #4a5568; margin-bottom: 10px; font-size: 1.1em;">📊 Data Tables</h4>
+                        ${insights.length > 0 ? insights.join('') : '<p style="color: #718096;">No data tables available for this content type.</p>'}
+                    </div>
+
+                    <div style="margin-top: 25px; padding-top: 25px; border-top: 2px solid #e2e8f0;">
+                        <button class="btn" onclick="exportAnalysisPDF(${index})" style="background: #ed8936; margin-right: 10px;">
+                            📄 Export Analysis as PDF
+                        </button>
+                        <button class="btn" onclick="downloadAnalysisForClaude(${index})" style="background: #48bb78; margin-right: 10px;">
+                            💾 Download Analysis for Claude
+                        </button>
+                        <button class="btn" onclick="copyAnalysisForClaude(${index})" style="background: #9f7aea;">
+                            📋 Copy Analysis to Clipboard
+                        </button>
+                    </div>
+                `;
+
+                contentDiv.innerHTML = analysisHTML;
+                analysisCache[index] = analysisHTML;
+            }, 1000); // Simulate processing time
+        }
+
+        function exportAnalysisPDF(index) {
+            // Use the existing PDF export with analysis data
+            if (multiPostResults[index]) {
+                const oldData = extractedData;
+                extractedData = multiPostResults[index].data;
+                exportToPDF();
+                extractedData = oldData;
+            }
+        }
+
+        function downloadAnalysisForClaude(index) {
+            if (multiPostResults[index]) {
+                const result = multiPostResults[index];
+                const formattedText = formatForClaudeAnalysis(result.data);
+                const fileName = `reddit_analysis_${result.post.subreddit}_${Date.now()}.txt`;
+
+                const blob = new Blob([formattedText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function copyAnalysisForClaude(index) {
+            if (multiPostResults[index]) {
+                const result = multiPostResults[index];
+                const formattedText = formatForClaudeAnalysis(result.data);
+
+                navigator.clipboard.writeText(formattedText).then(() => {
+                    alert('✅ Analysis copied to clipboard! Paste it into Claude for deeper insights.');
+                }).catch(err => {
+                    alert('Failed to copy: ' + err);
+                });
+            }
         }
 
         // ========================================================================
