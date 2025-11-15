@@ -115,8 +115,8 @@ function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit =
     if (subreddits && subreddits.trim()) {
       const subredditList = subreddits.split(',').map(s => s.trim()).filter(s => s);
       if (subredditList.length > 0) {
-        // Add subreddit restriction to query
-        params.q = `${topic} subreddit:${subredditList.join(' OR subreddit:')}`;
+        // Add subreddit restriction to query with proper parentheses for OR grouping
+        params.q = `${topic} (subreddit:${subredditList.join(' OR subreddit:')})`;
       }
     }
 
