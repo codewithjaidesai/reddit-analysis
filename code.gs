@@ -5,6 +5,13 @@ const REDDIT_CONFIG = {
   userAgent: 'web:RedditAnalyzer:v1.0.0 (by /u/gamestopfan)'
 };
 
+// Gemini AI Configuration
+const GEMINI_CONFIG = {
+  apiKey: 'AIzaSyACsM5lAgXS16dCathjD3jeKD-yGCsDPws',
+  model: 'gemini-1.5-flash', // Fast and free model
+  apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/'
+};
+
 // Test function to verify backend is working
 function testBackendConnection() {
   return {
@@ -79,6 +86,100 @@ function getRedditAccessToken() {
   } catch (error) {
     console.error('Token fetch error:', error);
     throw new Error('Failed to authenticate with Reddit API');
+  }
+}
+
+// ============================================================================
+// GEMINI AI ANALYSIS
+// ============================================================================
+
+/**
+ * Call Gemini API to analyze Reddit content with AI
+ * @param {string} prompt - The analysis prompt with Reddit data
+ * @returns {object} AI analysis result
+ */
+function analyzeWithGemini(prompt) {
+  console.log('Calling Gemini API for AI analysis...');
+
+  try {
+    const url = `${GEMINI_CONFIG.apiUrl}${GEMINI_CONFIG.model}:generateContent?key=${GEMINI_CONFIG.apiKey}`;
+
+    const payload = {
+      contents: [{
+        parts: [{
+          text: prompt
+        }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      },
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_NONE"
+        }
+      ]
+    };
+
+    const options = {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+
+    console.log('Gemini API response code:', responseCode);
+
+    if (responseCode !== 200) {
+      const errorText = response.getContentText();
+      console.error('Gemini API error:', errorText);
+      throw new Error(`Gemini API error (${responseCode}): ${errorText}`);
+    }
+
+    const result = JSON.parse(response.getContentText());
+
+    // Extract the AI-generated text
+    if (result.candidates && result.candidates.length > 0 &&
+        result.candidates[0].content && result.candidates[0].content.parts &&
+        result.candidates[0].content.parts.length > 0) {
+
+      const aiAnalysis = result.candidates[0].content.parts[0].text;
+      console.log('Gemini analysis received, length:', aiAnalysis.length);
+
+      return {
+        success: true,
+        analysis: aiAnalysis,
+        model: GEMINI_CONFIG.model
+      };
+    } else {
+      throw new Error('Unexpected response format from Gemini API');
+    }
+
+  } catch (error) {
+    console.error('Gemini API call failed:', error);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'AI analysis failed: ' + error.message
+    };
   }
 }
 
@@ -534,7 +635,8 @@ function doGet(e) {
         comments: validComments
       });
 
-      processedData = generateSelectedInsights(contentData, selectedAnalyses);
+      // Use AI-powered insights instead of regex-based analysis
+      processedData = generateAIInsights(contentData);
     } else {
       // Deep dive mode for single post
       const redditData = fetchAuthenticatedRedditData(url);
@@ -2951,6 +3053,50 @@ function generateSelectedInsights(contentData, selectedAnalyses) {
     totalInsights: insights.length,
     insights: insights
   };
+}
+
+// ============================================================================
+// AI-POWERED INSIGHTS GENERATION
+// ============================================================================
+
+/**
+ * Generate AI-powered insights using Gemini
+ * Replaces regex-based analysis with intelligent AI analysis
+ */
+function generateAIInsights(contentData) {
+  console.log('STEP 3: Generating AI-powered insights with Gemini');
+
+  try {
+    // Use the existing comprehensive prompt
+    const prompt = formatForClaudeAnalysis(contentData);
+
+    // Call Gemini API
+    const aiResult = analyzeWithGemini(prompt);
+
+    if (!aiResult.success) {
+      console.error('Gemini analysis failed, falling back to regex-based analysis');
+      // Fallback to regex-based analysis
+      return generateSelectedInsights(contentData, ['entity_analysis', 'outcome_analysis', 'speaker_analysis']);
+    }
+
+    // Return AI analysis in compatible format
+    return {
+      mode: 'ai_analysis',
+      model: aiResult.model,
+      totalInsights: 1,
+      aiAnalysis: aiResult.analysis,
+      insights: [{
+        type: 'ai_comprehensive',
+        insight: 'AI-powered comprehensive analysis',
+        fullAnalysis: aiResult.analysis
+      }]
+    };
+
+  } catch (error) {
+    console.error('AI insights generation error:', error);
+    // Fallback to regex-based analysis
+    return generateSelectedInsights(contentData, ['entity_analysis', 'outcome_analysis', 'speaker_analysis']);
+  }
 }
 
 // ============================================================================

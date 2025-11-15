@@ -2508,42 +2508,123 @@
             const container = document.getElementById('insightsContainer');
             container.style.display = 'block';
 
-            // Generate tables
-            const tables = generateDataTables(data);
-
             const list = document.getElementById('insightsList');
-
             let html = '';
 
-            // Display data tables first
-            if (tables.length > 0) {
-                html += '<div style="margin-bottom: 30px;"><h3 style="color: #667eea; margin-bottom: 20px;">📊 Data Analysis</h3>';
-                tables.forEach(table => {
-                    html += `<div style="margin-bottom: 30px;">
-                        <h4 style="color: #4a5568; margin-bottom: 15px;">${table.title}</h4>
-                        ${table.html}
-                    </div>`;
-                });
-                html += '</div>';
-            }
+            // Check if this is AI-powered analysis
+            if (data.mode === 'ai_analysis' && data.aiAnalysis) {
+                // Display AI analysis with proper formatting
+                html += `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                        <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                            <span>🤖</span>
+                            <span>AI-Powered Comprehensive Analysis</span>
+                        </h3>
+                        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
+                            Powered by ${data.model || 'Gemini 1.5 Flash'}
+                        </p>
+                    </div>
+                    <div style="background: white; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; line-height: 1.8; color: #2d3748;">
+                        ${formatMarkdown(data.aiAnalysis)}
+                    </div>
+                `;
+            } else {
+                // Original display for regex-based insights
+                // Generate tables
+                const tables = generateDataTables(data);
 
-            // Display insights
-            html += '<h3 style="color: #667eea; margin-bottom: 20px;">💡 Key Insights</h3>';
-            html += data.insights.map(insight => `
-                <div class="insight-card">
-                    <div class="insight-type">${escapeHtml(insight.type.replace(/_/g, ' '))}</div>
-                    <div class="insight-text">💡 ${escapeHtml(insight.insight)}</div>
-                </div>
-            `).join('');
+                // Display data tables first
+                if (tables.length > 0) {
+                    html += '<div style="margin-bottom: 30px;"><h3 style="color: #667eea; margin-bottom: 20px;">📊 Data Analysis</h3>';
+                    tables.forEach(table => {
+                        html += `<div style="margin-bottom: 30px;">
+                            <h4 style="color: #4a5568; margin-bottom: 15px;">${table.title}</h4>
+                            ${table.html}
+                        </div>`;
+                    });
+                    html += '</div>';
+                }
 
-            if (data.insights.length === 0) {
-                html = '<p style="text-align: center; color: #718096; padding: 40px;">No insights generated. Try selecting different analyses.</p>';
+                // Display insights
+                html += '<h3 style="color: #667eea; margin-bottom: 20px;">💡 Key Insights</h3>';
+                html += data.insights.map(insight => `
+                    <div class="insight-card">
+                        <div class="insight-type">${escapeHtml(insight.type.replace(/_/g, ' '))}</div>
+                        <div class="insight-text">💡 ${escapeHtml(insight.insight)}</div>
+                    </div>
+                `).join('');
+
+                if (data.insights.length === 0) {
+                    html = '<p style="text-align: center; color: #718096; padding: 40px;">No insights generated. Try selecting different analyses.</p>';
+                }
             }
 
             list.innerHTML = html;
 
             // Scroll to insights
             container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Simple markdown formatter for AI analysis
+        function formatMarkdown(text) {
+            if (!text) return '';
+
+            // Escape HTML first
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            // Format markdown
+            html = html
+                // Headers
+                .replace(/^### (.*$)/gm, '<h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px; font-size: 1.3em;">$1</h3>')
+                .replace(/^## (.*$)/gm, '<h2 style="color: #5a67d8; margin-top: 35px; margin-bottom: 20px; font-size: 1.5em;">$1</h2>')
+                .replace(/^# (.*$)/gm, '<h1 style="color: #4c51bf; margin-top: 40px; margin-bottom: 25px; font-size: 1.8em;">$1</h1>')
+                // Bold
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // Italic
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                // Code blocks
+                .replace(/```([\s\S]*?)```/g, '<pre style="background: #f7fafc; padding: 15px; border-radius: 8px; overflow-x: auto; border-left: 4px solid #667eea;"><code>$1</code></pre>')
+                // Inline code
+                .replace(/`([^`]+)`/g, '<code style="background: #f7fafc; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #d53f8c;">$1</code>')
+                // Bullet lists
+                .replace(/^\• (.*$)/gm, '<li style="margin-left: 20px;">$1</li>')
+                .replace(/^- (.*$)/gm, '<li style="margin-left: 20px;">$1</li>')
+                // Tables (markdown tables)
+                .replace(/\n\|(.+)\|\n\|[-:\s|]+\|\n((?:\|.+\|\n?)+)/g, function(match, header, rows) {
+                    let tableHtml = '<table class="data-table" style="width: 100%; border-collapse: collapse; margin: 20px 0;">';
+
+                    // Header
+                    const headers = header.split('|').map(h => h.trim()).filter(h => h);
+                    tableHtml += '<thead><tr>';
+                    headers.forEach(h => {
+                        tableHtml += `<th style="background: #667eea; color: white; padding: 12px; text-align: left; border: 1px solid #e2e8f0;">${h}</th>`;
+                    });
+                    tableHtml += '</tr></thead><tbody>';
+
+                    // Rows
+                    const rowLines = rows.trim().split('\n');
+                    rowLines.forEach(row => {
+                        const cells = row.split('|').map(c => c.trim()).filter(c => c);
+                        if (cells.length > 0) {
+                            tableHtml += '<tr>';
+                            cells.forEach(cell => {
+                                tableHtml += `<td style="padding: 12px; border: 1px solid #e2e8f0;">${cell}</td>`;
+                            });
+                            tableHtml += '</tr>';
+                        }
+                    });
+
+                    tableHtml += '</tbody></table>';
+                    return tableHtml;
+                })
+                // Line breaks
+                .replace(/\n\n/g, '</p><p style="margin: 15px 0;">')
+                .replace(/\n/g, '<br>');
+
+            return '<p style="margin: 15px 0;">' + html + '</p>';
         }
 
         function collapseStep(stepId) {
