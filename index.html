@@ -1456,49 +1456,21 @@
                 return;
             }
 
-            // Generate insights using all available analysis types
+            // Display AI insights prompt
             setTimeout(() => {
-                const allAnalysisTypes = [
-                    'entity_analysis',
-                    'outcome_analysis',
-                    'speaker_analysis',
-                    'pricing_analysis',
-                    'timeline_analysis',
-                    'consensus_analysis',
-                    'qa_analysis',
-                    'evidence_analysis'
-                ];
-
-                const insights = generateInsightsInBrowser(result.data, allAnalysisTypes);
-
-                // Display insights
-                let html = '<h4 style="color: #667eea; margin: 0 0 15px 0;">💡 Key Insights</h4>';
-
-                if (insights.length === 0) {
-                    html += '<p style="color: #718096;">No significant insights found for this post.</p>';
-                } else {
-                    insights.forEach(insight => {
-                        html += `
-                            <div style="background: white; padding: 12px 15px; margin-bottom: 10px;
-                                border-radius: 6px; border-left: 4px solid #667eea;">
-                                <div style="font-size: 0.85em; color: #9f7aea; font-weight: 600;
-                                    text-transform: uppercase; margin-bottom: 5px;">
-                                    ${escapeHtml(insight.type.replace(/_/g, ' '))}
-                                </div>
-                                <div style="color: #2d3748;">💡 ${escapeHtml(insight.insight)}</div>
-                            </div>
-                        `;
-                    });
-                }
-
-                // Add PDF download button
+                // Regex insights have been disabled - now using Gemini AI only
+                let html = '<h4 style="color: #667eea; margin: 0 0 15px 0;">🤖 AI-Powered Insights</h4>';
                 html += `
-                    <div style="margin-top: 20px; text-align: center;">
-                        <button onclick="downloadPostInsightsPDF(${index})"
-                            style="background: #667eea; color: white; border: none; padding: 12px 24px;
-                            border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: 600;">
-                            📄 Download Insights as PDF
-                        </button>
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <div style="font-size: 1.1em; font-weight: 600; margin-bottom: 10px;">
+                            ✨ Gemini AI Analysis Available
+                        </div>
+                        <p style="margin: 0; opacity: 0.95;">
+                            For the single URL analysis tab, use <strong>Step 3 (Generate Insights)</strong>
+                            to get comprehensive AI-powered analysis from Gemini.<br><br>
+                            Multi-post insights are coming soon with AI integration!
+                        </p>
                     </div>
                 `;
 
@@ -1513,6 +1485,11 @@
                 return;
             }
 
+            // PDF insights disabled - use Gemini AI in Step 3 for single URL analysis
+            alert('PDF insights for multi-post extraction coming soon! For now, use the Single URL Analysis tab with Step 3 (Generate Insights) for comprehensive AI-powered analysis.');
+            return;
+
+            /* REGEX INSIGHTS DISABLED
             // Generate insights
             const allAnalysisTypes = [
                 'entity_analysis',
@@ -1646,6 +1623,7 @@
             setTimeout(() => {
                 printWindow.print();
             }, 250);
+            */
         }
 
         // ========================================================================
@@ -2117,6 +2095,14 @@
             document.body.appendChild(scriptElement);
         }
 
+        // ========================================================================
+        // REGEX-BASED INSIGHTS (COMMENTED OUT - Now using Gemini AI instead)
+        // ========================================================================
+        // This function has been replaced by Gemini AI-powered insights in the backend
+        // The backend function generateAIInsights() now handles all Step 3 analysis
+        // using the comprehensive prompt from formatForClaudeAnalysis()
+
+        /*
         function generateInsightsInBrowser(contentData, selectedAnalyses) {
             const comments = contentData.valuableComments || [];
             const insights = [];
@@ -2371,6 +2357,7 @@
 
             return insights;
         }
+        */
 
         // ========================================================================
         // GENERATE DATA TABLES (for UI display)
