@@ -286,18 +286,17 @@ function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit =
   console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit);
 
   try {
-    const token = getRedditAccessToken();
-    console.log('Got Reddit token successfully');
-
-    // Build search URL
-    let searchUrl = 'https://oauth.reddit.com/search';
+    // Use Reddit's public JSON API (no authentication required)
+    // This avoids 403 errors from OAuth authentication issues
+    let searchUrl = 'https://www.reddit.com/search.json';
     let params = {
       'q': topic,
       't': timeRange, // hour, day, week, month, year, all
       'sort': 'relevance', // Use Reddit's relevance algorithm for best keyword matching
       'limit': 100, // Get more posts to filter by engagement
       'restrict_sr': 'false',
-      'type': 'link' // Only posts, not comments
+      'type': 'link', // Only posts, not comments
+      'raw_json': 1 // Prevent HTML entity encoding
     };
 
     // If specific subreddits requested, search within them
@@ -319,7 +318,6 @@ function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit =
     const options = {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'User-Agent': REDDIT_CONFIG.userAgent
       },
       muteHttpExceptions: true
@@ -331,7 +329,7 @@ function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit =
     console.log('Response code:', responseCode);
 
     if (responseCode !== 200) {
-      throw new Error(`Reddit API returned status ${responseCode}: ${response.getContentText()}`);
+      throw new Error(`Reddit API returned status ${responseCode}: ${response.getContentText().substring(0, 500)}`);
     }
 
     const data = JSON.parse(response.getContentText());
@@ -444,14 +442,13 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
   console.log('Searching subreddit:', subreddit, 'Time:', timeRange, 'Limit:', limit);
 
   try {
-    const token = getRedditAccessToken();
-    console.log('Got Reddit token successfully');
-
-    // Build subreddit URL
-    const searchUrl = `https://oauth.reddit.com/r/${subreddit}/top`;
+    // Use Reddit's public JSON API (no authentication required)
+    // This avoids 403 errors from OAuth authentication issues
+    const searchUrl = `https://www.reddit.com/r/${subreddit}/top.json`;
     const params = {
       't': timeRange, // hour, day, week, month, year, all
-      'limit': 50 // Get more than we need for filtering
+      'limit': 50, // Get more than we need for filtering
+      'raw_json': 1 // Prevent HTML entity encoding
     };
 
     // Build query string
@@ -464,7 +461,6 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
     const options = {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'User-Agent': REDDIT_CONFIG.userAgent
       },
       muteHttpExceptions: true
@@ -476,7 +472,7 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
     console.log('Response code:', responseCode);
 
     if (responseCode !== 200) {
-      throw new Error(`Reddit API returned status ${responseCode}: ${response.getContentText()}`);
+      throw new Error(`Reddit API returned status ${responseCode}: ${response.getContentText().substring(0, 500)}`);
     }
 
     const data = JSON.parse(response.getContentText());
