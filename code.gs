@@ -8,7 +8,7 @@ const REDDIT_CONFIG = {
 // Gemini AI Configuration
 const GEMINI_CONFIG = {
   apiKey: 'AIzaSyACsM5lAgXS16dCathjD3jeKD-yGCsDPws',
-  model: 'gemini-1.5-flash', // Fast and free model
+  model: 'gemini-1.5-flash-latest', // Fast and free model (using -latest for most recent version)
   apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/'
 };
 
