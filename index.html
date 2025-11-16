@@ -1456,54 +1456,80 @@
                 return;
             }
 
-            // Generate insights using all available analysis types
-            setTimeout(() => {
-                const allAnalysisTypes = [
-                    'entity_analysis',
-                    'outcome_analysis',
-                    'speaker_analysis',
-                    'pricing_analysis',
-                    'timeline_analysis',
-                    'consensus_analysis',
-                    'qa_analysis',
-                    'evidence_analysis'
-                ];
+            // Get post URL for backend API call
+            const post = result.post;
+            const postUrl = post.url;
 
-                const insights = generateInsightsInBrowser(result.data, allAnalysisTypes);
+            if (!postUrl) {
+                contentDiv.innerHTML = '<div style="color: #c53030;">Error: Post URL not found</div>';
+                return;
+            }
 
-                // Display insights
-                let html = '<h4 style="color: #667eea; margin: 0 0 15px 0;">💡 Key Insights</h4>';
+            // Show AI loading message
+            contentDiv.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <div style="color: #667eea; font-weight: 600; font-size: 1.1em; margin-bottom: 10px;">
+                        🤖 Generating AI Insights with Gemini...
+                    </div>
+                    <div style="color: #718096; font-size: 0.9em;">
+                        This may take 10-30 seconds for comprehensive analysis
+                    </div>
+                </div>
+            `;
 
-                if (insights.length === 0) {
-                    html += '<p style="color: #718096;">No significant insights found for this post.</p>';
-                } else {
-                    insights.forEach(insight => {
+            // Call backend for AI-powered analysis using JSONP (same as Step 3)
+            const callbackName = 'callback_multipost_insights_' + Date.now() + '_' + index;
+            window[callbackName] = function(response) {
+                if (response.success && response.data) {
+                    // Display AI analysis
+                    const data = response.data;
+                    let html = '';
+
+                    if (data.mode === 'ai_analysis' && data.aiAnalysis) {
+                        // Display AI analysis with proper formatting
                         html += `
-                            <div style="background: white; padding: 12px 15px; margin-bottom: 10px;
-                                border-radius: 6px; border-left: 4px solid #667eea;">
-                                <div style="font-size: 0.85em; color: #9f7aea; font-weight: 600;
-                                    text-transform: uppercase; margin-bottom: 5px;">
-                                    ${escapeHtml(insight.type.replace(/_/g, ' '))}
-                                </div>
-                                <div style="color: #2d3748;">💡 ${escapeHtml(insight.insight)}</div>
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                                <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                                    <span>🤖</span>
+                                    <span>AI-Powered Comprehensive Analysis</span>
+                                </h3>
+                                <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
+                                    Powered by ${data.model || 'Gemini 2.5 Flash'}
+                                </p>
+                            </div>
+                            <div style="background: white; padding: 30px; border-radius: 12px;
+                                border: 1px solid #e2e8f0; line-height: 1.8; color: #2d3748;">
+                                ${formatMarkdown(data.aiAnalysis)}
                             </div>
                         `;
-                    });
+                    } else {
+                        html += '<p style="color: #718096;">No AI analysis available.</p>';
+                    }
+
+                    contentDiv.innerHTML = html;
+                } else {
+                    contentDiv.innerHTML = `
+                        <div style="color: #c53030; padding: 20px; background: #fff5f5;
+                            border-radius: 8px; border: 1px solid #feb2b2;">
+                            <strong>AI Analysis Failed:</strong><br>
+                            ${response.error || response.message || 'Unknown error occurred'}
+                        </div>
+                    `;
                 }
 
-                // Add PDF download button
-                html += `
-                    <div style="margin-top: 20px; text-align: center;">
-                        <button onclick="downloadPostInsightsPDF(${index})"
-                            style="background: #667eea; color: white; border: none; padding: 12px 24px;
-                            border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: 600;">
-                            📄 Download Insights as PDF
-                        </button>
-                    </div>
-                `;
+                // Cleanup callback
+                delete window[callbackName];
+                // Remove script tag
+                const scriptTag = document.querySelector(`script[src*="${callbackName}"]`);
+                if (scriptTag) scriptTag.remove();
+            };
 
-                contentDiv.innerHTML = html;
-            }, 100);
+            // Create script element for JSONP request
+            const scriptElement = document.createElement('script');
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(postUrl)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(['all']))}&callback=${callbackName}`;
+            document.body.appendChild(scriptElement);
         }
 
         function downloadPostInsightsPDF(index) {
@@ -1513,6 +1539,12 @@
                 return;
             }
 
+            // PDF export temporarily disabled - AI insights don't export to PDF yet
+            // Use "Download for Claude" or "Copy" buttons instead to get the full analysis
+            alert('PDF export is not available for AI insights yet. Please use the "Download for Claude" or "Copy" buttons to save the analysis.');
+            return;
+
+            /* DISABLED - was using regex insights
             // Generate insights
             const allAnalysisTypes = [
                 'entity_analysis',
@@ -1646,6 +1678,7 @@
             setTimeout(() => {
                 printWindow.print();
             }, 250);
+            */
         }
 
         // ========================================================================
