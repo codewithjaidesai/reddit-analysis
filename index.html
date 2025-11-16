@@ -766,9 +766,39 @@
         function proceedToStep3() {
             if (selectedAnalyses.size === 0 || !extractedData) return;
 
-            // Run insights generation in the browser - no backend call!
-            const insights = generateInsightsInBrowser(extractedData, Array.from(selectedAnalyses));
-            displayStep3({insights: insights, totalInsights: insights.length, selectedAnalyses: Array.from(selectedAnalyses)});
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = 'Generating AI-powered insights with Gemini...';
+
+            // Get the original Reddit URL from extractedData or construct from permalink
+            let redditUrl = document.getElementById('redditUrl').value.trim();
+            if (extractedData.post?.permalink) {
+                redditUrl = 'https://www.reddit.com' + extractedData.post.permalink;
+            }
+
+            // Call backend for AI analysis
+            const callbackName = 'callback_step3_' + Date.now();
+            window[callbackName] = function(response) {
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.success) {
+                    displayStep3(response.data);
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error'));
+                }
+
+                delete window[callbackName];
+            };
+
+            const scriptElement = document.createElement('script');
+            const selectedAnalysesJson = JSON.stringify(Array.from(selectedAnalyses));
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(redditUrl)}&mode=step3_ai&selectedAnalyses=${encodeURIComponent(selectedAnalysesJson)}&callback=${callbackName}`;
+            scriptElement.onerror = function() {
+                document.getElementById('loading').style.display = 'none';
+                alert('Failed to connect to backend. Please try again.');
+                delete window[callbackName];
+            };
+            document.body.appendChild(scriptElement);
         }
 
         function generateInsightsInBrowser(contentData, selectedAnalyses) {
