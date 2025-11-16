@@ -2082,11 +2082,39 @@
         }
 
         function proceedToStep3() {
-            if (selectedAnalyses.size === 0 || !extractedData) return;
+            if (selectedAnalyses.size === 0 || !extractedData) {
+                alert('Please select at least one analysis type');
+                return;
+            }
 
-            // Run insights generation in the browser - no backend call!
-            const insights = generateInsightsInBrowser(extractedData, Array.from(selectedAnalyses));
-            displayStep3({insights: insights, totalInsights: insights.length, selectedAnalyses: Array.from(selectedAnalyses)});
+            // Get the Reddit URL from input field
+            const url = document.getElementById('redditUrl').value.trim();
+            if (!url) {
+                alert('Reddit URL not found. Please start over.');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = '🤖 Analyzing with Gemini AI... This may take 10-30 seconds...';
+
+            // Call backend for AI-powered analysis
+            const callbackName = 'callback_step3_' + Date.now();
+            window[callbackName] = function(response) {
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.success) {
+                    displayStep3(response.data);
+                } else {
+                    alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
+                }
+
+                delete window[callbackName];
+            };
+
+            const scriptElement = document.createElement('script');
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(Array.from(selectedAnalyses)))}&callback=${callbackName}`;
+            document.body.appendChild(scriptElement);
         }
 
         function generateInsightsInBrowser(contentData, selectedAnalyses) {

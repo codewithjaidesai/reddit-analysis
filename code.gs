@@ -2567,6 +2567,7 @@ function extractValuableContentOnly(redditData) {
     post: {
       title: post.title,
       author: post.author,
+      subreddit: post.subreddit,
       score: post.score,
       url: post.url,
       selftext: post.selftext,
