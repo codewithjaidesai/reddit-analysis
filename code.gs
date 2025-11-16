@@ -21,6 +21,62 @@ function testBackendConnection() {
   };
 }
 
+// List all available Gemini models
+function listGeminiModels() {
+  console.log('Listing available Gemini models...');
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_CONFIG.apiKey}`;
+
+    const options = {
+      method: 'GET',
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+
+    console.log('Response code:', responseCode);
+
+    if (responseCode !== 200) {
+      const errorText = response.getContentText();
+      console.error('API error:', errorText);
+      return {
+        success: false,
+        error: errorText
+      };
+    }
+
+    const result = JSON.parse(response.getContentText());
+
+    console.log('Available models:', JSON.stringify(result, null, 2));
+
+    // Extract model names that support generateContent
+    const models = result.models || [];
+    const generateContentModels = models
+      .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+      .map(m => ({
+        name: m.name,
+        displayName: m.displayName,
+        description: m.description
+      }));
+
+    return {
+      success: true,
+      totalModels: models.length,
+      generateContentModels: generateContentModels,
+      allModels: models.map(m => m.name)
+    };
+
+  } catch (error) {
+    console.error('Error listing models:', error);
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
 // Test function to verify Gemini API is working
 function testGeminiAPI() {
   console.log('Testing Gemini API connection...');
