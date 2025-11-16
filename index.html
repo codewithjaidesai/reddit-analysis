@@ -1456,79 +1456,26 @@
                 return;
             }
 
-            const post = result.post;
-            const postUrl = post.url;
-
-            if (!postUrl) {
-                contentDiv.innerHTML = '<div style="color: #c53030;">Error: Post URL not found</div>';
-                return;
-            }
-
-            // Show loading message for AI analysis
-            contentDiv.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <div class="spinner" style="margin: 0 auto 20px;"></div>
-                    <div style="color: #667eea; font-weight: 600; font-size: 1.1em; margin-bottom: 10px;">
-                        🤖 Generating AI-Powered Insights with Gemini...
-                    </div>
-                    <div style="color: #718096; font-size: 0.9em;">
-                        This may take 10-30 seconds for comprehensive analysis
-                    </div>
-                </div>
-            `;
-
-            // Call backend for AI-powered analysis using JSONP
-            const callbackName = 'callback_multipost_insights_' + Date.now() + '_' + index;
-            window[callbackName] = function(response) {
-                if (response.success && response.data) {
-                    // Display AI analysis
-                    const data = response.data;
-                    let html = '<h4 style="color: #667eea; margin: 0 0 20px 0;">🤖 AI-Powered Insights</h4>';
-
-                    if (data.mode === 'ai_analysis' && data.aiAnalysis) {
-                        // Display AI analysis with proper formatting
-                        html += `
-                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                                <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
-                                    <span>🤖</span>
-                                    <span>Comprehensive AI Analysis</span>
-                                </h3>
-                                <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
-                                    Powered by ${data.model || 'Gemini 2.5 Flash'}
-                                </p>
-                            </div>
-                            <div style="background: white; padding: 30px; border-radius: 12px;
-                                border: 1px solid #e2e8f0; line-height: 1.8; color: #2d3748;">
-                                ${formatMarkdown(data.aiAnalysis)}
-                            </div>
-                        `;
-                    } else {
-                        html += '<p style="color: #718096;">No AI analysis available.</p>';
-                    }
-
-                    contentDiv.innerHTML = html;
-                } else {
-                    contentDiv.innerHTML = `
-                        <div style="color: #c53030; padding: 20px; background: #fff5f5;
-                            border-radius: 8px; border: 1px solid #feb2b2;">
-                            <strong>AI Analysis Failed:</strong><br>
-                            ${response.error || response.message || 'Unknown error occurred'}
+            // Display AI insights prompt
+            setTimeout(() => {
+                // Regex insights have been disabled - now using Gemini AI only
+                let html = '<h4 style="color: #667eea; margin: 0 0 15px 0;">🤖 AI-Powered Insights</h4>';
+                html += `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <div style="font-size: 1.1em; font-weight: 600; margin-bottom: 10px;">
+                            ✨ Gemini AI Analysis Available
                         </div>
-                    `;
-                }
+                        <p style="margin: 0; opacity: 0.95;">
+                            For the single URL analysis tab, use <strong>Step 3 (Generate Insights)</strong>
+                            to get comprehensive AI-powered analysis from Gemini.<br><br>
+                            Multi-post insights are coming soon with AI integration!
+                        </p>
+                    </div>
+                `;
 
-                // Cleanup callback
-                delete window[callbackName];
-                // Remove script tag
-                const scriptTag = document.querySelector(`script[src*="${callbackName}"]`);
-                if (scriptTag) scriptTag.remove();
-            };
-
-            // Create script element for JSONP request
-            const scriptElement = document.createElement('script');
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(postUrl)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(['all']))}&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
+                contentDiv.innerHTML = html;
+            }, 100);
         }
 
         function downloadPostInsightsPDF(index) {
