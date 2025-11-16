@@ -21,6 +21,38 @@ function testBackendConnection() {
   };
 }
 
+// Test function to verify Gemini API is working
+function testGeminiAPI() {
+  console.log('Testing Gemini API connection...');
+
+  const testPrompt = "Say 'Hello! Gemini API is working correctly.' and nothing else.";
+
+  try {
+    const result = analyzeWithGemini(testPrompt);
+
+    if (result.success) {
+      return {
+        success: true,
+        message: 'Gemini API is working!',
+        response: result.analysis,
+        model: result.model
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Gemini API failed',
+        error: result.error || result.message
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Gemini API test failed',
+      error: error.toString()
+    };
+  }
+}
+
 // Test Reddit OAuth
 function testRedditAuth() {
   try {
@@ -603,10 +635,15 @@ function doGet(e) {
       processedData = analyzeAndRecommend(contentData);
       console.log('Step2: Recommendations generated:', processedData.totalRecommendations);
     } else if (mode === 'step3_analyze') {
-      // Step 3: Generate selected insights
+      console.log('=== STEP 3 ANALYZE MODE TRIGGERED ===');
+      console.log('Selected analyses:', e.parameter.selectedAnalyses);
+
+      // Step 3: Generate AI-powered insights
       // Re-fetch to avoid URL length issues
+      console.log('Fetching Reddit data for Step 3...');
       const rawRedditData = fetchAuthenticatedRedditData(url);
       const selectedAnalyses = JSON.parse(e.parameter.selectedAnalyses || '[]');
+      console.log('Parsed selected analyses:', selectedAnalyses);
 
       let post = null;
       let comments = [];
@@ -621,6 +658,8 @@ function doGet(e) {
         }
       }
 
+      console.log('Extracted post and', comments.length, 'comments');
+
       const validComments = comments.filter(comment =>
         comment.body &&
         comment.body !== '[deleted]' &&
@@ -630,13 +669,23 @@ function doGet(e) {
         comment.body.trim().length > 10
       );
 
+      console.log('Filtered to', validComments.length, 'valid comments');
+
       const contentData = extractValuableContentOnly({
         post: post,
         comments: validComments
       });
 
+      console.log('Content data prepared, calling generateAIInsights...');
+
       // Use AI-powered insights instead of regex-based analysis
-      processedData = generateAIInsights(contentData);
+      try {
+        processedData = generateAIInsights(contentData);
+        console.log('AI insights generated successfully!');
+      } catch (error) {
+        console.error('Failed to generate AI insights:', error);
+        throw error; // Re-throw so user sees the error
+      }
     } else {
       // Deep dive mode for single post
       const redditData = fetchAuthenticatedRedditData(url);
@@ -3066,21 +3115,37 @@ function generateSelectedInsights(contentData, selectedAnalyses) {
  */
 function generateAIInsights(contentData) {
   console.log('STEP 3: Generating AI-powered insights with Gemini');
+  console.log('Content data received:', {
+    hasPost: !!contentData.post,
+    commentsCount: contentData.valuableComments?.length || 0,
+    hasStats: !!contentData.extractionStats
+  });
 
   try {
     // Use the existing comprehensive prompt
+    console.log('Building analysis prompt...');
     const prompt = formatForClaudeAnalysis(contentData);
+    console.log('Prompt length:', prompt.length, 'characters');
 
     // Call Gemini API
+    console.log('Calling Gemini API...');
     const aiResult = analyzeWithGemini(prompt);
 
+    console.log('Gemini API result:', {
+      success: aiResult.success,
+      hasAnalysis: !!aiResult.analysis,
+      analysisLength: aiResult.analysis?.length || 0,
+      error: aiResult.error || 'none'
+    });
+
     if (!aiResult.success) {
-      console.error('Gemini analysis failed, falling back to regex-based analysis');
-      // Fallback to regex-based analysis
-      return generateSelectedInsights(contentData, ['entity_analysis', 'outcome_analysis', 'speaker_analysis']);
+      const errorMsg = `Gemini API failed: ${aiResult.error || aiResult.message || 'Unknown error'}`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     // Return AI analysis in compatible format
+    console.log('Returning AI analysis successfully');
     return {
       mode: 'ai_analysis',
       model: aiResult.model,
@@ -3095,8 +3160,8 @@ function generateAIInsights(contentData) {
 
   } catch (error) {
     console.error('AI insights generation error:', error);
-    // Fallback to regex-based analysis
-    return generateSelectedInsights(contentData, ['entity_analysis', 'outcome_analysis', 'speaker_analysis']);
+    console.error('Error stack:', error.stack);
+    throw new Error('AI analysis failed: ' + error.message);
   }
 }
 
