@@ -192,6 +192,42 @@ function doGet(e) {
       });
 
       processedData = generateSelectedInsights(contentData, selectedAnalyses);
+    } else if (mode === 'step3_ai') {
+      // Step 3 AI: Generate AI-powered insights (re-fetch for simplicity)
+      const selectedAnalyses = JSON.parse(e.parameter.selectedAnalyses || '[]');
+
+      console.log('Step3 AI: Fetching data for AI analysis');
+      const rawRedditData = fetchAuthenticatedRedditData(url);
+
+      let post = null;
+      let comments = [];
+
+      if (Array.isArray(rawRedditData) && rawRedditData.length >= 1) {
+        if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
+          post = rawRedditData[0].data.children[0].data;
+        }
+        if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
+          const rawComments = rawRedditData[1].data.children;
+          comments = extractAllComments(rawComments);
+        }
+      }
+
+      const validComments = comments.filter(comment =>
+        comment.body &&
+        comment.body !== '[deleted]' &&
+        comment.body !== '[removed]' &&
+        comment.author &&
+        comment.author !== '[deleted]' &&
+        comment.body.trim().length > 10
+      );
+
+      const contentData = extractValuableContentOnly({
+        post: post,
+        comments: validComments
+      });
+
+      console.log('Step3 AI: Generating AI insights for', selectedAnalyses.length, 'analyses');
+      processedData = generateAIInsights(contentData, selectedAnalyses);
     } else {
       // Deep dive mode for single post
       const redditData = fetchAuthenticatedRedditData(url);
@@ -234,6 +270,279 @@ function doGet(e) {
       return output.setContent(JSON.stringify(errorResponse));
     }
   }
+}
+
+// Handle POST requests for Step 3 analysis with extracted data
+function doPost(e) {
+  const output = ContentService.createTextOutput();
+
+  try {
+    const postData = JSON.parse(e.postData.contents);
+    const extractedData = postData.extractedData;
+    const selectedAnalyses = postData.selectedAnalyses || [];
+
+    console.log('POST Step 3: Generating AI insights for', selectedAnalyses.length, 'selected analyses');
+    console.log('POST Step 3: Received', extractedData.valuableComments?.length || 0, 'comments');
+
+    // Generate AI-powered insights using the extracted data
+    const processedData = generateAIInsights(extractedData, selectedAnalyses);
+
+    const responseData = {
+      success: true,
+      message: "AI insights generated successfully!",
+      timestamp: new Date().toISOString(),
+      data: processedData,
+      dataSource: "Gemini AI Analysis"
+    };
+
+    output.setMimeType(ContentService.MimeType.JSON);
+    return output.setContent(JSON.stringify(responseData));
+
+  } catch (error) {
+    console.error('POST Error:', error);
+
+    const errorResponse = {
+      error: error.message,
+      success: false,
+      timestamp: new Date().toISOString(),
+      dataSource: "Error"
+    };
+
+    output.setMimeType(ContentService.MimeType.JSON);
+    return output.setContent(JSON.stringify(errorResponse));
+  }
+}
+
+// Gemini API Configuration
+const GEMINI_API_KEY = 'AIzaSyDe8nwpXC9v1D-9LFpb9H5sF88CvOa7Zq8'; // Store in Script Properties for security
+
+// Call Gemini API for AI analysis
+function callGeminiAPI(prompt) {
+  console.log('Calling Gemini API for AI analysis...');
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+
+  const payload = {
+    contents: [{
+      parts: [{
+        text: prompt
+      }]
+    }]
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    console.log('Gemini API response code:', response.getResponseCode());
+
+    const jsonResponse = JSON.parse(response.getContentText());
+
+    if (jsonResponse.candidates && jsonResponse.candidates.length > 0) {
+      const content = jsonResponse.candidates[0].content;
+      if (content && content.parts && content.parts.length > 0) {
+        const analysisText = content.parts[0].text;
+        console.log('Gemini analysis received, length:', analysisText.length);
+        return analysisText;
+      }
+    }
+
+    console.error('Unexpected Gemini response format:', response.getContentText());
+    return null;
+
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    return null;
+  }
+}
+
+// Generate AI-powered insights using Gemini
+function generateAIInsights(contentData, selectedAnalyses) {
+  console.log('Generating AI insights for', selectedAnalyses.length, 'analyses');
+
+  const comments = contentData.valuableComments || [];
+  const post = contentData.post || {};
+  const insights = [];
+
+  // Prepare comment text for Gemini
+  const commentTexts = comments.slice(0, 50).map((c, i) => {
+    return `Comment ${i+1} (Score: ${c.score}, Author: ${c.author}):\n${c.body.substring(0, 500)}`;
+  }).join('\n\n');
+
+  // Generate insights for each selected analysis type
+  selectedAnalyses.forEach(analysisId => {
+    let prompt = '';
+    let analysisType = '';
+
+    if (analysisId === 'entity_analysis') {
+      analysisType = 'Entity & Topic Analysis';
+      prompt = `Analyze the following Reddit comments and identify the top entities, topics, brands, or products being discussed. For each entity, provide:
+1. The entity name
+2. How frequently it's mentioned (as a percentage)
+3. The sentiment (positive, negative, or neutral) with percentage
+4. A brief insight about why it's being discussed
+
+Reddit Post: "${post.title}"
+
+Comments:
+${commentTexts}
+
+Provide 5-10 specific insights in this format:
+- "EntityName" discussed in X% of comments with Y% positive sentiment - [brief reason]`;
+    }
+
+    else if (analysisId === 'outcome_analysis') {
+      analysisType = 'Success/Failure Rate Analysis';
+      prompt = `Analyze the following Reddit comments and identify success vs failure rates for treatments, solutions, products, or approaches mentioned. Calculate:
+1. Success rate (percentage)
+2. Number of successful vs failed attempts
+3. Overall interpretation (highly effective, moderately effective, mixed results, or low success rate)
+
+Reddit Post: "${post.title}"
+
+Comments:
+${commentTexts}
+
+Provide specific insights about outcome rates in this format:
+- X% success rate across reported attempts (Y worked vs Z failed) - [interpretation]`;
+    }
+
+    else if (analysisId === 'speaker_analysis') {
+      analysisType = 'Expert vs Experience Mix';
+      prompt = `Analyze the following Reddit comments and identify the mix of:
+1. Expert/professional input (doctors, engineers, specialists)
+2. Firsthand personal experiences
+3. General community discussion
+
+Reddit Post: "${post.title}"
+
+Comments:
+${commentTexts}
+
+Provide insights about the credibility and perspective mix in this format:
+- X% expert/professional input, Y% firsthand experiences - [interpretation about balance and authenticity]`;
+    }
+
+    else if (analysisId === 'geographic_analysis') {
+      analysisType = 'Geographic Patterns';
+      prompt = `Analyze the following Reddit comments and identify geographic patterns, location-based differences, or regional variations mentioned. Look for:
+1. Countries, states, or cities mentioned
+2. How experiences/treatments/products vary by location
+3. Regional patterns or differences
+
+Reddit Post: "${post.title}"
+
+Comments:
+${commentTexts}
+
+Provide insights about geographic patterns in this format:
+- Geographic differences noted: [Location1] (X mentions), [Location2] (Y mentions) - [how it varies by location]`;
+    }
+
+    else if (analysisId === 'pricing_analysis') {
+      analysisType = 'Pricing/Cost Analysis';
+      prompt = `Analyze the following Reddit comments and identify pricing, cost, or affordability information. Look for:
+1. Specific prices or price ranges mentioned
+2. Whether something is described as expensive, affordable, or cheap
+3. Value for money insights
+
+Reddit Post: "${post.title}"
+
+Comments:
+${commentTexts}
+
+Provide insights about pricing in this format:
+- [Price range or cost insight] - [affordability assessment and value perception]`;
+    }
+
+    else if (analysisId === 'temporal_analysis') {
+      analysisType = 'Timeline & Duration Patterns';
+      prompt = `Analyze the following Reddit comments and identify temporal patterns such as:
+1. How long treatments/solutions take to work
+2. Duration of use or experience
+3. Time-based trends or changes
+
+Reddit Post: "${post.title}"
+
+Comments:
+${commentTexts}
+
+Provide insights about timing and duration in this format:
+- Timeline: [specific duration patterns] - [interpretation]`;
+    }
+
+    else if (analysisId === 'sideeffect_analysis') {
+      analysisType = 'Side Effect / Risk Analysis';
+      prompt = `Analyze the following Reddit comments and identify side effects, risks, warnings, or concerns mentioned. Look for:
+1. Specific side effects or problems
+2. How common they are
+3. Severity of concerns
+
+Reddit Post: "${post.title}"
+
+Comments:
+${commentTexts}
+
+Provide insights about risks and side effects in this format:
+- [Side effect or risk] reported in X% of comments - [severity assessment]`;
+    }
+
+    else if (analysisId === 'comparison_analysis') {
+      analysisType = 'Comparison & Alternative Analysis';
+      prompt = `Analyze the following Reddit comments and identify comparisons between different options, products, treatments, or alternatives. Look for:
+1. What is being compared
+2. Pros and cons of each option
+3. Which option is preferred and why
+
+Reddit Post: "${post.title}"
+
+Comments:
+${commentTexts}
+
+Provide insights about comparisons in this format:
+- [Option A] vs [Option B]: [key differences and preferences]`;
+    }
+
+    if (prompt) {
+      console.log(`Generating AI insight for: ${analysisType}`);
+      const aiResponse = callGeminiAPI(prompt);
+
+      if (aiResponse) {
+        // Parse the AI response into individual insights
+        const insightLines = aiResponse.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./));
+
+        insightLines.forEach(line => {
+          const cleanedLine = line.replace(/^[-\d.]\s*/, '').trim();
+          if (cleanedLine.length > 10) {
+            insights.push({
+              type: analysisId,
+              insight: cleanedLine,
+              source: 'Gemini AI'
+            });
+          }
+        });
+      } else {
+        // Fallback to regex-based analysis if AI fails
+        console.log(`AI failed for ${analysisType}, falling back to regex`);
+        insights.push({
+          type: analysisId,
+          insight: `AI analysis unavailable - please try again`,
+          source: 'Error'
+        });
+      }
+    }
+  });
+
+  return {
+    insights: insights,
+    totalInsights: insights.length,
+    selectedAnalyses: selectedAnalyses
+  };
 }
 
 // Fetch subreddit overview (all posts, basic stats)
@@ -2124,6 +2433,7 @@ function extractValuableContentOnly(redditData) {
       author: post.author,
       score: post.score,
       url: post.url,
+      permalink: post.permalink,
       selftext: post.selftext,
       created: post.created_utc,
       num_comments: post.num_comments
