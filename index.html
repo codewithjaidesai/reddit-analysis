@@ -120,6 +120,124 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1em;
+            color: #718096;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .tab-btn:hover {
+            color: #667eea;
+            background: #f7fafc;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        /* Post Cards */
+        .post-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .post-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .post-card.selected {
+            border-color: #667eea;
+            background: #eef2ff;
+        }
+
+        .post-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            margin-right: 15px;
+        }
+
+        .post-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .post-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.9em;
+            color: #718096;
+            margin-bottom: 10px;
+        }
+
+        .post-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .engagement-stars {
+            color: #f59e0b;
+            font-size: 1.1em;
+            letter-spacing: 2px;
+        }
+
+        .post-preview {
+            font-size: 0.9em;
+            color: #4a5568;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+            line-height: 1.5;
+        }
+
+        .post-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .post-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9em;
+            padding: 5px 10px;
+            border: 1px solid #667eea;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+
+        .post-link:hover {
+            background: #667eea;
+            color: white;
+        }
+
         .step-container {
             display: none;
             padding: 30px;
@@ -380,13 +498,189 @@
     <div class="container">
         <div class="header">
             <h1>🔍 Reddit Analyzer</h1>
-            <p>3-Step Interactive Analysis - Extract → Recommend → Analyze</p>
+            <p>Discover & Analyze High-Engagement Reddit Content</p>
         </div>
 
-        <div class="input-section">
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('topic')">
+                🔍 Search by Topic
+            </button>
+            <button class="tab-btn" onclick="switchTab('subreddit')">
+                📊 Analyze Subreddit
+            </button>
+            <button class="tab-btn" onclick="switchTab('url')">
+                🔗 Analyze Single URL
+            </button>
+        </div>
+
+        <!-- Diagnostic Section -->
+        <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin: 20px; border-radius: 8px;">
+            <strong style="color: #856404;">🔧 Diagnostic Tools</strong>
+            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                <button onclick="testBackend()" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Test Backend
+                </button>
+                <button onclick="testAuth()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Test OAuth
+                </button>
+            </div>
+            <div id="diagnosticResults" style="margin-top: 10px; font-size: 0.9em; color: #856404;"></div>
+        </div>
+
+        <!-- Topic Search Tab -->
+        <div class="input-section" id="topicTab">
+            <div class="search-form">
+                <div class="input-group">
+                    <label style="display: block; margin-bottom: 8px; color: #4a5568; font-weight: 500;">
+                        What topic are you researching?
+                    </label>
+                    <input type="text" id="topicInput" placeholder="e.g., AI and machine learning, climate change, startup advice..." style="width: 100%;">
+                </div>
+
+                <div style="margin-top: 15px; padding: 15px; background: #f7fafc; border-radius: 8px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; color: #4a5568; font-weight: 500;">
+                        <input type="checkbox" id="subredditFilter" onchange="toggleSubredditInput()" style="margin-right: 10px;">
+                        🎯 Search specific subreddits only
+                    </label>
+                    <div id="subredditInputDiv" style="display: none; margin-top: 10px;">
+                        <input type="text" id="subredditInput" placeholder="e.g., MachineLearning, artificial, OpenAI" style="width: 100%;">
+                        <small style="color: #718096;">Comma-separated, no r/ prefix</small>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px; display: flex; gap: 15px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; color: #4a5568; font-size: 0.9em;">Time Range</label>
+                        <select id="timeRange" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
+                            <option value="day">Last 24 hours</option>
+                            <option value="week" selected>Last 7 days</option>
+                            <option value="month">Last 30 days</option>
+                            <option value="year">Last year</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; color: #4a5568; font-size: 0.9em;">Max Results</label>
+                        <select id="maxResults" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
+                            <option value="10">Top 10</option>
+                            <option value="15" selected>Top 15</option>
+                            <option value="25">Top 25</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="searchByTopic()" style="flex-shrink: 0; white-space: nowrap;">
+                        🔍 Search Reddit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResults" style="display: none; margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin: 0;">Search Results</h3>
+                    <div id="searchResultsSummary" style="color: #718096; font-size: 0.9em;"></div>
+                </div>
+                <div id="postsList"></div>
+                <div id="selectedPostsActions" style="display: none; margin-top: 20px; padding: 20px; background: #eef2ff; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #667eea; font-size: 1.1em;" id="selectedCount">0 posts selected</strong>
+                            <p style="margin: 5px 0 0 0; color: #718096; font-size: 0.9em;">Choose how to analyze selected posts</p>
+                        </div>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="analysisMode" value="separate" checked style="margin-right: 8px;">
+                                <span style="color: #4a5568;">Analyze Separately</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="analysisMode" value="combine" style="margin-right: 8px;">
+                                <span style="color: #4a5568;">Combine All</span>
+                            </label>
+                            <button class="btn" onclick="extractSelectedPosts()" style="font-size: 1.1em; padding: 15px 30px;">
+                                📊 Extract & Analyze
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subreddit Analysis Tab -->
+        <div class="input-section" id="subredditTab" style="display: none;">
+            <div class="search-form">
+                <div class="input-group">
+                    <label style="display: block; margin-bottom: 8px; color: #4a5568; font-weight: 500;">
+                        Which subreddit do you want to analyze?
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #667eea; font-size: 1.2em; font-weight: 600;">r/</span>
+                        <input type="text" id="subredditName" placeholder="e.g., MachineLearning, startups, fitness" style="flex: 1;">
+                    </div>
+                    <small style="display: block; margin-top: 5px; color: #718096;">Enter subreddit name without the r/ prefix</small>
+                </div>
+
+                <div style="margin-top: 15px; display: flex; gap: 15px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; color: #4a5568; font-size: 0.9em;">Time Range</label>
+                        <select id="subredditTimeRange" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
+                            <option value="day">Last 24 hours</option>
+                            <option value="week" selected>Last 7 days</option>
+                            <option value="month">Last 30 days</option>
+                            <option value="year">Last year</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; color: #4a5568; font-size: 0.9em;">Max Results</label>
+                        <select id="subredditMaxResults" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em;">
+                            <option value="10">Top 10</option>
+                            <option value="15" selected>Top 15</option>
+                            <option value="25">Top 25</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="searchSubreddit()" style="flex-shrink: 0; white-space: nowrap;">
+                        📊 Get Top Posts
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Results (reuse same structure) -->
+            <div id="subredditResults" style="display: none; margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin: 0;">Top Posts</h3>
+                    <div id="subredditResultsSummary" style="color: #718096; font-size: 0.9em;"></div>
+                </div>
+                <div id="subredditPostsList"></div>
+                <div id="subredditSelectedPostsActions" style="display: none; margin-top: 20px; padding: 20px; background: #eef2ff; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #667eea; font-size: 1.1em;" id="subredditSelectedCount">0 posts selected</strong>
+                            <p style="margin: 5px 0 0 0; color: #718096; font-size: 0.9em;">Choose how to analyze selected posts</p>
+                        </div>
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="subredditAnalysisMode" value="separate" checked style="margin-right: 8px;">
+                                <span style="color: #4a5568;">Analyze Separately</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="subredditAnalysisMode" value="combine" style="margin-right: 8px;">
+                                <span style="color: #4a5568;">Combine All</span>
+                            </label>
+                            <button class="btn" onclick="extractSubredditSelectedPosts()" style="font-size: 1.1em; padding: 15px 30px;">
+                                📊 Extract & Analyze
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Single URL Tab -->
+        <div class="input-section" id="urlTab" style="display: none;">
             <div class="input-group">
-                <input type="text" id="redditUrl" placeholder="Paste Reddit post URL here..." value="https://www.reddit.com/r/AskReddit/comments/1hqxo9o/what_industry_is_quietly_booming_right_now_but/">
-                <button class="btn" onclick="startAnalysis()">Step 1: Extract Content</button>
+                <label style="display: block; margin-bottom: 8px; color: #4a5568; font-weight: 500;">
+                    Paste Reddit Post URL
+                </label>
+                <input type="text" id="redditUrl" placeholder="https://www.reddit.com/r/subreddit/comments/..." value="">
+                <button class="btn" onclick="startAnalysis()" style="margin-top: 10px;">Step 1: Extract Content</button>
             </div>
         </div>
 
@@ -449,6 +743,25 @@
                 <button class="btn" onclick="startNewAnalysis()">Analyze Another Post</button>
             </div>
         </div>
+
+        <!-- MULTI-POST EXTRACTION RESULTS -->
+        <div id="multiPostContainer" style="display: none; padding: 30px;">
+            <div style="margin-bottom: 30px;">
+                <h2 style="color: #667eea; font-size: 2em; margin: 0 0 20px 0;" id="multiPostTitle">📊 Extracting Posts</h2>
+                <div id="multiPostProgress" style="background: #eef2ff; padding: 20px; border-radius: 12px; border: 2px solid #c7d2fe;">
+                    <div style="font-weight: 600; margin-bottom: 10px; color: #4c1d95; font-size: 1.1em;">Progress: <span id="progressText">Starting...</span></div>
+                    <div style="background: #cbd5e0; height: 20px; border-radius: 10px; overflow: hidden;">
+                        <div id="progressBar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="multiPostResults" style="margin-bottom: 30px;"></div>
+            <div id="multiPostActions" style="display: none; text-align: center; margin-top: 30px;">
+                <button onclick="backToSearch()" style="background: #667eea; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: 600;">
+                    ← Back to Search
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -457,6 +770,1044 @@
 
         let extractedData = null;
         let selectedAnalyses = new Set();
+        let searchResults = [];
+        let selectedPosts = new Set();
+
+        // ========================================================================
+        // DIAGNOSTIC FUNCTIONS
+        // ========================================================================
+
+        function testBackend() {
+            const resultsDiv = document.getElementById('diagnosticResults');
+            resultsDiv.innerHTML = '⏳ Testing backend connection...';
+
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    resultsDiv.innerHTML = `✅ ${result.message}<br>Timestamp: ${result.timestamp}`;
+                    resultsDiv.style.color = '#155724';
+                    resultsDiv.style.background = '#d4edda';
+                    resultsDiv.style.padding = '10px';
+                    resultsDiv.style.borderRadius = '4px';
+                })
+                .withFailureHandler(function(error) {
+                    resultsDiv.innerHTML = `❌ Backend test failed: ${error.message}`;
+                    resultsDiv.style.color = '#721c24';
+                    resultsDiv.style.background = '#f8d7da';
+                    resultsDiv.style.padding = '10px';
+                    resultsDiv.style.borderRadius = '4px';
+                })
+                .testBackendConnection();
+        }
+
+        function testAuth() {
+            const resultsDiv = document.getElementById('diagnosticResults');
+            resultsDiv.innerHTML = '⏳ Testing Reddit OAuth...';
+
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result.success) {
+                        resultsDiv.innerHTML = `✅ ${result.message}<br>Token length: ${result.tokenLength} characters`;
+                        resultsDiv.style.color = '#155724';
+                        resultsDiv.style.background = '#d4edda';
+                        resultsDiv.style.padding = '10px';
+                        resultsDiv.style.borderRadius = '4px';
+                    } else {
+                        resultsDiv.innerHTML = `❌ OAuth failed: ${result.message}<br>Error: ${result.error}`;
+                        resultsDiv.style.color = '#721c24';
+                        resultsDiv.style.background = '#f8d7da';
+                        resultsDiv.style.padding = '10px';
+                        resultsDiv.style.borderRadius = '4px';
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    resultsDiv.innerHTML = `❌ OAuth test failed: ${error.message}`;
+                    resultsDiv.style.color = '#721c24';
+                    resultsDiv.style.background = '#f8d7da';
+                    resultsDiv.style.padding = '10px';
+                    resultsDiv.style.borderRadius = '4px';
+                })
+                .testRedditAuth();
+        }
+
+        // ========================================================================
+        // TAB SWITCHING
+        // ========================================================================
+
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Show/hide tabs
+            document.getElementById('topicTab').style.display = tab === 'topic' ? 'block' : 'none';
+            document.getElementById('subredditTab').style.display = tab === 'subreddit' ? 'block' : 'none';
+            document.getElementById('urlTab').style.display = tab === 'url' ? 'block' : 'none';
+
+            // Hide search results when switching
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('subredditResults').style.display = 'none';
+        }
+
+        function toggleSubredditInput() {
+            const checkbox = document.getElementById('subredditFilter');
+            const div = document.getElementById('subredditInputDiv');
+            div.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        // ========================================================================
+        // TOPIC SEARCH
+        // ========================================================================
+
+        function searchByTopic() {
+            const topic = document.getElementById('topicInput').value.trim();
+            if (!topic) {
+                alert('Please enter a topic to search');
+                return;
+            }
+
+            const timeRange = document.getElementById('timeRange').value;
+            const maxResults = parseInt(document.getElementById('maxResults').value);
+            const subredditFilter = document.getElementById('subredditFilter').checked
+                ? document.getElementById('subredditInput').value.trim()
+                : '';
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = 'Searching Reddit for high-engagement posts...';
+
+            // Call backend search function
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.getElementById('loading').style.display = 'none';
+
+                    if (result.success) {
+                        searchResults = result.posts;
+                        selectedPosts.clear();
+                        displaySearchResults(result);
+                    } else {
+                        alert('Search failed: ' + result.message);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    alert('Search error: ' + error.message);
+                })
+                .searchRedditByTopic(topic, timeRange, subredditFilter, maxResults);
+        }
+
+        function displaySearchResults(result) {
+            const searchResultsDiv = document.getElementById('searchResults');
+            const postsListDiv = document.getElementById('postsList');
+            const summaryDiv = document.getElementById('searchResultsSummary');
+
+            // Show results section
+            searchResultsDiv.style.display = 'block';
+
+            // Update summary
+            summaryDiv.innerHTML = `Found <strong>${result.afterFiltering}</strong> high-engagement posts ${result.totalFound > result.afterFiltering ? `(filtered from ${result.totalFound} total)` : ''}`;
+
+            // Generate post cards
+            postsListDiv.innerHTML = result.posts.map(post => {
+                const stars = '⭐'.repeat(post.engagementStars);
+                const upvotePercent = Math.round(post.upvote_ratio * 100);
+
+                return `
+                    <div class="post-card" onclick="togglePostSelection('${post.id}')" id="post-${post.id}">
+                        <div style="display: flex; align-items: flex-start;">
+                            <input type="checkbox" class="post-checkbox" id="check-${post.id}" onclick="event.stopPropagation(); togglePostSelection('${post.id}')">
+                            <div style="flex: 1;">
+                                <div class="post-title">${escapeHtml(post.title)}</div>
+                                <div class="post-meta">
+                                    <div class="post-meta-item">
+                                        <strong>r/${escapeHtml(post.subreddit)}</strong>
+                                    </div>
+                                    <div class="post-meta-item">
+                                        ⬆️ ${post.score.toLocaleString()}
+                                    </div>
+                                    <div class="post-meta-item">
+                                        💬 ${post.num_comments.toLocaleString()}
+                                    </div>
+                                    <div class="post-meta-item">
+                                        📊 ${upvotePercent}% upvoted
+                                    </div>
+                                    <div class="post-meta-item">
+                                        🕐 ${post.ageText}
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                    <span class="engagement-stars" title="Engagement: ${post.engagementTier}">${stars}</span>
+                                    <span style="font-size: 0.85em; color: #718096;">
+                                        Engagement Score: ${post.engagementScore.toLocaleString()}
+                                        ${post.engagementRate > 0 ? `(${post.engagementRate}/10k subscribers)` : ''}
+                                    </span>
+                                </div>
+                                ${post.selftext ? `
+                                    <div class="post-preview">
+                                        ${escapeHtml(post.selftext)}${post.selftext.length >= 200 ? '...' : ''}
+                                    </div>
+                                ` : ''}
+                                <div class="post-actions" onclick="event.stopPropagation();">
+                                    <a href="${post.url}" target="_blank" class="post-link">🔗 View on Reddit</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Hide action buttons initially
+            document.getElementById('selectedPostsActions').style.display = 'none';
+
+            // Scroll to results
+            searchResultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function togglePostSelection(postId) {
+            const card = document.getElementById('post-' + postId);
+            const checkbox = document.getElementById('check-' + postId);
+
+            if (selectedPosts.has(postId)) {
+                selectedPosts.delete(postId);
+                card.classList.remove('selected');
+                checkbox.checked = false;
+            } else {
+                selectedPosts.add(postId);
+                card.classList.add('selected');
+                checkbox.checked = true;
+            }
+
+            updateSelectedCount();
+        }
+
+        function updateSelectedCount() {
+            const count = selectedPosts.size;
+            document.getElementById('selectedCount').textContent = `${count} post${count !== 1 ? 's' : ''} selected`;
+            document.getElementById('selectedPostsActions').style.display = count > 0 ? 'block' : 'none';
+        }
+
+        function extractSelectedPosts() {
+            if (selectedPosts.size === 0) {
+                alert('Please select at least one post');
+                return;
+            }
+
+            const mode = document.querySelector('input[name="analysisMode"]:checked').value;
+            const selectedPostsData = searchResults.filter(post => selectedPosts.has(post.id));
+
+            if (mode === 'separate') {
+                // Analyze each post separately
+                startMultiPostExtraction(selectedPostsData);
+            } else {
+                // Combine all posts
+                alert('Combine mode coming soon!\n\nFor now, analyzing posts separately.');
+                startMultiPostExtraction(selectedPostsData);
+            }
+        }
+
+        // ========================================================================
+        // SUBREDDIT ANALYSIS
+        // ========================================================================
+
+        let subredditSearchResults = [];
+        let subredditSelectedPosts = new Set();
+
+        function searchSubreddit() {
+            const subreddit = document.getElementById('subredditName').value.trim();
+            if (!subreddit) {
+                alert('Please enter a subreddit name');
+                return;
+            }
+
+            const timeRange = document.getElementById('subredditTimeRange').value;
+            const maxResults = parseInt(document.getElementById('subredditMaxResults').value);
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = `Searching r/${subreddit} for top posts...`;
+
+            // Call backend search function
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.getElementById('loading').style.display = 'none';
+
+                    if (result.success) {
+                        subredditSearchResults = result.posts;
+                        subredditSelectedPosts.clear();
+                        displaySubredditResults(result);
+                    } else {
+                        alert('Search failed: ' + result.message);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    alert('Search error: ' + error.message);
+                })
+                .searchSubredditTopPosts(subreddit, timeRange, maxResults);
+        }
+
+        function displaySubredditResults(result) {
+            const searchResultsDiv = document.getElementById('subredditResults');
+            const postsListDiv = document.getElementById('subredditPostsList');
+            const summaryDiv = document.getElementById('subredditResultsSummary');
+
+            // Show results section
+            searchResultsDiv.style.display = 'block';
+
+            // Update summary
+            summaryDiv.innerHTML = `Found <strong>${result.afterFiltering}</strong> high-engagement posts ${result.totalFound > result.afterFiltering ? `(filtered from ${result.totalFound} total)` : ''} from <strong>r/${result.subreddit}</strong>`;
+
+            // Generate post cards
+            postsListDiv.innerHTML = result.posts.map(post => {
+                const stars = '⭐'.repeat(post.engagementStars);
+                const upvotePercent = Math.round(post.upvote_ratio * 100);
+
+                return `
+                    <div class="post-card" onclick="toggleSubredditPostSelection('${post.id}')" id="subreddit-post-${post.id}">
+                        <div style="display: flex; align-items: flex-start;">
+                            <input type="checkbox" class="post-checkbox" id="subreddit-check-${post.id}" onclick="event.stopPropagation(); toggleSubredditPostSelection('${post.id}')">
+                            <div style="flex: 1;">
+                                <div class="post-title">${escapeHtml(post.title)}</div>
+                                <div class="post-meta">
+                                    <strong>r/${escapeHtml(post.subreddit)}</strong>
+                                    • ⬆️ ${post.score.toLocaleString()}
+                                    • 💬 ${post.num_comments.toLocaleString()}
+                                    • 📊 ${upvotePercent}% upvoted
+                                    • 🕐 ${post.ageText}
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <span class="engagement-stars">${stars}</span>
+                                    <span style="color: #667eea; font-weight: 500; margin-left: 10px;">
+                                        Engagement Score: ${post.engagementScore.toLocaleString()}
+                                        (${post.engagementRate}/10k subscribers)
+                                    </span>
+                                </div>
+                                ${post.selftext ? `<div class="post-preview">${escapeHtml(post.selftext)}</div>` : ''}
+                                <a href="${post.url}" target="_blank" onclick="event.stopPropagation()" style="color: #667eea; text-decoration: none; font-size: 0.9em; margin-top: 8px; display: inline-block;">
+                                    🔗 View on Reddit
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleSubredditPostSelection(postId) {
+            if (subredditSelectedPosts.has(postId)) {
+                subredditSelectedPosts.delete(postId);
+                document.getElementById(`subreddit-post-${postId}`).classList.remove('selected');
+                document.getElementById(`subreddit-check-${postId}`).checked = false;
+            } else {
+                subredditSelectedPosts.add(postId);
+                document.getElementById(`subreddit-post-${postId}`).classList.add('selected');
+                document.getElementById(`subreddit-check-${postId}`).checked = true;
+            }
+            updateSubredditSelectedCount();
+        }
+
+        function updateSubredditSelectedCount() {
+            const count = subredditSelectedPosts.size;
+            document.getElementById('subredditSelectedCount').textContent = `${count} post${count !== 1 ? 's' : ''} selected`;
+
+            // Show/hide actions
+            const actionsDiv = document.getElementById('subredditSelectedPostsActions');
+            actionsDiv.style.display = count > 0 ? 'block' : 'none';
+        }
+
+        function extractSubredditSelectedPosts() {
+            if (subredditSelectedPosts.size === 0) {
+                alert('Please select at least one post');
+                return;
+            }
+
+            const mode = document.querySelector('input[name="subredditAnalysisMode"]:checked').value;
+            const selectedPostsData = subredditSearchResults.filter(post => subredditSelectedPosts.has(post.id));
+
+            if (mode === 'separate') {
+                // Analyze each post separately
+                startMultiPostExtraction(selectedPostsData);
+            } else {
+                // Combine all posts
+                alert('Combine mode coming soon!\n\nFor now, analyzing posts separately.');
+                startMultiPostExtraction(selectedPostsData);
+            }
+        }
+
+        // ========================================================================
+        // MULTI-POST EXTRACTION
+        // ========================================================================
+
+        let postsQueue = [];
+        let currentPostIndex = 0;
+        let multiPostResults = [];
+
+        function startMultiPostExtraction(posts) {
+            console.log('Starting multi-post extraction for', posts.length, 'posts');
+            postsQueue = posts;
+            currentPostIndex = 0;
+            multiPostResults = [];
+
+            // Hide tabs
+            document.getElementById('topicTab').style.display = 'none';
+            document.getElementById('subredditTab').style.display = 'none';
+            document.getElementById('urlTab').style.display = 'none';
+            document.getElementById('step1Container').style.display = 'none';
+            document.getElementById('step2Container').style.display = 'none';
+            document.getElementById('insightsContainer').style.display = 'none';
+
+            // Show multi-post container
+            const multiPostContainer = document.getElementById('multiPostContainer');
+            multiPostContainer.style.display = 'block';
+
+            // Update title and reset results
+            document.getElementById('multiPostTitle').textContent = `📊 Extracting ${posts.length} Posts`;
+            document.getElementById('progressText').textContent = 'Starting...';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('multiPostResults').innerHTML = '';
+            document.getElementById('multiPostActions').style.display = 'none';
+
+            console.log('Multi-post container shown, starting extraction...');
+
+            // Start processing first post
+            processNextPost();
+        }
+
+        function processNextPost() {
+            if (currentPostIndex >= postsQueue.length) {
+                // All posts processed
+                document.getElementById('progressText').textContent = `✅ Completed ${postsQueue.length} posts!`;
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('multiPostActions').style.display = 'block';
+                return;
+            }
+
+            const post = postsQueue[currentPostIndex];
+            const progressPercent = (currentPostIndex / postsQueue.length) * 100;
+
+            document.getElementById('progressText').textContent = `Extracting post ${currentPostIndex + 1} of ${postsQueue.length}...`;
+            document.getElementById('progressBar').style.width = progressPercent + '%';
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = `Extracting post ${currentPostIndex + 1} of ${postsQueue.length}: ${post.title.substring(0, 50)}...`;
+
+            // Extract this post
+            const callbackName = 'multiPostCallback_' + Date.now();
+            window[callbackName] = function(response) {
+                console.log('Multi-post callback received for post', currentPostIndex + 1, response);
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.success) {
+                    console.log('Success! Data:', response.data);
+                    multiPostResults.push({
+                        post: post,
+                        data: response.data
+                    });
+                    displayMultiPostResult(post, response.data, currentPostIndex);
+                } else {
+                    console.error('Error in response:', response.error);
+                    displayMultiPostError(post, response.error || 'Unknown error', currentPostIndex);
+                }
+
+                // Move to next post
+                currentPostIndex++;
+                setTimeout(processNextPost, 500); // Small delay between posts
+
+                // Clean up
+                delete window[callbackName];
+            };
+
+            console.log('Fetching:', post.url, 'Callback:', callbackName);
+            const script = document.createElement('script');
+            script.src = `${SCRIPT_URL}?url=${encodeURIComponent(post.url)}&mode=step1_extract&callback=${callbackName}&t=${Date.now()}`;
+            script.onerror = function() {
+                console.error('Script load error for:', post.url);
+                document.getElementById('loading').style.display = 'none';
+                displayMultiPostError(post, 'Network error or timeout', currentPostIndex);
+                currentPostIndex++;
+                setTimeout(processNextPost, 500);
+            };
+            document.body.appendChild(script);
+        }
+
+        function displayMultiPostResult(post, data, index) {
+            console.log('displayMultiPostResult called for index:', index, 'post:', post.title);
+            const resultsContainer = document.getElementById('multiPostResults');
+
+            if (!resultsContainer) {
+                console.error('multiPostResults container not found!');
+                return;
+            }
+
+            // Clear the placeholder text on first post
+            if (index === 0) {
+                resultsContainer.innerHTML = '';
+            }
+
+            const stats = data.extractionStats || {};
+            console.log('Stats for post', index, ':', stats);
+
+            // Map backend field names to display values
+            const totalComments = stats.total || stats.totalComments || 0;
+            const valuableComments = stats.extracted || stats.valuableComments || 0;
+            const totalUpvotes = stats.averageScore || stats.totalUpvotes || 0;
+
+            // Calculate avg word count from comments
+            let avgWordCount = 0;
+            if (data.valuableComments && data.valuableComments.length > 0) {
+                const totalWords = data.valuableComments.reduce((sum, comment) => {
+                    const words = comment.body ? comment.body.split(/\s+/).length : 0;
+                    return sum + words;
+                }, 0);
+                avgWordCount = Math.round(totalWords / data.valuableComments.length);
+            }
+
+            // Create simple card with ONLY inline styles
+            const card = document.createElement('div');
+            card.style.cssText = 'background: white; border: 3px solid #667eea; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
+
+            card.innerHTML = `
+                <h3 style="color: #667eea; font-size: 1.5em; margin: 0 0 15px 0;">
+                    ${index + 1}. ${escapeHtml(post.title)}
+                </h3>
+
+                <div style="margin-bottom: 20px;">
+                    <span style="background: #eef2ff; padding: 8px 12px; border-radius: 4px; margin-right: 10px; display: inline-block;">
+                        <strong>r/${escapeHtml(post.subreddit)}</strong>
+                    </span>
+                    <span style="background: #f0fdf4; padding: 8px 12px; border-radius: 4px; margin-right: 10px; display: inline-block;">
+                        ⬆️ ${post.score.toLocaleString()}
+                    </span>
+                    <span style="background: #fef3c7; padding: 8px 12px; border-radius: 4px; display: inline-block;">
+                        💬 ${post.num_comments.toLocaleString()}
+                    </span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #667eea;">${totalComments}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Total Comments</div>
+                    </div>
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #48bb78;">${valuableComments}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Valuable Comments</div>
+                    </div>
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #f59e0b;">${totalUpvotes}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Avg Upvotes</div>
+                    </div>
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #9f7aea;">${avgWordCount}</div>
+                        <div style="color: #718096; font-size: 0.9em;">Avg Word Count</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <button onclick="generatePostInsights(${index})" id="insightsBtn_${index}" style="background: #667eea; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: 600; width: 100%;">
+                            💡 Generate Insights (Step 3 Analysis)
+                        </button>
+                    </div>
+
+                    <div id="insightsSection_${index}" style="display: none; margin-top: 20px; padding: 20px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
+                        <div id="insightsContent_${index}"></div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                        <button onclick="downloadSinglePostPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em;">
+                            📄 Export PDF
+                        </button>
+                        <button onclick="downloadSinglePostForClaude(${index})" style="background: #48bb78; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em;">
+                            💾 Download for Claude
+                        </button>
+                        <button onclick="copySinglePostForClaude(${index})" style="background: #9f7aea; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em;">
+                            📋 Copy
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            resultsContainer.appendChild(card);
+            console.log('Simple card added to DOM for index:', index);
+        }
+
+        function displayMultiPostError(post, error, index) {
+            const resultsContainer = document.getElementById('multiPostResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'step-container';
+            resultDiv.style.marginBottom = '20px';
+            resultDiv.style.borderColor = '#f56565';
+
+            resultDiv.innerHTML = `
+                <div class="step-header">
+                    <div class="step-number" style="background: #f56565;">${index + 1}</div>
+                    <div class="step-title">❌ Failed: ${escapeHtml(post.title)}</div>
+                </div>
+                <div style="color: #c53030; padding: 15px; background: #fff5f5; border-radius: 8px;">
+                    <strong>Error:</strong> ${escapeHtml(error)}
+                </div>
+            `;
+
+            resultsContainer.appendChild(resultDiv);
+        }
+
+        function collapseMultiPost(index) {
+            const container = document.getElementById(`multiPost_${index}`);
+            if (container) {
+                const statsGrid = container.querySelector('.stats-grid');
+                const actionButtons = container.querySelector('.action-buttons');
+                const isCollapsed = statsGrid.style.display === 'none';
+
+                statsGrid.style.display = isCollapsed ? 'grid' : 'none';
+                actionButtons.style.display = isCollapsed ? 'flex' : 'none';
+
+                const collapseBtn = container.querySelector('.collapse-btn');
+                collapseBtn.textContent = isCollapsed ? 'Collapse' : 'Expand';
+            }
+        }
+
+        function downloadSinglePostPDF(index) {
+            if (multiPostResults[index]) {
+                const oldData = extractedData;
+                extractedData = multiPostResults[index].data;
+                exportToPDF();
+                extractedData = oldData;
+            }
+        }
+
+        function downloadSinglePostForClaude(index) {
+            if (multiPostResults[index]) {
+                const result = multiPostResults[index];
+                const formattedText = formatForClaudeAnalysis(result.data);
+                const fileName = `reddit_analysis_${result.post.subreddit}_${Date.now()}.txt`;
+
+                const blob = new Blob([formattedText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function copySinglePostForClaude(index) {
+            if (multiPostResults[index]) {
+                const result = multiPostResults[index];
+                const formattedText = formatForClaudeAnalysis(result.data);
+
+                navigator.clipboard.writeText(formattedText).then(() => {
+                    alert('✅ Content copied to clipboard! Paste it into Claude for analysis.');
+                }).catch(err => {
+                    alert('Failed to copy: ' + err);
+                });
+            }
+        }
+
+        function backToSearch() {
+            // Hide multi-post container
+            document.getElementById('multiPostContainer').style.display = 'none';
+
+            // Show the appropriate tab
+            document.getElementById('subredditTab').style.display = 'block';
+
+            // Reset multi-post state
+            postsQueue = [];
+            currentPostIndex = 0;
+            multiPostResults = [];
+        }
+
+        // ========================================================================
+        // MULTI-POST INSIGHTS GENERATION
+        // ========================================================================
+
+        function generatePostInsights(index) {
+            const btn = document.getElementById(`insightsBtn_${index}`);
+            const section = document.getElementById(`insightsSection_${index}`);
+            const contentDiv = document.getElementById(`insightsContent_${index}`);
+
+            // Toggle visibility
+            if (section.style.display === 'block') {
+                section.style.display = 'none';
+                btn.textContent = '💡 Generate Insights (Step 3 Analysis)';
+                return;
+            }
+
+            // Show section
+            section.style.display = 'block';
+            btn.textContent = '🔼 Hide Insights';
+
+            // Check if already generated
+            if (contentDiv.innerHTML !== '') {
+                return;
+            }
+
+            // Show loading
+            contentDiv.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="color: #667eea; font-weight: 500;">🔄 Analyzing comments...</div>
+                </div>
+            `;
+
+            // Get the post data
+            const result = multiPostResults[index];
+            if (!result) {
+                contentDiv.innerHTML = '<div style="color: #c53030;">Error: No data found for this post</div>';
+                return;
+            }
+
+            // Get post URL for backend API call
+            const post = result.post;
+            const postUrl = post.url;
+
+            if (!postUrl) {
+                contentDiv.innerHTML = '<div style="color: #c53030;">Error: Post URL not found</div>';
+                return;
+            }
+
+            // Show AI loading message
+            contentDiv.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <div style="color: #667eea; font-weight: 600; font-size: 1.1em; margin-bottom: 10px;">
+                        🤖 Generating AI Insights with Gemini...
+                    </div>
+                    <div style="color: #718096; font-size: 0.9em;">
+                        This may take 10-30 seconds for comprehensive analysis
+                    </div>
+                </div>
+            `;
+
+            // Call backend for AI-powered analysis using JSONP (same as Step 3)
+            const callbackName = 'callback_multipost_insights_' + Date.now() + '_' + index;
+            window[callbackName] = function(response) {
+                if (response.success && response.data) {
+                    // Display AI analysis
+                    const data = response.data;
+                    let html = '';
+
+                    if (data.mode === 'ai_analysis' && data.aiAnalysis) {
+                        // Display AI analysis with proper formatting
+                        html += `
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                                <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                                    <span>🤖</span>
+                                    <span>AI-Powered Comprehensive Analysis</span>
+                                </h3>
+                                <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
+                                    Powered by ${data.model || 'Gemini 2.5 Flash'}
+                                </p>
+                            </div>
+                            <div style="background: white; padding: 30px; border-radius: 12px;
+                                border: 1px solid #e2e8f0; line-height: 1.8; color: #2d3748;">
+                                ${formatMarkdown(data.aiAnalysis)}
+                            </div>
+                        `;
+                    } else {
+                        html += '<p style="color: #718096;">No AI analysis available.</p>';
+                    }
+
+                    contentDiv.innerHTML = html;
+                } else {
+                    contentDiv.innerHTML = `
+                        <div style="color: #c53030; padding: 20px; background: #fff5f5;
+                            border-radius: 8px; border: 1px solid #feb2b2;">
+                            <strong>AI Analysis Failed:</strong><br>
+                            ${response.error || response.message || 'Unknown error occurred'}
+                        </div>
+                    `;
+                }
+
+                // Cleanup callback
+                delete window[callbackName];
+                // Remove script tag
+                const scriptTag = document.querySelector(`script[src*="${callbackName}"]`);
+                if (scriptTag) scriptTag.remove();
+            };
+
+            // Create script element for JSONP request
+            const scriptElement = document.createElement('script');
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(postUrl)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(['all']))}&callback=${callbackName}`;
+            document.body.appendChild(scriptElement);
+        }
+
+        function downloadPostInsightsPDF(index) {
+            const result = multiPostResults[index];
+            if (!result) {
+                alert('No data found for this post');
+                return;
+            }
+
+            // PDF export temporarily disabled - AI insights don't export to PDF yet
+            // Use "Download for Claude" or "Copy" buttons instead to get the full analysis
+            alert('PDF export is not available for AI insights yet. Please use the "Download for Claude" or "Copy" buttons to save the analysis.');
+            return;
+
+            /* DISABLED - was using regex insights
+            // Generate insights
+            const allAnalysisTypes = [
+                'entity_analysis',
+                'outcome_analysis',
+                'speaker_analysis',
+                'pricing_analysis',
+                'timeline_analysis',
+                'consensus_analysis',
+                'qa_analysis',
+                'evidence_analysis'
+            ];
+
+            const insights = generateInsightsInBrowser(result.data, allAnalysisTypes);
+            const post = result.post;
+            const data = result.data;
+            const stats = data.extractionStats || {};
+
+            // Create PDF window
+            const printWindow = window.open('', '', 'width=800,height=600');
+
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Insights - ${escapeHtml(post.title)}</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            line-height: 1.6;
+                            max-width: 800px;
+                            margin: 20px;
+                            color: #333;
+                        }
+                        .header {
+                            border-bottom: 3px solid #667eea;
+                            padding-bottom: 15px;
+                            margin-bottom: 20px;
+                        }
+                        h1 {
+                            color: #667eea;
+                            font-size: 1.5em;
+                            margin-bottom: 10px;
+                        }
+                        h2 {
+                            color: #4a5568;
+                            font-size: 1.2em;
+                            margin: 10px 0;
+                        }
+                        .meta {
+                            color: #666;
+                            font-size: 0.9em;
+                            margin-bottom: 15px;
+                        }
+                        .stats {
+                            background: #f5f5f5;
+                            padding: 15px;
+                            border-radius: 5px;
+                            margin-bottom: 20px;
+                        }
+                        h3 {
+                            color: #667eea;
+                            margin-bottom: 15px;
+                        }
+                        .insight {
+                            border-left: 4px solid #667eea;
+                            padding: 12px 15px;
+                            margin-bottom: 15px;
+                            background: #f9f9f9;
+                            page-break-inside: avoid;
+                        }
+                        .insight-type {
+                            font-size: 0.85em;
+                            color: #9f7aea;
+                            font-weight: 600;
+                            text-transform: uppercase;
+                            margin-bottom: 5px;
+                        }
+                        .insight-text {
+                            color: #2d3748;
+                        }
+                        .footer {
+                            margin-top: 30px;
+                            padding-top: 15px;
+                            border-top: 1px solid #ddd;
+                            text-align: center;
+                            color: #999;
+                            font-size: 0.85em;
+                        }
+                        @media print {
+                            body { margin: 15px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>💡 Reddit Post Insights</h1>
+                        <h2>${escapeHtml(post.title)}</h2>
+                        <div class="meta">
+                            r/${escapeHtml(post.subreddit)} • Posted by u/${escapeHtml(post.author)} •
+                            ${post.score.toLocaleString()} upvotes • ${post.num_comments.toLocaleString()} comments
+                        </div>
+                    </div>
+
+                    <div class="stats">
+                        <strong>Analysis Summary:</strong><br>
+                        Total Comments: ${stats.total || 0} |
+                        Valuable Comments Analyzed: ${stats.extracted || 0} |
+                        Insights Generated: ${insights.length}
+                    </div>
+
+                    <h3>Key Insights</h3>
+                    ${insights.map(insight => `
+                        <div class="insight">
+                            <div class="insight-type">${escapeHtml(insight.type.replace(/_/g, ' '))}</div>
+                            <div class="insight-text">💡 ${escapeHtml(insight.insight)}</div>
+                        </div>
+                    `).join('')}
+
+                    ${insights.length === 0 ? '<p style="color: #718096; text-align: center; padding: 20px;">No significant insights found for this post.</p>' : ''}
+
+                    <div class="footer">
+                        Generated by Reddit Analyzer • ${new Date().toLocaleString()}
+                    </div>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(html);
+            printWindow.document.close();
+
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+            */
+        }
+
+        // ========================================================================
+        // ANALYSIS FUNCTIONS
+        // ========================================================================
+
+        let analysisCache = {}; // Store generated analyses
+
+        function toggleAnalysis(index) {
+            const section = document.getElementById(`analysisSection_${index}`);
+            const btnText = document.getElementById(`analysisBtn_${index}`);
+
+            if (section.style.display === 'none') {
+                // Show analysis section
+                section.style.display = 'block';
+                btnText.textContent = 'Hide Analysis';
+
+                // If not already generated, generate it now
+                if (!analysisCache[index]) {
+                    generateAnalysis(index);
+                }
+            } else {
+                // Hide analysis section
+                section.style.display = 'none';
+                btnText.textContent = 'Show Analysis';
+            }
+        }
+
+        function generateAnalysis(index) {
+            const contentDiv = document.getElementById(`analysisContent_${index}`);
+            const result = multiPostResults[index];
+
+            if (!result) {
+                contentDiv.innerHTML = '<div style="color: #c53030;">Error: No data found for this post</div>';
+                return;
+            }
+
+            // Show loading
+            contentDiv.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <div style="color: #667eea; font-weight: 500;">Generating analysis...</div>
+                    <div style="color: #718096; font-size: 0.9em; margin-top: 10px;">This may take a few moments</div>
+                </div>
+            `;
+
+            // For now, use the existing regex-based analysis
+            // In the future, this will call AI API
+            setTimeout(() => {
+                const data = result.data;
+                const comments = data.valuableComments || [];
+
+                // Generate insights using existing functions
+                const insights = generateDataTables(data);
+
+                // Build HTML
+                let analysisHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">💡 Analysis Results</h3>
+                        <p style="color: #718096; margin-bottom: 20px;">
+                            Based on ${comments.length} valuable comments from this discussion
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 25px;">
+                        <h4 style="color: #4a5568; margin-bottom: 10px; font-size: 1.1em;">📊 Data Tables</h4>
+                        ${insights.length > 0 ? insights.join('') : '<p style="color: #718096;">No data tables available for this content type.</p>'}
+                    </div>
+
+                    <div style="margin-top: 25px; padding-top: 25px; border-top: 2px solid #e2e8f0;">
+                        <button class="btn" onclick="exportAnalysisPDF(${index})" style="background: #ed8936; margin-right: 10px;">
+                            📄 Export Analysis as PDF
+                        </button>
+                        <button class="btn" onclick="downloadAnalysisForClaude(${index})" style="background: #48bb78; margin-right: 10px;">
+                            💾 Download Analysis for Claude
+                        </button>
+                        <button class="btn" onclick="copyAnalysisForClaude(${index})" style="background: #9f7aea;">
+                            📋 Copy Analysis to Clipboard
+                        </button>
+                    </div>
+                `;
+
+                contentDiv.innerHTML = analysisHTML;
+                analysisCache[index] = analysisHTML;
+            }, 1000); // Simulate processing time
+        }
+
+        function exportAnalysisPDF(index) {
+            // Use the existing PDF export with analysis data
+            if (multiPostResults[index]) {
+                const oldData = extractedData;
+                extractedData = multiPostResults[index].data;
+                exportToPDF();
+                extractedData = oldData;
+            }
+        }
+
+        function downloadAnalysisForClaude(index) {
+            if (multiPostResults[index]) {
+                const result = multiPostResults[index];
+                const formattedText = formatForClaudeAnalysis(result.data);
+                const fileName = `reddit_analysis_${result.post.subreddit}_${Date.now()}.txt`;
+
+                const blob = new Blob([formattedText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function copyAnalysisForClaude(index) {
+            if (multiPostResults[index]) {
+                const result = multiPostResults[index];
+                const formattedText = formatForClaudeAnalysis(result.data);
+
+                navigator.clipboard.writeText(formattedText).then(() => {
+                    alert('✅ Analysis copied to clipboard! Paste it into Claude for deeper insights.');
+                }).catch(err => {
+                    alert('Failed to copy: ' + err);
+                });
+            }
+        }
+
+        // ========================================================================
+        // SINGLE URL ANALYSIS
+        // ========================================================================
 
         function startAnalysis() {
             const url = document.getElementById('redditUrl').value.trim();
@@ -764,19 +2115,23 @@
         }
 
         function proceedToStep3() {
-            if (selectedAnalyses.size === 0 || !extractedData) return;
+            if (selectedAnalyses.size === 0 || !extractedData) {
+                alert('Please select at least one analysis type');
+                return;
+            }
+
+            // Get the Reddit URL from input field
+            const url = document.getElementById('redditUrl').value.trim();
+            if (!url) {
+                alert('Reddit URL not found. Please start over.');
+                return;
+            }
 
             // Show loading
             document.getElementById('loading').style.display = 'block';
-            document.getElementById('loadingMessage').textContent = 'Generating AI-powered insights with Gemini...';
+            document.getElementById('loadingMessage').textContent = '🤖 Analyzing with Gemini AI... This may take 10-30 seconds...';
 
-            // Get the original Reddit URL from extractedData or construct from permalink
-            let redditUrl = document.getElementById('redditUrl').value.trim();
-            if (extractedData.post?.permalink) {
-                redditUrl = 'https://www.reddit.com' + extractedData.post.permalink;
-            }
-
-            // Call backend for AI analysis
+            // Call backend for AI-powered analysis
             const callbackName = 'callback_step3_' + Date.now();
             window[callbackName] = function(response) {
                 document.getElementById('loading').style.display = 'none';
@@ -784,22 +2139,22 @@
                 if (response.success) {
                     displayStep3(response.data);
                 } else {
-                    alert('Error: ' + (response.error || 'Unknown error'));
+                    alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
                 }
 
                 delete window[callbackName];
             };
 
             const scriptElement = document.createElement('script');
-            const selectedAnalysesJson = JSON.stringify(Array.from(selectedAnalyses));
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(redditUrl)}&mode=step3_ai&selectedAnalyses=${encodeURIComponent(selectedAnalysesJson)}&callback=${callbackName}`;
-            scriptElement.onerror = function() {
-                document.getElementById('loading').style.display = 'none';
-                alert('Failed to connect to backend. Please try again.');
-                delete window[callbackName];
-            };
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(Array.from(selectedAnalyses)))}&callback=${callbackName}`;
             document.body.appendChild(scriptElement);
         }
+
+        // ========================================================================
+        // REGEX-BASED INSIGHTS
+        // ========================================================================
+        // Used for multi-post insights generation
+        // (Single URL analysis uses Gemini AI via Step 3)
 
         function generateInsightsInBrowser(contentData, selectedAnalyses) {
             const comments = contentData.valuableComments || [];
@@ -1220,42 +2575,123 @@
             const container = document.getElementById('insightsContainer');
             container.style.display = 'block';
 
-            // Generate tables
-            const tables = generateDataTables(data);
-
             const list = document.getElementById('insightsList');
-
             let html = '';
 
-            // Display data tables first
-            if (tables.length > 0) {
-                html += '<div style="margin-bottom: 30px;"><h3 style="color: #667eea; margin-bottom: 20px;">📊 Data Analysis</h3>';
-                tables.forEach(table => {
-                    html += `<div style="margin-bottom: 30px;">
-                        <h4 style="color: #4a5568; margin-bottom: 15px;">${table.title}</h4>
-                        ${table.html}
-                    </div>`;
-                });
-                html += '</div>';
-            }
+            // Check if this is AI-powered analysis
+            if (data.mode === 'ai_analysis' && data.aiAnalysis) {
+                // Display AI analysis with proper formatting
+                html += `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                        <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                            <span>🤖</span>
+                            <span>AI-Powered Comprehensive Analysis</span>
+                        </h3>
+                        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
+                            Powered by ${data.model || 'Gemini 1.5 Flash'}
+                        </p>
+                    </div>
+                    <div style="background: white; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; line-height: 1.8; color: #2d3748;">
+                        ${formatMarkdown(data.aiAnalysis)}
+                    </div>
+                `;
+            } else {
+                // Original display for regex-based insights
+                // Generate tables
+                const tables = generateDataTables(data);
 
-            // Display insights
-            html += '<h3 style="color: #667eea; margin-bottom: 20px;">💡 Key Insights</h3>';
-            html += data.insights.map(insight => `
-                <div class="insight-card">
-                    <div class="insight-type">${escapeHtml(insight.type.replace(/_/g, ' '))}</div>
-                    <div class="insight-text">💡 ${escapeHtml(insight.insight)}</div>
-                </div>
-            `).join('');
+                // Display data tables first
+                if (tables.length > 0) {
+                    html += '<div style="margin-bottom: 30px;"><h3 style="color: #667eea; margin-bottom: 20px;">📊 Data Analysis</h3>';
+                    tables.forEach(table => {
+                        html += `<div style="margin-bottom: 30px;">
+                            <h4 style="color: #4a5568; margin-bottom: 15px;">${table.title}</h4>
+                            ${table.html}
+                        </div>`;
+                    });
+                    html += '</div>';
+                }
 
-            if (data.insights.length === 0) {
-                html = '<p style="text-align: center; color: #718096; padding: 40px;">No insights generated. Try selecting different analyses.</p>';
+                // Display insights
+                html += '<h3 style="color: #667eea; margin-bottom: 20px;">💡 Key Insights</h3>';
+                html += data.insights.map(insight => `
+                    <div class="insight-card">
+                        <div class="insight-type">${escapeHtml(insight.type.replace(/_/g, ' '))}</div>
+                        <div class="insight-text">💡 ${escapeHtml(insight.insight)}</div>
+                    </div>
+                `).join('');
+
+                if (data.insights.length === 0) {
+                    html = '<p style="text-align: center; color: #718096; padding: 40px;">No insights generated. Try selecting different analyses.</p>';
+                }
             }
 
             list.innerHTML = html;
 
             // Scroll to insights
             container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Simple markdown formatter for AI analysis
+        function formatMarkdown(text) {
+            if (!text) return '';
+
+            // Escape HTML first
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            // Format markdown
+            html = html
+                // Headers
+                .replace(/^### (.*$)/gm, '<h3 style="color: #667eea; margin-top: 30px; margin-bottom: 15px; font-size: 1.3em;">$1</h3>')
+                .replace(/^## (.*$)/gm, '<h2 style="color: #5a67d8; margin-top: 35px; margin-bottom: 20px; font-size: 1.5em;">$1</h2>')
+                .replace(/^# (.*$)/gm, '<h1 style="color: #4c51bf; margin-top: 40px; margin-bottom: 25px; font-size: 1.8em;">$1</h1>')
+                // Bold
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // Italic
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                // Code blocks
+                .replace(/```([\s\S]*?)```/g, '<pre style="background: #f7fafc; padding: 15px; border-radius: 8px; overflow-x: auto; border-left: 4px solid #667eea;"><code>$1</code></pre>')
+                // Inline code
+                .replace(/`([^`]+)`/g, '<code style="background: #f7fafc; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #d53f8c;">$1</code>')
+                // Bullet lists
+                .replace(/^\• (.*$)/gm, '<li style="margin-left: 20px;">$1</li>')
+                .replace(/^- (.*$)/gm, '<li style="margin-left: 20px;">$1</li>')
+                // Tables (markdown tables)
+                .replace(/\n\|(.+)\|\n\|[-:\s|]+\|\n((?:\|.+\|\n?)+)/g, function(match, header, rows) {
+                    let tableHtml = '<table class="data-table" style="width: 100%; border-collapse: collapse; margin: 20px 0;">';
+
+                    // Header
+                    const headers = header.split('|').map(h => h.trim()).filter(h => h);
+                    tableHtml += '<thead><tr>';
+                    headers.forEach(h => {
+                        tableHtml += `<th style="background: #667eea; color: white; padding: 12px; text-align: left; border: 1px solid #e2e8f0;">${h}</th>`;
+                    });
+                    tableHtml += '</tr></thead><tbody>';
+
+                    // Rows
+                    const rowLines = rows.trim().split('\n');
+                    rowLines.forEach(row => {
+                        const cells = row.split('|').map(c => c.trim()).filter(c => c);
+                        if (cells.length > 0) {
+                            tableHtml += '<tr>';
+                            cells.forEach(cell => {
+                                tableHtml += `<td style="padding: 12px; border: 1px solid #e2e8f0;">${cell}</td>`;
+                            });
+                            tableHtml += '</tr>';
+                        }
+                    });
+
+                    tableHtml += '</tbody></table>';
+                    return tableHtml;
+                })
+                // Line breaks
+                .replace(/\n\n/g, '</p><p style="margin: 15px 0;">')
+                .replace(/\n/g, '<br>');
+
+            return '<p style="margin: 15px 0;">' + html + '</p>';
         }
 
         function collapseStep(stepId) {
@@ -1432,6 +2868,159 @@
         }
 
         // ========================================================================
+        // FORMAT DATA FOR CLAUDE PRO (runs in browser - no backend call!)
+        // ========================================================================
+
+        function formatForClaudeAnalysis(data) {
+            const post = data.post;
+            const comments = data.valuableComments;
+            const stats = data.extractionStats;
+
+            // Build the formatted text with embedded prompt
+            let output = `═══════════════════════════════════════════════════════════════════════════
+REDDIT CONTENT ANALYSIS REQUEST
+═══════════════════════════════════════════════════════════════════════════
+
+You are an expert Reddit content analyst. Below is a Reddit post with extracted high-value comments. Provide deep, actionable insights that go beyond surface-level observations.
+
+═══════════════════════════════════════════════════════════════════════════
+ANALYSIS FRAMEWORK
+═══════════════════════════════════════════════════════════════════════════
+
+1. CONTENT INTELLIGENCE
+   • What type of discussion is this? (Don't force categories - describe what you observe)
+   • What makes this content engaging to this audience?
+   • What patterns emerge that might not be immediately obvious?
+
+2. ENGAGEMENT DYNAMICS
+   • Why did certain comments get high upvotes? What resonated?
+   • Is there consensus, controversy, or something else driving engagement?
+   • What's the upvote distribution telling us?
+
+3. HIDDEN PATTERNS
+   Look for non-obvious patterns:
+   • Cognitive biases (confirmation bias, survivorship bias, etc.)
+   • Emotional triggers (fear, hope, identity, validation)
+   • Social dynamics (expertise vs experience, contrarian vs conformist)
+   • Temporal patterns (immediate vs long-term thinking)
+   • Economic factors (price sensitivity, value perception)
+
+4. AUDIENCE INSIGHTS
+   • Who is participating? (experts, enthusiasts, beginners, skeptics)
+   • What do they care about? (practical advice, validation, entertainment, learning)
+   • What assumptions do they share?
+   • What questions are they really asking (vs what they explicitly say)?
+
+5. CONTENT STRATEGY INTELLIGENCE
+   If someone wanted to create similar engaging content:
+   • What elements should they replicate?
+   • What format works best? (question, story, controversy, education)
+   • What tone resonates?
+   • What timing/context matters?
+
+6. SURPRISING FINDINGS
+   • What's unexpected or counter-intuitive?
+   • What would most people miss on first read?
+   • What does this reveal about the community/topic/culture?
+
+7. ACTIONABLE RECOMMENDATIONS
+   Provide 3-5 specific, actionable takeaways for:
+   • Content creators (how to replicate engagement)
+   • Marketers (audience insights for targeting)
+   • Researchers (cultural/social patterns)
+   • The original poster (what they can learn)
+
+8. DATA ANALYSIS WITH TABLES
+   Generate data-driven tables that are RELEVANT to this specific content type.
+   Choose 5-8 tables from these options based on what makes sense for THIS discussion:
+
+   UNIVERSAL TABLES (apply to most posts):
+   • Upvote Performance Tiers (Tier | Range | # Comments | Avg Position | Patterns)
+   • Top 10-20 Comments Breakdown (Rank | Author | Upvotes | Theme | Key Factor)
+   • Theme Distribution & Engagement (Theme | # Comments | Avg Upvotes | % of Discussion)
+   • Word Count vs Engagement (Range | # Comments | Avg Upvotes | Optimal?)
+   • Sentiment Distribution (Sentiment | # Comments | Avg Upvotes | Characteristics)
+
+   CONTENT-SPECIFIC TABLES (choose relevant ones):
+   For FACTUAL/TIL: Cognitive violations, verifiability matrix, temporal references
+   For PRODUCT/REVIEW: Feature sentiment, price analysis, comparison matrix
+   For OPINION/DEBATE: Viewpoint distribution, argument quality, polarization
+   For ADVICE/HOW-TO: Success rates, expert vs experience, timeline expectations
+   For STORY/EXPERIENCE: Emotional responses, advice vs empathy ratios
+
+   TABLE GENERATION RULES:
+   • Use markdown table format for easy reading
+   • Include column headers and clear data
+   • Add brief interpretation after each table
+   • Only include tables that have sufficient data (minimum 5-10 data points)
+   • Prioritize tables that reveal non-obvious insights
+   • Calculate percentages, averages, and ratios where meaningful
+
+IMPORTANT ANALYSIS GUIDELINES:
+• Don't just summarize - analyze WHY things are the way they are
+• Look for patterns across multiple comments, not just individual standouts
+• Consider context: subreddit culture, current events, audience demographics
+• Be honest if something is unclear or if the data is too limited
+• Cite specific examples from the comments to support your insights
+• Generate tables in markdown format for clarity
+• Choose 5-8 most relevant tables based on content type - don't force irrelevant tables
+
+═══════════════════════════════════════════════════════════════════════════
+POST DATA
+═══════════════════════════════════════════════════════════════════════════
+
+TITLE: ${post.title}
+
+METADATA:
+• Posted by: u/${post.author}
+• Subreddit: r/${post.subreddit || 'unknown'}
+• Post Score: ${post.score} upvotes
+• Total Comments: ${post.num_comments}
+
+EXTRACTION STATISTICS:
+• Total Comments Processed: ${stats.total}
+• High-Value Comments Extracted: ${stats.extracted} (${stats.percentageKept}% kept)
+• Average Comment Score: ${stats.averageScore}
+• Extraction Quality: ${stats.percentageKept}% retention indicates ${stats.percentageKept > 50 ? 'diverse quality' : 'highly selective filtering'}
+
+POST BODY:
+${post.selftext || '[No body text - link or image post]'}
+
+═══════════════════════════════════════════════════════════════════════════
+HIGH-VALUE COMMENTS (${comments.length} comments)
+═══════════════════════════════════════════════════════════════════════════
+
+`;
+
+            // Add all comments
+            comments.forEach((comment, index) => {
+                output += `
+────────────────────────────────────────────────────────────────────────────
+COMMENT #${index + 1}
+────────────────────────────────────────────────────────────────────────────
+Author: u/${comment.author}
+Score: ${comment.score} upvotes${comment.awards > 0 ? ` | Awards: ${comment.awards}` : ''}
+Engagement Rank: #${index + 1} of ${comments.length}
+
+${comment.body}
+`;
+            });
+
+            output += `
+═══════════════════════════════════════════════════════════════════════════
+END OF DATA
+═══════════════════════════════════════════════════════════════════════════
+
+Exported: ${new Date().toISOString()}
+Analysis Tool: Reddit Analyzer v1.0
+
+Now please provide your comprehensive analysis following the framework above.
+`;
+
+            return output;
+        }
+
+        // ========================================================================
         // DOWNLOAD FOR CLAUDE (no Drive permissions needed!)
         // ========================================================================
 
@@ -1447,41 +3036,38 @@
             btn.innerHTML = '⏳ Formatting...';
             btn.disabled = true;
 
-            // Get formatted content from backend
-            google.script.run
-                .withSuccessHandler(function(formattedText) {
+            // Format content in browser (no backend call!)
+            try {
+                const formattedText = formatForClaudeAnalysis(extractedData);
+
+                // Create download
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+                const postTitle = extractedData.post.title.substring(0, 50).replace(/[^a-z0-9]/gi, '_');
+                const fileName = `Reddit_Analysis_${postTitle}_${timestamp}.txt`;
+
+                const blob = new Blob([formattedText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Show success
+                btn.innerHTML = '✅ Downloaded!';
+                btn.disabled = false;
+                setTimeout(() => {
                     btn.innerHTML = originalText;
-                    btn.disabled = false;
+                }, 2000);
 
-                    // Create download
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-                    const postTitle = extractedData.post.title.substring(0, 50).replace(/[^a-z0-9]/gi, '_');
-                    const fileName = `Reddit_Analysis_${postTitle}_${timestamp}.txt`;
-
-                    const blob = new Blob([formattedText], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
-                    // Show success and instructions
-                    btn.innerHTML = '✅ Downloaded!';
-                    setTimeout(() => {
-                        btn.innerHTML = originalText;
-                    }, 2000);
-
-                    showClaudeInstructions('download');
-                })
-                .withFailureHandler(function(error) {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                    alert('❌ Failed to format content:\n\n' + error.message);
-                })
-                .formatForClaudeAnalysis(extractedData);
+                showClaudeInstructions('download');
+            } catch (error) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                alert('❌ Failed to format content:\n\n' + error.message);
+            }
         }
 
         // ========================================================================
@@ -1500,34 +3086,33 @@
             btn.innerHTML = '⏳ Formatting...';
             btn.disabled = true;
 
-            // Get formatted content from backend
-            google.script.run
-                .withSuccessHandler(function(formattedText) {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
+            // Format content in browser (no backend call!)
+            try {
+                const formattedText = formatForClaudeAnalysis(extractedData);
 
-                    // Copy to clipboard
-                    navigator.clipboard.writeText(formattedText)
-                        .then(() => {
-                            // Show success message
-                            btn.innerHTML = '✅ Copied!';
-                            setTimeout(() => {
-                                btn.innerHTML = originalText;
-                            }, 2000);
+                // Copy to clipboard
+                navigator.clipboard.writeText(formattedText)
+                    .then(() => {
+                        // Show success message
+                        btn.innerHTML = '✅ Copied!';
+                        btn.disabled = false;
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                        }, 2000);
 
-                            // Show instructions
-                            showClaudeInstructions();
-                        })
-                        .catch(err => {
-                            alert('❌ Failed to copy to clipboard:\n\n' + err);
-                        });
-                })
-                .withFailureHandler(function(error) {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                    alert('❌ Failed to format content:\n\n' + error.message);
-                })
-                .formatForClaudeAnalysis(extractedData);
+                        // Show instructions
+                        showClaudeInstructions('copy');
+                    })
+                    .catch(err => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        alert('❌ Failed to copy to clipboard:\n\n' + err);
+                    });
+            } catch (error) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                alert('❌ Failed to format content:\n\n' + error.message);
+            }
         }
 
         // ========================================================================
