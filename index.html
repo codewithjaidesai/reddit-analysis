@@ -1309,7 +1309,7 @@
                         </button>
                     </div>
 
-                    <div id="insightsSection_${index}" style="display: none; margin-top: 20px; padding: 20px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea;">
+                    <div id="insightsSection_${index}" style="display: none; margin-top: 20px; padding: 20px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #667eea; max-height: 80vh; overflow-y: auto;">
                         <div id="insightsContent_${index}"></div>
                     </div>
 
@@ -1482,6 +1482,9 @@
             const callbackName = 'callback_multipost_insights_' + Date.now() + '_' + index;
             window[callbackName] = function(response) {
                 if (response.success && response.data) {
+                    // Store AI analysis in the result for later PDF export
+                    result.aiInsights = response.data;
+
                     // Display AI analysis
                     const data = response.data;
                     let html = '';
@@ -1539,12 +1542,146 @@
                 return;
             }
 
-            // PDF export temporarily disabled - AI insights don't export to PDF yet
-            // Use "Download for Claude" or "Copy" buttons instead to get the full analysis
-            alert('PDF export is not available for AI insights yet. Please use the "Download for Claude" or "Copy" buttons to save the analysis.');
-            return;
+            const post = result.post;
+            const data = result.data;
+            const stats = data.extractionStats || {};
 
-            /* DISABLED - was using regex insights
+            // Check if AI insights have been generated
+            if (!result.aiInsights || !result.aiInsights.aiAnalysis) {
+                alert('Please generate AI insights first by clicking "Generate Insights (Step 3 Analysis)"');
+                return;
+            }
+
+            const aiAnalysis = result.aiInsights.aiAnalysis;
+            const model = result.aiInsights.model || 'Gemini 2.5 Flash';
+
+            // Create PDF window with AI insights
+            const printWindow = window.open('', '', 'width=800,height=600');
+
+            // Convert markdown-style formatting to HTML for PDF
+            const aiHtml = aiAnalysis
+                .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/###\s+(.+?)(\n|$)/g, '<h3>$1</h3>')
+                .replace(/##\s+(.+?)(\n|$)/g, '<h2>$1</h2>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>AI Insights - ${escapeHtml(post.title)}</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            line-height: 1.6;
+                            max-width: 800px;
+                            margin: 20px;
+                            color: #333;
+                        }
+                        .header {
+                            border-bottom: 3px solid #667eea;
+                            padding-bottom: 15px;
+                            margin-bottom: 20px;
+                        }
+                        h1 {
+                            color: #667eea;
+                            font-size: 1.5em;
+                            margin-bottom: 10px;
+                        }
+                        h2 {
+                            color: #4a5568;
+                            font-size: 1.3em;
+                            margin: 20px 0 10px 0;
+                        }
+                        h3 {
+                            color: #667eea;
+                            font-size: 1.1em;
+                            margin: 15px 0 10px 0;
+                        }
+                        .meta {
+                            color: #666;
+                            font-size: 0.9em;
+                            margin-bottom: 15px;
+                        }
+                        .stats {
+                            background: #f5f5f5;
+                            padding: 15px;
+                            border-radius: 5px;
+                            margin-bottom: 20px;
+                        }
+                        .ai-badge {
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            padding: 10px 15px;
+                            border-radius: 5px;
+                            margin-bottom: 20px;
+                            text-align: center;
+                        }
+                        .content {
+                            line-height: 1.8;
+                        }
+                        .content p {
+                            margin: 10px 0;
+                        }
+                        .content strong {
+                            color: #2d3748;
+                        }
+                        .footer {
+                            margin-top: 30px;
+                            padding-top: 15px;
+                            border-top: 1px solid #ddd;
+                            text-align: center;
+                            color: #999;
+                            font-size: 0.85em;
+                        }
+                        @media print {
+                            body { margin: 15px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>🤖 AI-Powered Reddit Analysis</h1>
+                        <h2>${escapeHtml(post.title)}</h2>
+                        <div class="meta">
+                            r/${escapeHtml(post.subreddit)} • Posted by u/${escapeHtml(post.author)} •
+                            ${post.score.toLocaleString()} upvotes • ${post.num_comments.toLocaleString()} comments
+                        </div>
+                    </div>
+
+                    <div class="ai-badge">
+                        <strong>🤖 Powered by ${escapeHtml(model)}</strong>
+                    </div>
+
+                    <div class="stats">
+                        <strong>Analysis Summary:</strong><br>
+                        Total Comments: ${stats.total || 0} |
+                        Valuable Comments Analyzed: ${stats.extracted || 0}
+                    </div>
+
+                    <div class="content">
+                        <p>${aiHtml}</p>
+                    </div>
+
+                    <div class="footer">
+                        Generated by Reddit Analyzer • AI Analysis • ${new Date().toLocaleString()}
+                    </div>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(html);
+            printWindow.document.close();
+
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+        }
+
+        /* OLD REGEX-BASED PDF FUNCTION (DISABLED)
             // Generate insights
             const allAnalysisTypes = [
                 'entity_analysis',
