@@ -5,6 +5,128 @@ const REDDIT_CONFIG = {
   userAgent: 'web:RedditAnalyzer:v1.0.0 (by /u/gamestopfan)'
 };
 
+// Gemini AI Configuration
+const GEMINI_CONFIG = {
+  apiKey: 'AIzaSyACsM5lAgXS16dCathjD3jeKD-yGCsDPws',
+  model: 'gemini-2.5-flash', // Stable Gemini 2.5 Flash - fast and supports 1M tokens
+  apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/'
+};
+
+// Test function to verify backend is working
+function testBackendConnection() {
+  return {
+    success: true,
+    message: 'Backend connection working!',
+    timestamp: new Date().toISOString()
+  };
+}
+
+// List all available Gemini models
+function listGeminiModels() {
+  console.log('Listing available Gemini models...');
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_CONFIG.apiKey}`;
+
+    const options = {
+      method: 'GET',
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+
+    console.log('Response code:', responseCode);
+
+    if (responseCode !== 200) {
+      const errorText = response.getContentText();
+      console.error('API error:', errorText);
+      return {
+        success: false,
+        error: errorText
+      };
+    }
+
+    const result = JSON.parse(response.getContentText());
+
+    console.log('Available models:', JSON.stringify(result, null, 2));
+
+    // Extract model names that support generateContent
+    const models = result.models || [];
+    const generateContentModels = models
+      .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+      .map(m => ({
+        name: m.name,
+        displayName: m.displayName,
+        description: m.description
+      }));
+
+    return {
+      success: true,
+      totalModels: models.length,
+      generateContentModels: generateContentModels,
+      allModels: models.map(m => m.name)
+    };
+
+  } catch (error) {
+    console.error('Error listing models:', error);
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+// Test function to verify Gemini API is working
+function testGeminiAPI() {
+  console.log('Testing Gemini API connection...');
+
+  const testPrompt = "Say 'Hello! Gemini API is working correctly.' and nothing else.";
+
+  try {
+    const result = analyzeWithGemini(testPrompt);
+
+    if (result.success) {
+      return {
+        success: true,
+        message: 'Gemini API is working!',
+        response: result.analysis,
+        model: result.model
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Gemini API failed',
+        error: result.error || result.message
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Gemini API test failed',
+      error: error.toString()
+    };
+  }
+}
+
+// Test Reddit OAuth
+function testRedditAuth() {
+  try {
+    const token = getRedditAccessToken();
+    return {
+      success: true,
+      message: 'OAuth token obtained successfully',
+      tokenLength: token ? token.length : 0
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: 'OAuth failed: ' + error.message,
+      error: error.toString()
+    };
+  }
+}
+
 // Cache Reddit access token in Script Properties
 function getRedditAccessToken() {
   const scriptProperties = PropertiesService.getScriptProperties();
@@ -55,7 +177,413 @@ function getRedditAccessToken() {
   }
 }
 
+// ============================================================================
+// GEMINI AI ANALYSIS
+// ============================================================================
+
+/**
+ * Call Gemini API to analyze Reddit content with AI
+ * @param {string} prompt - The analysis prompt with Reddit data
+ * @returns {object} AI analysis result
+ */
+function analyzeWithGemini(prompt) {
+  console.log('Calling Gemini API for AI analysis...');
+
+  try {
+    const url = `${GEMINI_CONFIG.apiUrl}${GEMINI_CONFIG.model}:generateContent?key=${GEMINI_CONFIG.apiKey}`;
+
+    const payload = {
+      contents: [{
+        parts: [{
+          text: prompt
+        }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      },
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_NONE"
+        }
+      ]
+    };
+
+    const options = {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+
+    console.log('Gemini API response code:', responseCode);
+
+    if (responseCode !== 200) {
+      const errorText = response.getContentText();
+      console.error('Gemini API error:', errorText);
+      throw new Error(`Gemini API error (${responseCode}): ${errorText}`);
+    }
+
+    const result = JSON.parse(response.getContentText());
+
+    // Extract the AI-generated text
+    if (result.candidates && result.candidates.length > 0 &&
+        result.candidates[0].content && result.candidates[0].content.parts &&
+        result.candidates[0].content.parts.length > 0) {
+
+      const aiAnalysis = result.candidates[0].content.parts[0].text;
+      console.log('Gemini analysis received, length:', aiAnalysis.length);
+
+      return {
+        success: true,
+        analysis: aiAnalysis,
+        model: GEMINI_CONFIG.model
+      };
+    } else {
+      throw new Error('Unexpected response format from Gemini API');
+    }
+
+  } catch (error) {
+    console.error('Gemini API call failed:', error);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'AI analysis failed: ' + error.message
+    };
+  }
+}
+
+// ============================================================================
+// REDDIT TOPIC SEARCH
+// ============================================================================
+
+/**
+ * Search Reddit by topic and return high-engagement posts
+ * @param {string} topic - Search query (e.g., "AI and machine learning")
+ * @param {string} timeRange - Time filter: week, month, year (default: week)
+ * @param {string} subreddits - Optional: comma-separated list (e.g., "MachineLearning,artificial")
+ * @param {number} limit - Number of results to return (default: 15)
+ */
+function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit = 15) {
+  console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit);
+
+  try {
+    // Use Reddit's public JSON API (no authentication required)
+    // This avoids 403 errors from OAuth authentication issues
+    let searchUrl = 'https://www.reddit.com/search.json';
+    let params = {
+      'q': topic,
+      't': timeRange, // hour, day, week, month, year, all
+      'sort': 'relevance', // Use Reddit's relevance algorithm for best keyword matching
+      'limit': 100, // Get more posts to filter by engagement
+      'restrict_sr': 'false',
+      'type': 'link', // Only posts, not comments
+      'raw_json': 1 // Prevent HTML entity encoding
+    };
+
+    // If specific subreddits requested, search within them
+    if (subreddits && subreddits.trim()) {
+      const subredditList = subreddits.split(',').map(s => s.trim()).filter(s => s);
+      if (subredditList.length > 0) {
+        // Add subreddit restriction to query with proper parentheses for OR grouping
+        params.q = `${topic} (subreddit:${subredditList.join(' OR subreddit:')})`;
+      }
+    }
+
+    // Build query string
+    const queryString = Object.keys(params)
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&');
+
+    const fullUrl = `${searchUrl}?${queryString}`;
+
+    const options = {
+      method: 'GET',
+      headers: {
+        'User-Agent': REDDIT_CONFIG.userAgent
+      },
+      muteHttpExceptions: true
+    };
+
+    console.log('Fetching from URL:', fullUrl);
+    const response = UrlFetchApp.fetch(fullUrl, options);
+    const responseCode = response.getResponseCode();
+    console.log('Response code:', responseCode);
+
+    if (responseCode !== 200) {
+      throw new Error(`Reddit API returned status ${responseCode}: ${response.getContentText().substring(0, 500)}`);
+    }
+
+    const data = JSON.parse(response.getContentText());
+    console.log('Parsed response, found posts:', data.data?.children?.length || 0);
+
+    if (!data || !data.data || !data.data.children) {
+      throw new Error('Invalid response from Reddit API: ' + JSON.stringify(data).substring(0, 200));
+    }
+
+    const posts = data.data.children.map(child => child.data);
+    console.log('Processing', posts.length, 'posts');
+
+    // Filter and score posts
+    const scoredPosts = posts
+      .filter(post => {
+        // Filter out low-quality posts
+        return post.score >= 20 &&
+               post.num_comments >= 10 &&
+               post.upvote_ratio >= 0.7 &&
+               !post.is_video && // Skip videos for now
+               !post.stickied; // Skip stickied mod posts
+      })
+      .map(post => {
+        // Calculate engagement score
+        const engagementScore = post.score + (post.num_comments * 2);
+
+        // Calculate relative engagement (per 10k subscribers)
+        const engagementRate = post.subreddit_subscribers > 0
+          ? (post.score / post.subreddit_subscribers) * 10000
+          : 0;
+
+        // Determine engagement tier
+        let engagementTier = 'low';
+        let engagementStars = 2;
+        if (post.score >= 1000 || engagementRate >= 5) {
+          engagementTier = 'viral';
+          engagementStars = 5;
+        } else if (post.score >= 500 || engagementRate >= 3) {
+          engagementTier = 'high';
+          engagementStars = 4;
+        } else if (post.score >= 100 || engagementRate >= 1) {
+          engagementTier = 'medium';
+          engagementStars = 3;
+        }
+
+        // Calculate post age
+        const postAgeHours = (Date.now() - (post.created_utc * 1000)) / (1000 * 60 * 60);
+        let ageText = '';
+        if (postAgeHours < 1) {
+          ageText = Math.floor(postAgeHours * 60) + ' minutes ago';
+        } else if (postAgeHours < 24) {
+          ageText = Math.floor(postAgeHours) + ' hours ago';
+        } else {
+          ageText = Math.floor(postAgeHours / 24) + ' days ago';
+        }
+
+        return {
+          id: post.id,
+          title: post.title,
+          subreddit: post.subreddit,
+          subreddit_subscribers: post.subreddit_subscribers,
+          score: post.score,
+          num_comments: post.num_comments,
+          upvote_ratio: post.upvote_ratio,
+          created_utc: post.created_utc,
+          url: 'https://www.reddit.com' + post.permalink,
+          selftext: post.selftext ? post.selftext.substring(0, 200) : '',
+          post_hint: post.post_hint || 'text',
+          engagementScore: engagementScore,
+          engagementRate: Math.round(engagementRate * 10) / 10,
+          engagementTier: engagementTier,
+          engagementStars: engagementStars,
+          ageText: ageText,
+          ageHours: postAgeHours
+        };
+      })
+      .sort((a, b) => b.engagementScore - a.engagementScore)
+      .slice(0, limit);
+
+    console.log(`Found ${scoredPosts.length} high-engagement posts`);
+
+    return {
+      success: true,
+      query: topic,
+      timeRange: timeRange,
+      totalFound: posts.length,
+      afterFiltering: scoredPosts.length,
+      posts: scoredPosts
+    };
+
+  } catch (error) {
+    console.error('Search error:', error);
+    console.error('Error stack:', error.stack);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'Failed to search Reddit: ' + error.message,
+      posts: []
+    };
+  }
+}
+
+/**
+ * Search top posts from a specific subreddit
+ * @param {string} subreddit - Subreddit name (without r/)
+ * @param {string} timeRange - Time filter: day, week, month, year (default: week)
+ * @param {number} limit - Number of results to return (default: 15)
+ */
+function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
+  console.log('Searching subreddit:', subreddit, 'Time:', timeRange, 'Limit:', limit);
+
+  try {
+    // Use Reddit's public JSON API (no authentication required)
+    // This avoids 403 errors from OAuth authentication issues
+    const searchUrl = `https://www.reddit.com/r/${subreddit}/top.json`;
+    const params = {
+      't': timeRange, // hour, day, week, month, year, all
+      'limit': 50, // Get more than we need for filtering
+      'raw_json': 1 // Prevent HTML entity encoding
+    };
+
+    // Build query string
+    const queryString = Object.keys(params)
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&');
+
+    const fullUrl = `${searchUrl}?${queryString}`;
+
+    const options = {
+      method: 'GET',
+      headers: {
+        'User-Agent': REDDIT_CONFIG.userAgent
+      },
+      muteHttpExceptions: true
+    };
+
+    console.log('Fetching from URL:', fullUrl);
+    const response = UrlFetchApp.fetch(fullUrl, options);
+    const responseCode = response.getResponseCode();
+    console.log('Response code:', responseCode);
+
+    if (responseCode !== 200) {
+      throw new Error(`Reddit API returned status ${responseCode}: ${response.getContentText().substring(0, 500)}`);
+    }
+
+    const data = JSON.parse(response.getContentText());
+    console.log('Parsed response, found posts:', data.data?.children?.length || 0);
+
+    if (!data || !data.data || !data.data.children) {
+      throw new Error('Invalid response from Reddit API: ' + JSON.stringify(data).substring(0, 200));
+    }
+
+    const posts = data.data.children.map(child => child.data);
+    console.log('Processing', posts.length, 'posts');
+
+    // Filter and score posts (same logic as topic search)
+    const scoredPosts = posts
+      .filter(post => {
+        // Filter out low-quality posts
+        return post.score >= 20 &&
+               post.num_comments >= 10 &&
+               post.upvote_ratio >= 0.7 &&
+               !post.is_video && // Skip videos for now
+               !post.stickied; // Skip stickied mod posts
+      })
+      .map(post => {
+        // Calculate engagement score
+        const engagementScore = post.score + (post.num_comments * 2);
+
+        // Calculate relative engagement (per 10k subscribers)
+        const engagementRate = post.subreddit_subscribers > 0
+          ? (post.score / post.subreddit_subscribers) * 10000
+          : 0;
+
+        // Determine engagement tier
+        let engagementTier = 'low';
+        let engagementStars = 2;
+        if (post.score >= 1000 || engagementRate >= 5) {
+          engagementTier = 'viral';
+          engagementStars = 5;
+        } else if (post.score >= 500 || engagementRate >= 3) {
+          engagementTier = 'high';
+          engagementStars = 4;
+        } else if (post.score >= 100 || engagementRate >= 1) {
+          engagementTier = 'medium';
+          engagementStars = 3;
+        }
+
+        // Calculate post age
+        const postAgeHours = (Date.now() - (post.created_utc * 1000)) / (1000 * 60 * 60);
+        let ageText = '';
+        if (postAgeHours < 1) {
+          ageText = Math.floor(postAgeHours * 60) + ' minutes ago';
+        } else if (postAgeHours < 24) {
+          ageText = Math.floor(postAgeHours) + ' hours ago';
+        } else {
+          ageText = Math.floor(postAgeHours / 24) + ' days ago';
+        }
+
+        return {
+          id: post.id,
+          title: post.title,
+          subreddit: post.subreddit,
+          subreddit_subscribers: post.subreddit_subscribers,
+          score: post.score,
+          num_comments: post.num_comments,
+          upvote_ratio: post.upvote_ratio,
+          created_utc: post.created_utc,
+          url: 'https://www.reddit.com' + post.permalink,
+          selftext: post.selftext ? post.selftext.substring(0, 200) : '',
+          post_hint: post.post_hint || 'text',
+          engagementScore: engagementScore,
+          engagementRate: Math.round(engagementRate * 10) / 10,
+          engagementTier: engagementTier,
+          engagementStars: engagementStars,
+          ageText: ageText,
+          ageHours: postAgeHours
+        };
+      })
+      .sort((a, b) => b.engagementScore - a.engagementScore)
+      .slice(0, limit);
+
+    console.log(`Found ${scoredPosts.length} high-engagement posts from r/${subreddit}`);
+
+    return {
+      success: true,
+      subreddit: subreddit,
+      timeRange: timeRange,
+      totalFound: posts.length,
+      afterFiltering: scoredPosts.length,
+      posts: scoredPosts
+    };
+
+  } catch (error) {
+    console.error('Subreddit search error:', error);
+    console.error('Error stack:', error.stack);
+    return {
+      success: false,
+      error: error.toString(),
+      message: 'Failed to search r/' + subreddit + ': ' + error.message,
+      posts: []
+    };
+  }
+}
+
 function doGet(e) {
+  // If no URL parameter, serve the HTML interface
+  if (!e.parameter.url) {
+    return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('Reddit Analyzer')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // Otherwise, handle JSONP requests for URL extraction
   const output = ContentService.createTextOutput();
 
   try {
@@ -159,10 +687,15 @@ function doGet(e) {
       processedData = analyzeAndRecommend(contentData);
       console.log('Step2: Recommendations generated:', processedData.totalRecommendations);
     } else if (mode === 'step3_analyze') {
-      // Step 3: Generate selected insights
+      console.log('=== STEP 3 ANALYZE MODE TRIGGERED ===');
+      console.log('Selected analyses:', e.parameter.selectedAnalyses);
+
+      // Step 3: Generate AI-powered insights
       // Re-fetch to avoid URL length issues
+      console.log('Fetching Reddit data for Step 3...');
       const rawRedditData = fetchAuthenticatedRedditData(url);
       const selectedAnalyses = JSON.parse(e.parameter.selectedAnalyses || '[]');
+      console.log('Parsed selected analyses:', selectedAnalyses);
 
       let post = null;
       let comments = [];
@@ -177,6 +710,8 @@ function doGet(e) {
         }
       }
 
+      console.log('Extracted post and', comments.length, 'comments');
+
       const validComments = comments.filter(comment =>
         comment.body &&
         comment.body !== '[deleted]' &&
@@ -186,48 +721,23 @@ function doGet(e) {
         comment.body.trim().length > 10
       );
 
+      console.log('Filtered to', validComments.length, 'valid comments');
+
       const contentData = extractValuableContentOnly({
         post: post,
         comments: validComments
       });
 
-      processedData = generateSelectedInsights(contentData, selectedAnalyses);
-    } else if (mode === 'step3_ai') {
-      // Step 3 AI: Generate AI-powered insights (re-fetch for simplicity)
-      const selectedAnalyses = JSON.parse(e.parameter.selectedAnalyses || '[]');
+      console.log('Content data prepared, calling generateAIInsights...');
 
-      console.log('Step3 AI: Fetching data for AI analysis');
-      const rawRedditData = fetchAuthenticatedRedditData(url);
-
-      let post = null;
-      let comments = [];
-
-      if (Array.isArray(rawRedditData) && rawRedditData.length >= 1) {
-        if (rawRedditData[0] && rawRedditData[0].data && rawRedditData[0].data.children) {
-          post = rawRedditData[0].data.children[0].data;
-        }
-        if (rawRedditData[1] && rawRedditData[1].data && rawRedditData[1].data.children) {
-          const rawComments = rawRedditData[1].data.children;
-          comments = extractAllComments(rawComments);
-        }
+      // Use AI-powered insights instead of regex-based analysis
+      try {
+        processedData = generateAIInsights(contentData);
+        console.log('AI insights generated successfully!');
+      } catch (error) {
+        console.error('Failed to generate AI insights:', error);
+        throw error; // Re-throw so user sees the error
       }
-
-      const validComments = comments.filter(comment =>
-        comment.body &&
-        comment.body !== '[deleted]' &&
-        comment.body !== '[removed]' &&
-        comment.author &&
-        comment.author !== '[deleted]' &&
-        comment.body.trim().length > 10
-      );
-
-      const contentData = extractValuableContentOnly({
-        post: post,
-        comments: validComments
-      });
-
-      console.log('Step3 AI: Generating AI insights for', selectedAnalyses.length, 'analyses');
-      processedData = generateAIInsights(contentData, selectedAnalyses);
     } else {
       // Deep dive mode for single post
       const redditData = fetchAuthenticatedRedditData(url);
@@ -270,279 +780,6 @@ function doGet(e) {
       return output.setContent(JSON.stringify(errorResponse));
     }
   }
-}
-
-// Handle POST requests for Step 3 analysis with extracted data
-function doPost(e) {
-  const output = ContentService.createTextOutput();
-
-  try {
-    const postData = JSON.parse(e.postData.contents);
-    const extractedData = postData.extractedData;
-    const selectedAnalyses = postData.selectedAnalyses || [];
-
-    console.log('POST Step 3: Generating AI insights for', selectedAnalyses.length, 'selected analyses');
-    console.log('POST Step 3: Received', extractedData.valuableComments?.length || 0, 'comments');
-
-    // Generate AI-powered insights using the extracted data
-    const processedData = generateAIInsights(extractedData, selectedAnalyses);
-
-    const responseData = {
-      success: true,
-      message: "AI insights generated successfully!",
-      timestamp: new Date().toISOString(),
-      data: processedData,
-      dataSource: "Gemini AI Analysis"
-    };
-
-    output.setMimeType(ContentService.MimeType.JSON);
-    return output.setContent(JSON.stringify(responseData));
-
-  } catch (error) {
-    console.error('POST Error:', error);
-
-    const errorResponse = {
-      error: error.message,
-      success: false,
-      timestamp: new Date().toISOString(),
-      dataSource: "Error"
-    };
-
-    output.setMimeType(ContentService.MimeType.JSON);
-    return output.setContent(JSON.stringify(errorResponse));
-  }
-}
-
-// Gemini API Configuration
-const GEMINI_API_KEY = 'AIzaSyDe8nwpXC9v1D-9LFpb9H5sF88CvOa7Zq8'; // Store in Script Properties for security
-
-// Call Gemini API for AI analysis
-function callGeminiAPI(prompt) {
-  console.log('Calling Gemini API for AI analysis...');
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
-
-  const payload = {
-    contents: [{
-      parts: [{
-        text: prompt
-      }]
-    }]
-  };
-
-  const options = {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  };
-
-  try {
-    const response = UrlFetchApp.fetch(url, options);
-    console.log('Gemini API response code:', response.getResponseCode());
-
-    const jsonResponse = JSON.parse(response.getContentText());
-
-    if (jsonResponse.candidates && jsonResponse.candidates.length > 0) {
-      const content = jsonResponse.candidates[0].content;
-      if (content && content.parts && content.parts.length > 0) {
-        const analysisText = content.parts[0].text;
-        console.log('Gemini analysis received, length:', analysisText.length);
-        return analysisText;
-      }
-    }
-
-    console.error('Unexpected Gemini response format:', response.getContentText());
-    return null;
-
-  } catch (error) {
-    console.error('Gemini API error:', error);
-    return null;
-  }
-}
-
-// Generate AI-powered insights using Gemini
-function generateAIInsights(contentData, selectedAnalyses) {
-  console.log('Generating AI insights for', selectedAnalyses.length, 'analyses');
-
-  const comments = contentData.valuableComments || [];
-  const post = contentData.post || {};
-  const insights = [];
-
-  // Prepare comment text for Gemini
-  const commentTexts = comments.slice(0, 50).map((c, i) => {
-    return `Comment ${i+1} (Score: ${c.score}, Author: ${c.author}):\n${c.body.substring(0, 500)}`;
-  }).join('\n\n');
-
-  // Generate insights for each selected analysis type
-  selectedAnalyses.forEach(analysisId => {
-    let prompt = '';
-    let analysisType = '';
-
-    if (analysisId === 'entity_analysis') {
-      analysisType = 'Entity & Topic Analysis';
-      prompt = `Analyze the following Reddit comments and identify the top entities, topics, brands, or products being discussed. For each entity, provide:
-1. The entity name
-2. How frequently it's mentioned (as a percentage)
-3. The sentiment (positive, negative, or neutral) with percentage
-4. A brief insight about why it's being discussed
-
-Reddit Post: "${post.title}"
-
-Comments:
-${commentTexts}
-
-Provide 5-10 specific insights in this format:
-- "EntityName" discussed in X% of comments with Y% positive sentiment - [brief reason]`;
-    }
-
-    else if (analysisId === 'outcome_analysis') {
-      analysisType = 'Success/Failure Rate Analysis';
-      prompt = `Analyze the following Reddit comments and identify success vs failure rates for treatments, solutions, products, or approaches mentioned. Calculate:
-1. Success rate (percentage)
-2. Number of successful vs failed attempts
-3. Overall interpretation (highly effective, moderately effective, mixed results, or low success rate)
-
-Reddit Post: "${post.title}"
-
-Comments:
-${commentTexts}
-
-Provide specific insights about outcome rates in this format:
-- X% success rate across reported attempts (Y worked vs Z failed) - [interpretation]`;
-    }
-
-    else if (analysisId === 'speaker_analysis') {
-      analysisType = 'Expert vs Experience Mix';
-      prompt = `Analyze the following Reddit comments and identify the mix of:
-1. Expert/professional input (doctors, engineers, specialists)
-2. Firsthand personal experiences
-3. General community discussion
-
-Reddit Post: "${post.title}"
-
-Comments:
-${commentTexts}
-
-Provide insights about the credibility and perspective mix in this format:
-- X% expert/professional input, Y% firsthand experiences - [interpretation about balance and authenticity]`;
-    }
-
-    else if (analysisId === 'geographic_analysis') {
-      analysisType = 'Geographic Patterns';
-      prompt = `Analyze the following Reddit comments and identify geographic patterns, location-based differences, or regional variations mentioned. Look for:
-1. Countries, states, or cities mentioned
-2. How experiences/treatments/products vary by location
-3. Regional patterns or differences
-
-Reddit Post: "${post.title}"
-
-Comments:
-${commentTexts}
-
-Provide insights about geographic patterns in this format:
-- Geographic differences noted: [Location1] (X mentions), [Location2] (Y mentions) - [how it varies by location]`;
-    }
-
-    else if (analysisId === 'pricing_analysis') {
-      analysisType = 'Pricing/Cost Analysis';
-      prompt = `Analyze the following Reddit comments and identify pricing, cost, or affordability information. Look for:
-1. Specific prices or price ranges mentioned
-2. Whether something is described as expensive, affordable, or cheap
-3. Value for money insights
-
-Reddit Post: "${post.title}"
-
-Comments:
-${commentTexts}
-
-Provide insights about pricing in this format:
-- [Price range or cost insight] - [affordability assessment and value perception]`;
-    }
-
-    else if (analysisId === 'temporal_analysis') {
-      analysisType = 'Timeline & Duration Patterns';
-      prompt = `Analyze the following Reddit comments and identify temporal patterns such as:
-1. How long treatments/solutions take to work
-2. Duration of use or experience
-3. Time-based trends or changes
-
-Reddit Post: "${post.title}"
-
-Comments:
-${commentTexts}
-
-Provide insights about timing and duration in this format:
-- Timeline: [specific duration patterns] - [interpretation]`;
-    }
-
-    else if (analysisId === 'sideeffect_analysis') {
-      analysisType = 'Side Effect / Risk Analysis';
-      prompt = `Analyze the following Reddit comments and identify side effects, risks, warnings, or concerns mentioned. Look for:
-1. Specific side effects or problems
-2. How common they are
-3. Severity of concerns
-
-Reddit Post: "${post.title}"
-
-Comments:
-${commentTexts}
-
-Provide insights about risks and side effects in this format:
-- [Side effect or risk] reported in X% of comments - [severity assessment]`;
-    }
-
-    else if (analysisId === 'comparison_analysis') {
-      analysisType = 'Comparison & Alternative Analysis';
-      prompt = `Analyze the following Reddit comments and identify comparisons between different options, products, treatments, or alternatives. Look for:
-1. What is being compared
-2. Pros and cons of each option
-3. Which option is preferred and why
-
-Reddit Post: "${post.title}"
-
-Comments:
-${commentTexts}
-
-Provide insights about comparisons in this format:
-- [Option A] vs [Option B]: [key differences and preferences]`;
-    }
-
-    if (prompt) {
-      console.log(`Generating AI insight for: ${analysisType}`);
-      const aiResponse = callGeminiAPI(prompt);
-
-      if (aiResponse) {
-        // Parse the AI response into individual insights
-        const insightLines = aiResponse.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./));
-
-        insightLines.forEach(line => {
-          const cleanedLine = line.replace(/^[-\d.]\s*/, '').trim();
-          if (cleanedLine.length > 10) {
-            insights.push({
-              type: analysisId,
-              insight: cleanedLine,
-              source: 'Gemini AI'
-            });
-          }
-        });
-      } else {
-        // Fallback to regex-based analysis if AI fails
-        console.log(`AI failed for ${analysisType}, falling back to regex`);
-        insights.push({
-          type: analysisId,
-          insight: `AI analysis unavailable - please try again`,
-          source: 'Error'
-        });
-      }
-    }
-  });
-
-  return {
-    insights: insights,
-    totalInsights: insights.length,
-    selectedAnalyses: selectedAnalyses
-  };
 }
 
 // Fetch subreddit overview (all posts, basic stats)
@@ -2431,9 +2668,9 @@ function extractValuableContentOnly(redditData) {
     post: {
       title: post.title,
       author: post.author,
+      subreddit: post.subreddit,
       score: post.score,
       url: post.url,
-      permalink: post.permalink,
       selftext: post.selftext,
       created: post.created_utc,
       num_comments: post.num_comments
@@ -2918,6 +3155,66 @@ function generateSelectedInsights(contentData, selectedAnalyses) {
     totalInsights: insights.length,
     insights: insights
   };
+}
+
+// ============================================================================
+// AI-POWERED INSIGHTS GENERATION
+// ============================================================================
+
+/**
+ * Generate AI-powered insights using Gemini
+ * Replaces regex-based analysis with intelligent AI analysis
+ */
+function generateAIInsights(contentData) {
+  console.log('STEP 3: Generating AI-powered insights with Gemini');
+  console.log('Content data received:', {
+    hasPost: !!contentData.post,
+    commentsCount: contentData.valuableComments?.length || 0,
+    hasStats: !!contentData.extractionStats
+  });
+
+  try {
+    // Use the existing comprehensive prompt
+    console.log('Building analysis prompt...');
+    const prompt = formatForClaudeAnalysis(contentData);
+    console.log('Prompt length:', prompt.length, 'characters');
+
+    // Call Gemini API
+    console.log('Calling Gemini API...');
+    const aiResult = analyzeWithGemini(prompt);
+
+    console.log('Gemini API result:', {
+      success: aiResult.success,
+      hasAnalysis: !!aiResult.analysis,
+      analysisLength: aiResult.analysis?.length || 0,
+      error: aiResult.error || 'none'
+    });
+
+    if (!aiResult.success) {
+      const errorMsg = `Gemini API failed: ${aiResult.error || aiResult.message || 'Unknown error'}`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Return AI analysis in compatible format
+    console.log('Returning AI analysis successfully');
+    return {
+      mode: 'ai_analysis',
+      model: aiResult.model,
+      totalInsights: 1,
+      aiAnalysis: aiResult.analysis,
+      insights: [{
+        type: 'ai_comprehensive',
+        insight: 'AI-powered comprehensive analysis',
+        fullAnalysis: aiResult.analysis
+      }]
+    };
+
+  } catch (error) {
+    console.error('AI insights generation error:', error);
+    console.error('Error stack:', error.stack);
+    throw new Error('AI analysis failed: ' + error.message);
+  }
 }
 
 // ============================================================================
