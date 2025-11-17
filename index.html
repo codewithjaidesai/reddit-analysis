@@ -1136,6 +1136,16 @@
         // ========================================================================
         // MULTI-POST EXTRACTION
         // ========================================================================
+        // ⚠️ CRITICAL SECTION - DO NOT MODIFY WITHOUT UNDERSTANDING THE FULL FLOW
+        // This section handles multi-post extraction and display. Changes here
+        // have historically caused display issues. Key requirements:
+        // 1. Always validate response.success AND response.data before using
+        // 2. multiPostResults must store both 'post' and 'data' objects
+        // 3. All functions must have try-catch and null checks
+        // 4. formatForClaudeAnalysis expects data.post, data.valuableComments, data.extractionStats
+        // 5. Backend returns: {success: true, data: {post, valuableComments, extractionStats}}
+        // If extraction works but buttons don't - check formatForClaudeAnalysis null checks!
+        // ========================================================================
 
         let postsQueue = [];
         let currentPostIndex = 0;
@@ -1194,19 +1204,32 @@
             // Extract this post
             const callbackName = 'multiPostCallback_' + Date.now();
             window[callbackName] = function(response) {
+                // ⚠️ CRITICAL: DO NOT REMOVE RESPONSE VALIDATION - Prevents broken UI
+                // Backend may return unexpected data structures. Without validation,
+                // the results display will fail silently.
                 console.log('Multi-post callback received for post', currentPostIndex + 1, response);
                 document.getElementById('loading').style.display = 'none';
 
-                if (response.success) {
+                if (!response) {
+                    console.error('Response is null or undefined');
+                    displayMultiPostError(post, 'No response from backend', currentPostIndex);
+                } else if (response.success && response.data) {
                     console.log('Success! Data:', response.data);
+
+                    // Additional validation: Check if data has required structure
+                    if (!response.data.post) {
+                        console.warn('Response data is missing post object, using search result post');
+                        response.data.post = post;
+                    }
+
                     multiPostResults.push({
                         post: post,
                         data: response.data
                     });
                     displayMultiPostResult(post, response.data, currentPostIndex);
                 } else {
-                    console.error('Error in response:', response.error);
-                    displayMultiPostError(post, response.error || 'Unknown error', currentPostIndex);
+                    console.error('Error in response:', response.error || 'success=false');
+                    displayMultiPostError(post, response.error || 'Extraction failed', currentPostIndex);
                 }
 
                 // Move to next post
@@ -1231,7 +1254,24 @@
         }
 
         function displayMultiPostResult(post, data, index) {
-            console.log('displayMultiPostResult called for index:', index, 'post:', post.title);
+            // ⚠️ CRITICAL: DO NOT REMOVE THESE CHECKS - They prevent the UI from breaking
+            // This function is called after each post extraction. If data is invalid,
+            // the entire results display will fail without these checks.
+            console.log('displayMultiPostResult called for index:', index, 'post:', post ? post.title : 'undefined');
+
+            // Check if post exists
+            if (!post) {
+                console.error('displayMultiPostResult: post is null or undefined for index', index);
+                return;
+            }
+
+            // Check if data exists
+            if (!data) {
+                console.error('displayMultiPostResult: data is null or undefined for index', index);
+                displayMultiPostError(post, 'No data returned from backend', index);
+                return;
+            }
+
             const resultsContainer = document.getElementById('multiPostResults');
 
             if (!resultsContainer) {
@@ -1262,24 +1302,33 @@
                 avgWordCount = Math.round(totalWords / data.valuableComments.length);
             }
 
+            // ⚠️ CRITICAL: Provide safe defaults for all post properties used in HTML
+            // If any property is undefined, the HTML template will break with undefined errors
+            const safePost = {
+                title: post.title || 'Untitled Post',
+                subreddit: post.subreddit || 'unknown',
+                score: post.score || 0,
+                num_comments: post.num_comments || 0
+            };
+
             // Create simple card with ONLY inline styles
             const card = document.createElement('div');
             card.style.cssText = 'background: white; border: 3px solid #667eea; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
 
             card.innerHTML = `
                 <h3 style="color: #667eea; font-size: 1.5em; margin: 0 0 15px 0;">
-                    ${index + 1}. ${escapeHtml(post.title)}
+                    ${index + 1}. ${escapeHtml(safePost.title)}
                 </h3>
 
                 <div style="margin-bottom: 20px;">
                     <span style="background: #eef2ff; padding: 8px 12px; border-radius: 4px; margin-right: 10px; display: inline-block;">
-                        <strong>r/${escapeHtml(post.subreddit)}</strong>
+                        <strong>r/${escapeHtml(safePost.subreddit)}</strong>
                     </span>
                     <span style="background: #f0fdf4; padding: 8px 12px; border-radius: 4px; margin-right: 10px; display: inline-block;">
-                        ⬆️ ${post.score.toLocaleString()}
+                        ⬆️ ${safePost.score.toLocaleString()}
                     </span>
                     <span style="background: #fef3c7; padding: 8px 12px; border-radius: 4px; display: inline-block;">
-                        💬 ${post.num_comments.toLocaleString()}
+                        💬 ${safePost.num_comments.toLocaleString()}
                     </span>
                 </div>
 
@@ -1367,17 +1416,51 @@
         }
 
         function downloadSinglePostPDF(index) {
-            if (multiPostResults[index]) {
+            // ⚠️ CRITICAL: DO NOT REMOVE ERROR HANDLING - Prevents silent PDF export failures
+            // Without validation, clicking PDF export will fail silently if data is missing.
+            try {
+                if (!multiPostResults[index]) {
+                    alert('❌ Error: No data found for this post. The extraction may have failed.');
+                    console.error('downloadSinglePostPDF: multiPostResults[' + index + '] is undefined');
+                    return;
+                }
+
+                if (!multiPostResults[index].data) {
+                    alert('❌ Error: Post data is missing. Please try extracting this post again.');
+                    console.error('downloadSinglePostPDF: data is missing', multiPostResults[index]);
+                    return;
+                }
+
                 const oldData = extractedData;
                 extractedData = multiPostResults[index].data;
                 exportToPDF();
                 extractedData = oldData;
+            } catch (error) {
+                console.error('downloadSinglePostPDF error:', error);
+                alert('❌ PDF export failed: ' + error.message);
             }
         }
 
         function downloadSinglePostForClaude(index) {
-            if (multiPostResults[index]) {
+            // ⚠️ CRITICAL: DO NOT REMOVE ERROR HANDLING - It prevents silent failures
+            // Without try-catch, errors in formatForClaudeAnalysis will fail silently
+            // and users won't know why the download button doesn't work.
+            try {
+                if (!multiPostResults[index]) {
+                    alert('❌ Error: No data found for this post. The extraction may have failed.');
+                    console.error('downloadSinglePostForClaude: multiPostResults[' + index + '] is undefined');
+                    return;
+                }
+
                 const result = multiPostResults[index];
+
+                // Validate result structure before proceeding
+                if (!result.data) {
+                    alert('❌ Error: Post data is missing. Please try extracting this post again.');
+                    console.error('downloadSinglePostForClaude: result.data is missing', result);
+                    return;
+                }
+
                 const formattedText = formatForClaudeAnalysis(result.data);
                 const fileName = `reddit_analysis_${result.post.subreddit}_${Date.now()}.txt`;
 
@@ -1388,19 +1471,43 @@
                 a.download = fileName;
                 a.click();
                 URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('downloadSinglePostForClaude error:', error);
+                alert('❌ Download failed: ' + error.message);
             }
         }
 
         function copySinglePostForClaude(index) {
-            if (multiPostResults[index]) {
+            // ⚠️ CRITICAL: DO NOT REMOVE ERROR HANDLING - It prevents silent failures
+            // Without try-catch, errors in formatForClaudeAnalysis will fail silently
+            // and users won't know why the copy button doesn't work.
+            try {
+                if (!multiPostResults[index]) {
+                    alert('❌ Error: No data found for this post. The extraction may have failed.');
+                    console.error('copySinglePostForClaude: multiPostResults[' + index + '] is undefined');
+                    return;
+                }
+
                 const result = multiPostResults[index];
+
+                // Validate result structure before proceeding
+                if (!result.data) {
+                    alert('❌ Error: Post data is missing. Please try extracting this post again.');
+                    console.error('copySinglePostForClaude: result.data is missing', result);
+                    return;
+                }
+
                 const formattedText = formatForClaudeAnalysis(result.data);
 
                 navigator.clipboard.writeText(formattedText).then(() => {
                     alert('✅ Content copied to clipboard! Paste it into Claude for analysis.');
                 }).catch(err => {
-                    alert('Failed to copy: ' + err);
+                    console.error('Clipboard copy error:', err);
+                    alert('❌ Failed to copy to clipboard: ' + err.message);
                 });
+            } catch (error) {
+                console.error('copySinglePostForClaude error:', error);
+                alert('❌ Copy failed: ' + error.message);
             }
         }
 
@@ -2872,9 +2979,31 @@
         // ========================================================================
 
         function formatForClaudeAnalysis(data) {
+            // ⚠️ CRITICAL: DO NOT REMOVE THESE NULL CHECKS - They prevent silent failures
+            // This function is called by download and copy buttons. If data is missing,
+            // the buttons will fail silently without these checks, making the UI appear broken.
+            if (!data) {
+                console.error('formatForClaudeAnalysis: data is null or undefined');
+                throw new Error('No data available. Please try extracting the post again.');
+            }
+
+            if (!data.post) {
+                console.error('formatForClaudeAnalysis: data.post is missing', data);
+                throw new Error('Post data is missing. The extraction may have failed.');
+            }
+
+            if (!data.valuableComments || !Array.isArray(data.valuableComments)) {
+                console.error('formatForClaudeAnalysis: data.valuableComments is missing or not an array', data);
+                throw new Error('No comments found. The post may have no valuable comments to extract.');
+            }
+
+            if (!data.extractionStats) {
+                console.warn('formatForClaudeAnalysis: data.extractionStats is missing, using defaults', data);
+            }
+
             const post = data.post;
             const comments = data.valuableComments;
-            const stats = data.extractionStats;
+            const stats = data.extractionStats || {};
 
             // Build the formatted text with embedded prompt
             let output = `═══════════════════════════════════════════════════════════════════════════
