@@ -8,11 +8,7 @@ const REDDIT_CONFIG = {
 // Gemini AI Configuration
 const GEMINI_CONFIG = {
   apiKey: 'AIzaSyACsM5lAgXS16dCathjD3jeKD-yGCsDPws',
-  model: 'gemini-1.5-flash-latest', // Changed from gemini-2.5-flash to stable gemini-1.5-flash-latest
-  // Alternative models you can try if this fails:
-  // 'gemini-1.5-flash' - Stable, fast, 1M context
-  // 'gemini-1.5-pro-latest' - More capable, slower
-  // 'gemini-2.0-flash-exp' - Experimental 2.0 (if available)
+  model: 'gemini-2.5-flash', // Verified: This model exists and is available for your API key
   apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/'
 };
 
@@ -204,7 +200,7 @@ function analyzeWithGemini(prompt) {
       }],
       generationConfig: {
         temperature: 0.7,
-        topK: 40,
+        topK: 64,  // Updated to match gemini-2.5-flash default (was 40 for older models)
         topP: 0.95,
         maxOutputTokens: 8192,
       },
