@@ -701,7 +701,7 @@
             <div class="comment-list" id="commentList"></div>
 
             <div class="action-buttons">
-                <button class="btn btn-secondary" onclick="proceedToStep2()">Step 2: Analyze & Recommend →</button>
+                <button class="btn btn-secondary" onclick="proceedToStep2()">Step 2: Generate AI Insights 🤖 →</button>
                 <button class="btn" onclick="exportToPDF()" style="background: #ed8936;">📄 Export as PDF</button>
                 <button class="btn" onclick="downloadForClaude(event)" style="background: #48bb78;">💾 Download for Claude</button>
                 <button class="btn" onclick="copyForClaude(event)" style="background: #9f7aea;">📋 Copy for Claude</button>
@@ -730,11 +730,11 @@
             </div>
         </div>
 
-        <!-- STEP 3: Insights -->
+        <!-- STEP 2/3: Insights -->
         <div class="insights-container" id="insightsContainer">
             <div class="step-header">
-                <div class="step-number">3</div>
-                <div class="step-title">Strategic Insights</div>
+                <div class="step-number">2</div>
+                <div class="step-title">AI-Powered Strategic Insights</div>
             </div>
 
             <div id="insightsList"></div>
@@ -1905,9 +1905,37 @@
         function proceedToStep2() {
             if (!extractedData) return;
 
-            // Run analysis in the browser - no backend call needed!
-            const recommendations = analyzeAndRecommendInBrowser(extractedData);
-            displayStep2(recommendations);
+            // Get the Reddit URL from input field
+            const url = document.getElementById('redditUrl').value.trim();
+            if (!url) {
+                alert('Reddit URL not found. Please start over.');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = '🤖 Generating AI insights with Gemini... This may take 10-30 seconds...';
+
+            // Call backend for AI-powered analysis (similar to step3, but called from step2)
+            const callbackName = 'callback_step2_ai_' + Date.now();
+            window[callbackName] = function(response) {
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.success) {
+                    // Hide step2 container (checkboxes) and show AI insights directly
+                    document.getElementById('step2Container').style.display = 'none';
+                    displayStep3(response.data);
+                } else {
+                    alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
+                }
+
+                delete window[callbackName];
+            };
+
+            const scriptElement = document.createElement('script');
+            // Call with step3_analyze mode directly (no selectedAnalyses needed)
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent('[]')}&callback=${callbackName}`;
+            document.body.appendChild(scriptElement);
         }
 
         function analyzeAndRecommendInBrowser(contentData) {
