@@ -228,8 +228,8 @@ function analyzeWithGemini(prompt) {
  * @returns {object} Result object
  */
 function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
-  // Reduced output limits for faster responses and reasonable length
-  const maxOutputTokens = modelName.includes('2.5') || modelName.includes('pro') ? 8192 : 4096;
+  // High limits for complete, comprehensive analysis (not truncated)
+  const maxOutputTokens = modelName.includes('2.5') || modelName.includes('pro') ? 65536 : 8192;
   const topK = modelName.includes('2.5') || modelName.includes('pro') ? 64 : 40;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
