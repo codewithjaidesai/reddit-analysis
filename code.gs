@@ -228,7 +228,8 @@ function analyzeWithGemini(prompt) {
  * @returns {object} Result object
  */
 function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
-  const maxOutputTokens = modelName.includes('2.5') || modelName.includes('pro') ? 65536 : 8192;
+  // Reduced output limits for faster responses and reasonable length
+  const maxOutputTokens = modelName.includes('2.5') || modelName.includes('pro') ? 8192 : 4096;
   const topK = modelName.includes('2.5') || modelName.includes('pro') ? 64 : 40;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -543,9 +544,9 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
   console.log('Searching subreddit:', subreddit, 'Time:', timeRange, 'Limit:', limit);
 
   try {
-    // Use Reddit's public JSON API (no authentication required)
-    // This avoids 403 errors from OAuth authentication issues
-    const searchUrl = `https://www.reddit.com/r/${subreddit}/top.json`;
+    // Use Reddit OAuth API to avoid 403 errors
+    const accessToken = getRedditAccessToken();
+    const searchUrl = `https://oauth.reddit.com/r/${subreddit}/top`;
     const params = {
       't': timeRange, // hour, day, week, month, year, all
       'limit': 50, // Get more than we need for filtering
@@ -562,6 +563,7 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
     const options = {
       method: 'GET',
       headers: {
+        'Authorization': `bearer ${accessToken}`,
         'User-Agent': REDDIT_CONFIG.userAgent
       },
       muteHttpExceptions: true
