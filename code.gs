@@ -7,7 +7,7 @@ const REDDIT_CONFIG = {
 
 // Gemini AI Configuration
 const GEMINI_CONFIG = {
-  apiKey: 'AIzaSyACsM5lAgXS16dCathjD3jeKD-yGCsDPws',
+  apiKey: PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY'),
   model: 'gemini-2.5-flash', // Verified: This model exists and is available for your API key
   // Fallback models in order of preference (if primary fails)
   fallbackModels: ['gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-flash-latest'],
