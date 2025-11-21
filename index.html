@@ -701,7 +701,7 @@
             <div class="comment-list" id="commentList"></div>
 
             <div class="action-buttons">
-                <button class="btn btn-secondary" onclick="proceedToStep2()">Step 2: Analyze & Recommend →</button>
+                <button class="btn btn-secondary" onclick="generateAllInsights()">🤖 Generate AI Insights</button>
                 <button class="btn" onclick="exportToPDF()" style="background: #ed8936;">📄 Export as PDF</button>
                 <button class="btn" onclick="downloadForClaude(event)" style="background: #48bb78;">💾 Download as Text</button>
                 <button class="btn" onclick="copyForClaude(event)" style="background: #9f7aea;">📋 Copy to Clipboard</button>
@@ -709,31 +709,10 @@
             </div>
         </div>
 
-        <!-- STEP 2: Recommendations -->
-        <div class="step-container" id="step2Container">
-            <div class="step-header">
-                <div class="step-number">2</div>
-                <div class="step-title">Available Analyses</div>
-            </div>
-
-            <p style="margin-bottom: 20px; color: #718096;">
-                Based on the extracted content, here are the analyses we can run. Select which insights you want to generate:
-            </p>
-
-            <div class="recommendations-grid" id="recommendationsGrid"></div>
-
-            <div class="action-buttons">
-                <button class="btn btn-secondary" onclick="proceedToStep3()" id="generateBtn" disabled>
-                    Step 3: Generate Selected Insights →
-                </button>
-                <button class="btn collapse-btn" onclick="collapseStep('step2Container')">Collapse</button>
-            </div>
-        </div>
-
-        <!-- STEP 3: Insights -->
+        <!-- STEP 2: Insights -->
         <div class="insights-container" id="insightsContainer">
             <div class="step-header">
-                <div class="step-number">3</div>
+                <div class="step-number">2</div>
                 <div class="step-title">Strategic Insights</div>
             </div>
 
@@ -1166,7 +1145,6 @@
             document.getElementById('subredditTab').style.display = 'none';
             document.getElementById('urlTab').style.display = 'none';
             document.getElementById('step1Container').style.display = 'none';
-            document.getElementById('step2Container').style.display = 'none';
             document.getElementById('insightsContainer').style.display = 'none';
 
             // Show multi-post container
@@ -1841,10 +1819,8 @@
 
             // Reset
             document.getElementById('step1Container').style.display = 'none';
-            document.getElementById('step2Container').style.display = 'none';
             document.getElementById('insightsContainer').style.display = 'none';
             extractedData = null;
-            selectedAnalyses.clear();
 
             // Show loading
             document.getElementById('loading').style.display = 'block';
@@ -1931,6 +1907,53 @@
             // Run analysis in the browser - no backend call needed!
             const recommendations = analyzeAndRecommendInBrowser(extractedData);
             displayStep2(recommendations);
+        }
+
+        function generateAllInsights() {
+            if (!extractedData) {
+                alert('Please extract content first');
+                return;
+            }
+
+            // Get the Reddit URL from input field
+            const url = document.getElementById('redditUrl').value.trim();
+            if (!url) {
+                alert('Reddit URL not found. Please start over.');
+                return;
+            }
+
+            // Analyze to determine which insights are available
+            const recommendations = analyzeAndRecommendInBrowser(extractedData);
+            const allAvailableAnalyses = recommendations.recommendations
+                .filter(rec => rec.available)
+                .map(rec => rec.id);
+
+            if (allAvailableAnalyses.length === 0) {
+                alert('No insights available for this content. Try a post with more comments.');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loadingMessage').textContent = '🤖 Analyzing with AI... This may take 10-30 seconds...';
+
+            // Call backend for AI-powered analysis with all available insights
+            const callbackName = 'callback_step3_' + Date.now();
+            window[callbackName] = function(response) {
+                document.getElementById('loading').style.display = 'none';
+
+                if (response.success) {
+                    displayStep3(response.data);
+                } else {
+                    alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
+                }
+
+                delete window[callbackName];
+            };
+
+            const scriptElement = document.createElement('script');
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(allAvailableAnalyses))}&callback=${callbackName}`;
+            document.body.appendChild(scriptElement);
         }
 
         function analyzeAndRecommendInBrowser(contentData) {
