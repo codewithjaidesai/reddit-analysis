@@ -1922,22 +1922,11 @@
                 return;
             }
 
-            // Analyze to determine which insights are available
-            const recommendations = analyzeAndRecommendInBrowser(extractedData);
-            const allAvailableAnalyses = recommendations.recommendations
-                .filter(rec => rec.available)
-                .map(rec => rec.id);
-
-            if (allAvailableAnalyses.length === 0) {
-                alert('No insights available for this content. Try a post with more comments.');
-                return;
-            }
-
             // Show loading
             document.getElementById('loading').style.display = 'block';
             document.getElementById('loadingMessage').textContent = '🤖 Analyzing with AI... This may take 10-30 seconds...';
 
-            // Call backend for AI-powered analysis with all available insights
+            // Call backend for AI-powered analysis with all insights
             const callbackName = 'callback_step3_' + Date.now();
             window[callbackName] = function(response) {
                 document.getElementById('loading').style.display = 'none';
@@ -1952,7 +1941,7 @@
             };
 
             const scriptElement = document.createElement('script');
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(allAvailableAnalyses))}&callback=${callbackName}`;
+            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(['all']))}&callback=${callbackName}`;
             document.body.appendChild(scriptElement);
         }
 
