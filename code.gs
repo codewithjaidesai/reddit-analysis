@@ -954,15 +954,27 @@ function generateInsightsFromData(contentData) {
     console.log('=== generateInsightsFromData called via google.script.run ===');
     console.log('ContentData received:', {
       hasPost: !!contentData.post,
+      postTitle: contentData.post?.title?.substring(0, 50) || 'N/A',
       commentsCount: contentData.valuableComments?.length || 0,
-      hasStats: !!contentData.extractionStats
+      hasStats: !!contentData.extractionStats,
+      statsExtracted: contentData.extractionStats?.extracted || 0
     });
 
+    // Validate contentData
+    if (!contentData || !contentData.post) {
+      throw new Error('Invalid contentData: Missing post data');
+    }
+    if (!contentData.valuableComments || contentData.valuableComments.length === 0) {
+      throw new Error('Invalid contentData: No valuable comments found');
+    }
+
+    console.log('✓ Data validation passed');
     console.log('Using provided contentData - NO Reddit API call!');
 
     // Use AI-powered insights with provided data
+    console.log('Calling generateAIInsights...');
     const processedData = generateAIInsights(contentData);
-    console.log('AI insights generated successfully from provided data!');
+    console.log('✓ AI insights generated successfully from provided data!');
 
     return {
       success: true,
@@ -973,7 +985,9 @@ function generateInsightsFromData(contentData) {
     };
 
   } catch (error) {
-    console.error('generateInsightsFromData Error:', error);
+    console.error('❌ generateInsightsFromData Error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
 
     return {
       success: false,
