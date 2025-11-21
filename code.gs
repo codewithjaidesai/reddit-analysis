@@ -947,6 +947,43 @@ function doPost(e) {
   }
 }
 
+// Generate insights from provided content data (called via google.script.run from client)
+// This avoids CORS issues and eliminates redundant Reddit API calls
+function generateInsightsFromData(contentData) {
+  try {
+    console.log('=== generateInsightsFromData called via google.script.run ===');
+    console.log('ContentData received:', {
+      hasPost: !!contentData.post,
+      commentsCount: contentData.valuableComments?.length || 0,
+      hasStats: !!contentData.extractionStats
+    });
+
+    console.log('Using provided contentData - NO Reddit API call!');
+
+    // Use AI-powered insights with provided data
+    const processedData = generateAIInsights(contentData);
+    console.log('AI insights generated successfully from provided data!');
+
+    return {
+      success: true,
+      message: "Insights generated from provided data (no Reddit API call)",
+      timestamp: new Date().toISOString(),
+      data: processedData,
+      dataSource: "Provided ContentData"
+    };
+
+  } catch (error) {
+    console.error('generateInsightsFromData Error:', error);
+
+    return {
+      success: false,
+      error: error.toString(),
+      message: error.message || 'Unknown error in generateInsightsFromData',
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
 // Fetch subreddit overview (all posts, basic stats)
 function fetchSubredditOverview(inputUrl) {
   const accessToken = getRedditAccessToken();
