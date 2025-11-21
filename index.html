@@ -1915,16 +1915,34 @@
                 .withSuccessHandler(function(response) {
                     document.getElementById('loading').style.display = 'none';
 
-                    if (response.success) {
+                    console.log('Success handler response:', response);
+
+                    if (response && response.success) {
                         displayStep3(response.data);
                     } else {
-                        alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
+                        const errorMsg = response ? (response.error || response.message || 'Unknown error') : 'No response received';
+                        console.error('Analysis failed:', errorMsg);
+                        alert('AI Analysis failed: ' + errorMsg);
                     }
                 })
                 .withFailureHandler(function(error) {
                     document.getElementById('loading').style.display = 'none';
-                    console.error('Error:', error);
-                    alert('Failed to generate insights: ' + error.message);
+                    console.error('Failure handler error:', error);
+                    console.error('Error type:', typeof error);
+                    console.error('Error details:', JSON.stringify(error));
+
+                    let errorMsg = 'Unknown error';
+                    if (error) {
+                        if (typeof error === 'string') {
+                            errorMsg = error;
+                        } else if (error.message) {
+                            errorMsg = error.message;
+                        } else {
+                            errorMsg = JSON.stringify(error);
+                        }
+                    }
+
+                    alert('Failed to generate insights: ' + errorMsg + '\n\nCheck browser console for details.');
                 })
                 .generateInsightsFromData(extractedData);
         }
