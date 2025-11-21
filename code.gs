@@ -883,6 +883,70 @@ function doGet(e) {
   }
 }
 
+// Handle POST requests with extracted data (avoids re-fetching from Reddit)
+function doPost(e) {
+  const output = ContentService.createTextOutput();
+
+  try {
+    console.log('=== POST REQUEST RECEIVED ===');
+
+    // Parse POST body
+    const postData = JSON.parse(e.postData.contents);
+    const mode = postData.mode;
+    const contentData = postData.contentData;
+
+    console.log('POST mode:', mode);
+    console.log('ContentData received:', {
+      hasPost: !!contentData.post,
+      commentsCount: contentData.valuableComments?.length || 0,
+      hasStats: !!contentData.extractionStats
+    });
+
+    let processedData;
+
+    if (mode === 'step3_analyze') {
+      console.log('=== STEP 3 ANALYZE MODE (POST) ===');
+      console.log('Using provided contentData - NO Reddit API call!');
+
+      // Use AI-powered insights with provided data
+      try {
+        processedData = generateAIInsights(contentData);
+        console.log('AI insights generated successfully from provided data!');
+      } catch (error) {
+        console.error('Failed to generate AI insights:', error);
+        throw error;
+      }
+    } else {
+      throw new Error('Unsupported mode for POST request: ' + mode);
+    }
+
+    const responseData = {
+      success: true,
+      message: "Insights generated from provided data (no Reddit API call)",
+      mode: mode,
+      timestamp: new Date().toISOString(),
+      data: processedData,
+      dataSource: "Provided ContentData"
+    };
+
+    output.setMimeType(ContentService.MimeType.JSON);
+    return output.setContent(JSON.stringify(responseData));
+
+  } catch (error) {
+    console.error('POST Error:', error);
+
+    const errorResponse = {
+      success: false,
+      error: error.toString(),
+      message: error.message || 'Unknown error in POST handler',
+      timestamp: new Date().toISOString()
+    };
+
+    output.setMimeType(ContentService.MimeType.JSON);
+    return output.setContent(JSON.stringify(errorResponse));
+  }
+}
+
 // Fetch subreddit overview (all posts, basic stats)
 function fetchSubredditOverview(inputUrl) {
   const accessToken = getRedditAccessToken();

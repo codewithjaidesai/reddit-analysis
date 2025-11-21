@@ -1456,15 +1456,6 @@
                 return;
             }
 
-            // Get post URL for backend API call
-            const post = result.post;
-            const postUrl = post.url;
-
-            if (!postUrl) {
-                contentDiv.innerHTML = '<div style="color: #c53030;">Error: Post URL not found</div>';
-                return;
-            }
-
             // Show AI loading message
             contentDiv.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
@@ -1478,9 +1469,19 @@
                 </div>
             `;
 
-            // Call backend for AI-powered analysis using JSONP (same as Step 3)
-            const callbackName = 'callback_multipost_insights_' + Date.now() + '_' + index;
-            window[callbackName] = function(response) {
+            // Send extracted data via POST (no Reddit API re-fetch!)
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    mode: 'step3_analyze',
+                    contentData: result.data
+                })
+            })
+            .then(response => response.json())
+            .then(response => {
                 if (response.success && response.data) {
                     // Display AI analysis
                     const data = response.data;
@@ -1519,18 +1520,17 @@
                         </div>
                     `;
                 }
-
-                // Cleanup callback
-                delete window[callbackName];
-                // Remove script tag
-                const scriptTag = document.querySelector(`script[src*="${callbackName}"]`);
-                if (scriptTag) scriptTag.remove();
-            };
-
-            // Create script element for JSONP request
-            const scriptElement = document.createElement('script');
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(postUrl)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(['all']))}&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
+            })
+            .catch(error => {
+                console.error('Error generating insights:', error);
+                contentDiv.innerHTML = `
+                    <div style="color: #c53030; padding: 20px; background: #fff5f5;
+                        border-radius: 8px; border: 1px solid #feb2b2;">
+                        <strong>Failed to generate insights:</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            });
         }
 
         function downloadPostInsightsPDF(index) {
@@ -1915,34 +1915,36 @@
                 return;
             }
 
-            // Get the Reddit URL from input field
-            const url = document.getElementById('redditUrl').value.trim();
-            if (!url) {
-                alert('Reddit URL not found. Please start over.');
-                return;
-            }
-
             // Show loading
             document.getElementById('loading').style.display = 'block';
             document.getElementById('loadingMessage').textContent = '🤖 Analyzing with AI... This may take 10-30 seconds...';
 
-            // Call backend for AI-powered analysis with all insights
-            const callbackName = 'callback_step3_' + Date.now();
-            window[callbackName] = function(response) {
+            // Send extracted data via POST (no Reddit API re-fetch!)
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    mode: 'step3_analyze',
+                    contentData: extractedData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
                 document.getElementById('loading').style.display = 'none';
 
-                if (response.success) {
-                    displayStep3(response.data);
+                if (data.success) {
+                    displayStep3(data.data);
                 } else {
-                    alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
+                    alert('AI Analysis failed: ' + (data.error || data.message || 'Unknown error'));
                 }
-
-                delete window[callbackName];
-            };
-
-            const scriptElement = document.createElement('script');
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(['all']))}&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                console.error('Error:', error);
+                alert('Failed to generate insights: ' + error.message);
+            });
         }
 
         function analyzeAndRecommendInBrowser(contentData) {
@@ -2150,15 +2152,10 @@
         }
 
         function proceedToStep3() {
+            // LEGACY FUNCTION - no longer used in current flow
+            // Kept for backward compatibility
             if (selectedAnalyses.size === 0 || !extractedData) {
                 alert('Please select at least one analysis type');
-                return;
-            }
-
-            // Get the Reddit URL from input field
-            const url = document.getElementById('redditUrl').value.trim();
-            if (!url) {
-                alert('Reddit URL not found. Please start over.');
                 return;
             }
 
@@ -2166,23 +2163,32 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('loadingMessage').textContent = '🤖 Analyzing with AI... This may take 10-30 seconds...';
 
-            // Call backend for AI-powered analysis
-            const callbackName = 'callback_step3_' + Date.now();
-            window[callbackName] = function(response) {
+            // Send extracted data via POST (no Reddit API re-fetch!)
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    mode: 'step3_analyze',
+                    contentData: extractedData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
                 document.getElementById('loading').style.display = 'none';
 
-                if (response.success) {
-                    displayStep3(response.data);
+                if (data.success) {
+                    displayStep3(data.data);
                 } else {
-                    alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
+                    alert('AI Analysis failed: ' + (data.error || data.message || 'Unknown error'));
                 }
-
-                delete window[callbackName];
-            };
-
-            const scriptElement = document.createElement('script');
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(Array.from(selectedAnalyses)))}&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                console.error('Error:', error);
+                alert('Failed to generate insights: ' + error.message);
+            });
         }
 
         // ========================================================================
