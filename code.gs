@@ -8,7 +8,9 @@ const REDDIT_CONFIG = {
 // Gemini AI Configuration
 const GEMINI_CONFIG = {
   apiKey: 'AIzaSyACsM5lAgXS16dCathjD3jeKD-yGCsDPws',
-  model: 'gemini-2.5-flash', // Stable Gemini 2.5 Flash - fast and supports 1M tokens
+  model: 'gemini-2.5-flash', // Verified: This model exists and is available for your API key
+  // Fallback models in order of preference (if primary fails)
+  fallbackModels: ['gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-flash-latest'],
   apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/'
 };
 
@@ -183,92 +185,191 @@ function getRedditAccessToken() {
 
 /**
  * Call Gemini API to analyze Reddit content with AI
+ * Now with retry logic and fallback models for reliability
  * @param {string} prompt - The analysis prompt with Reddit data
  * @returns {object} AI analysis result
  */
 function analyzeWithGemini(prompt) {
   console.log('Calling Gemini API for AI analysis...');
 
-  try {
-    const url = `${GEMINI_CONFIG.apiUrl}${GEMINI_CONFIG.model}:generateContent?key=${GEMINI_CONFIG.apiKey}`;
+  // Try primary model with retries
+  const primaryResult = callGeminiWithRetry(GEMINI_CONFIG.model, prompt, 3);
 
-    const payload = {
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-      },
-      safetySettings: [
-        {
-          category: "HARM_CATEGORY_HARASSMENT",
-          threshold: "BLOCK_NONE"
-        },
-        {
-          category: "HARM_CATEGORY_HATE_SPEECH",
-          threshold: "BLOCK_NONE"
-        },
-        {
-          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-          threshold: "BLOCK_NONE"
-        },
-        {
-          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-          threshold: "BLOCK_NONE"
-        }
-      ]
-    };
-
-    const options = {
-      method: 'POST',
-      contentType: 'application/json',
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const responseCode = response.getResponseCode();
-
-    console.log('Gemini API response code:', responseCode);
-
-    if (responseCode !== 200) {
-      const errorText = response.getContentText();
-      console.error('Gemini API error:', errorText);
-      throw new Error(`Gemini API error (${responseCode}): ${errorText}`);
-    }
-
-    const result = JSON.parse(response.getContentText());
-
-    // Extract the AI-generated text
-    if (result.candidates && result.candidates.length > 0 &&
-        result.candidates[0].content && result.candidates[0].content.parts &&
-        result.candidates[0].content.parts.length > 0) {
-
-      const aiAnalysis = result.candidates[0].content.parts[0].text;
-      console.log('Gemini analysis received, length:', aiAnalysis.length);
-
-      return {
-        success: true,
-        analysis: aiAnalysis,
-        model: GEMINI_CONFIG.model
-      };
-    } else {
-      throw new Error('Unexpected response format from Gemini API');
-    }
-
-  } catch (error) {
-    console.error('Gemini API call failed:', error);
-    return {
-      success: false,
-      error: error.toString(),
-      message: 'AI analysis failed: ' + error.message
-    };
+  if (primaryResult.success) {
+    return primaryResult;
   }
+
+  // If primary model failed with 503 (overloaded) or 429 (quota), try fallbacks
+  console.log('Primary model failed, trying fallback models...');
+
+  for (const fallbackModel of GEMINI_CONFIG.fallbackModels) {
+    console.log(`Trying fallback model: ${fallbackModel}`);
+    const result = callGeminiWithRetry(fallbackModel, prompt, 2);
+
+    if (result.success) {
+      console.log(`✅ Fallback model ${fallbackModel} succeeded!`);
+      return result;
+    }
+  }
+
+  // All models failed
+  return {
+    success: false,
+    error: 'All AI models failed. Google servers may be overloaded or quota exceeded.',
+    message: 'AI analysis temporarily unavailable. Please try again in a few minutes, or check your API quota at https://console.cloud.google.com/apis/dashboard'
+  };
+}
+
+/**
+ * Call Gemini API with automatic retry on 503 errors
+ * @param {string} modelName - The model to use
+ * @param {string} prompt - The prompt text
+ * @param {number} maxRetries - Maximum number of retries
+ * @returns {object} Result object
+ */
+function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
+  const maxOutputTokens = modelName.includes('2.5') || modelName.includes('pro') ? 65536 : 8192;
+  const topK = modelName.includes('2.5') || modelName.includes('pro') ? 64 : 40;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const url = `${GEMINI_CONFIG.apiUrl}${modelName}:generateContent?key=${GEMINI_CONFIG.apiKey}`;
+
+      const payload = {
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: topK,
+          topP: 0.95,
+          maxOutputTokens: maxOutputTokens,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_NONE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_NONE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_NONE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_NONE"
+          }
+        ]
+      };
+
+      const options = {
+        method: 'POST',
+        contentType: 'application/json',
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      };
+
+      console.log(`Attempt ${attempt}/${maxRetries} for model: ${modelName}`);
+      const response = UrlFetchApp.fetch(url, options);
+      const responseCode = response.getResponseCode();
+
+      console.log(`Response code: ${responseCode}`);
+
+      // Handle different error codes
+      if (responseCode === 503) {
+        // Model overloaded - retry with exponential backoff
+        const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+        console.log(`⚠️ Model overloaded (503). Waiting ${waitTime/1000}s before retry...`);
+
+        if (attempt < maxRetries) {
+          Utilities.sleep(waitTime);
+          continue; // Retry
+        } else {
+          return {
+            success: false,
+            error: `Model ${modelName} is overloaded`,
+            code: 503
+          };
+        }
+      }
+
+      if (responseCode === 429) {
+        // Quota exceeded - don't retry, try different model
+        console.log('❌ Quota exceeded (429)');
+        return {
+          success: false,
+          error: 'API quota exceeded',
+          code: 429
+        };
+      }
+
+      if (responseCode === 404) {
+        // Model not found - don't retry
+        console.log(`❌ Model ${modelName} not found (404)`);
+        return {
+          success: false,
+          error: `Model ${modelName} not available`,
+          code: 404
+        };
+      }
+
+      if (responseCode !== 200) {
+        const errorText = response.getContentText();
+        console.error(`Gemini API error (${responseCode}):`, errorText);
+        return {
+          success: false,
+          error: errorText,
+          code: responseCode
+        };
+      }
+
+      // Success!
+      const result = JSON.parse(response.getContentText());
+
+      // Extract the AI-generated text
+      if (result.candidates && result.candidates.length > 0 &&
+          result.candidates[0].content && result.candidates[0].content.parts &&
+          result.candidates[0].content.parts.length > 0) {
+
+        const aiAnalysis = result.candidates[0].content.parts[0].text;
+        console.log(`✅ Success! Analysis received (${aiAnalysis.length} chars) from ${modelName}`);
+
+        return {
+          success: true,
+          analysis: aiAnalysis,
+          model: modelName
+        };
+      } else {
+        throw new Error('Unexpected response format from Gemini API');
+      }
+
+    } catch (error) {
+      console.error(`Exception on attempt ${attempt}:`, error.toString());
+
+      if (attempt === maxRetries) {
+        return {
+          success: false,
+          error: error.toString(),
+          message: 'AI analysis failed: ' + error.message
+        };
+      }
+
+      // Wait before retry
+      Utilities.sleep(2000);
+    }
+  }
+
+  // Should never reach here, but just in case
+  return {
+    success: false,
+    error: 'Max retries exceeded',
+    message: 'AI analysis failed after multiple attempts'
+  };
 }
 
 // ============================================================================

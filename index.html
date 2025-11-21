@@ -576,14 +576,14 @@
             <!-- Search Results -->
             <div id="searchResults" style="display: none; margin-top: 30px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="color: #667eea; margin: 0;">Search Results</h3>
+                    <h3 style="color: #1a202c; margin: 0; font-weight: 700;">Search Results</h3>
                     <div id="searchResultsSummary" style="color: #718096; font-size: 0.9em;"></div>
                 </div>
                 <div id="postsList"></div>
                 <div id="selectedPostsActions" style="display: none; margin-top: 20px; padding: 20px; background: #eef2ff; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <strong style="color: #667eea; font-size: 1.1em;" id="selectedCount">0 posts selected</strong>
+                            <strong style="color: #1a202c; font-size: 1.1em;" id="selectedCount">0 posts selected</strong>
                             <p style="margin: 5px 0 0 0; color: #718096; font-size: 0.9em;">Choose how to analyze selected posts</p>
                         </div>
                         <div style="display: flex; gap: 15px; align-items: center;">
@@ -612,7 +612,7 @@
                         Which subreddit do you want to analyze?
                     </label>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="color: #667eea; font-size: 1.2em; font-weight: 600;">r/</span>
+                        <span style="color: #1a202c; font-size: 1.2em; font-weight: 700;">r/</span>
                         <input type="text" id="subredditName" placeholder="e.g., MachineLearning, startups, fitness" style="flex: 1;">
                     </div>
                     <small style="display: block; margin-top: 5px; color: #718096;">Enter subreddit name without the r/ prefix</small>
@@ -645,14 +645,14 @@
             <!-- Search Results (reuse same structure) -->
             <div id="subredditResults" style="display: none; margin-top: 30px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3 style="color: #667eea; margin: 0;">Top Posts</h3>
+                    <h3 style="color: #1a202c; margin: 0; font-weight: 700;">Top Posts</h3>
                     <div id="subredditResultsSummary" style="color: #718096; font-size: 0.9em;"></div>
                 </div>
                 <div id="subredditPostsList"></div>
                 <div id="subredditSelectedPostsActions" style="display: none; margin-top: 20px; padding: 20px; background: #eef2ff; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <strong style="color: #667eea; font-size: 1.1em;" id="subredditSelectedCount">0 posts selected</strong>
+                            <strong style="color: #1a202c; font-size: 1.1em;" id="subredditSelectedCount">0 posts selected</strong>
                             <p style="margin: 5px 0 0 0; color: #718096; font-size: 0.9em;">Choose how to analyze selected posts</p>
                         </div>
                         <div style="display: flex; gap: 15px; align-items: center;">
@@ -703,8 +703,8 @@
             <div class="action-buttons">
                 <button class="btn btn-secondary" onclick="proceedToStep2()">Step 2: Analyze & Recommend →</button>
                 <button class="btn" onclick="exportToPDF()" style="background: #ed8936;">📄 Export as PDF</button>
-                <button class="btn" onclick="downloadForClaude(event)" style="background: #48bb78;">💾 Download for Claude</button>
-                <button class="btn" onclick="copyForClaude(event)" style="background: #9f7aea;">📋 Copy for Claude</button>
+                <button class="btn" onclick="downloadForClaude(event)" style="background: #48bb78;">💾 Download as Text</button>
+                <button class="btn" onclick="copyForClaude(event)" style="background: #9f7aea;">📋 Copy to Clipboard</button>
                 <button class="btn collapse-btn" onclick="collapseStep('step1Container')">Collapse</button>
             </div>
         </div>
@@ -747,7 +747,7 @@
         <!-- MULTI-POST EXTRACTION RESULTS -->
         <div id="multiPostContainer" style="display: none; padding: 30px;">
             <div style="margin-bottom: 30px;">
-                <h2 style="color: #667eea; font-size: 2em; margin: 0 0 20px 0;" id="multiPostTitle">📊 Extracting Posts</h2>
+                <h2 style="color: #1a202c; font-size: 2em; margin: 0 0 20px 0; font-weight: 700;" id="multiPostTitle">📊 Extracting Posts</h2>
                 <div id="multiPostProgress" style="background: #eef2ff; padding: 20px; border-radius: 12px; border: 2px solid #c7d2fe;">
                     <div style="font-weight: 600; margin-bottom: 10px; color: #4c1d95; font-size: 1.1em;">Progress: <span id="progressText">Starting...</span></div>
                     <div style="background: #cbd5e0; height: 20px; border-radius: 10px; overflow: hidden;">
@@ -911,12 +911,19 @@
                 const stars = '⭐'.repeat(post.engagementStars);
                 const upvotePercent = Math.round(post.upvote_ratio * 100);
 
+                // Generate quality badges
+                let badges = '';
+                if (post.upvote_ratio > 0.9) badges += '<span style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-right: 6px;">🏆 High Quality</span>';
+                if (post.score > 500 && post.ageText && post.ageText.includes('hour')) badges += '<span style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-right: 6px;">🔥 Trending</span>';
+                if (post.num_comments > post.score * 0.5) badges += '<span style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-right: 6px;">🎯 High Discussion</span>';
+
                 return `
                     <div class="post-card" onclick="togglePostSelection('${post.id}')" id="post-${post.id}">
                         <div style="display: flex; align-items: flex-start;">
                             <input type="checkbox" class="post-checkbox" id="check-${post.id}" onclick="event.stopPropagation(); togglePostSelection('${post.id}')">
                             <div style="flex: 1;">
                                 <div class="post-title">${escapeHtml(post.title)}</div>
+                                ${badges ? `<div style="margin: 8px 0;">${badges}</div>` : ''}
                                 <div class="post-meta">
                                     <div class="post-meta-item">
                                         <strong>r/${escapeHtml(post.subreddit)}</strong>
@@ -936,8 +943,8 @@
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
                                     <span class="engagement-stars" title="Engagement: ${post.engagementTier}">${stars}</span>
-                                    <span style="font-size: 0.85em; color: #718096;">
-                                        Engagement Score: ${post.engagementScore.toLocaleString()}
+                                    <span style="font-size: 0.85em; color: #718096;" title="Calculated based on upvotes, comments, and upvote ratio">
+                                        Engagement Score ⓘ: ${post.engagementScore.toLocaleString()}
                                         ${post.engagementRate > 0 ? `(${post.engagementRate}/10k subscribers)` : ''}
                                     </span>
                                 </div>
@@ -1061,12 +1068,19 @@
                 const stars = '⭐'.repeat(post.engagementStars);
                 const upvotePercent = Math.round(post.upvote_ratio * 100);
 
+                // Generate quality badges
+                let badges = '';
+                if (post.upvote_ratio > 0.9) badges += '<span style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-right: 6px;">🏆 High Quality</span>';
+                if (post.score > 500 && post.ageText && post.ageText.includes('hour')) badges += '<span style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-right: 6px;">🔥 Trending</span>';
+                if (post.num_comments > post.score * 0.5) badges += '<span style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 600; margin-right: 6px;">🎯 High Discussion</span>';
+
                 return `
                     <div class="post-card" onclick="toggleSubredditPostSelection('${post.id}')" id="subreddit-post-${post.id}">
                         <div style="display: flex; align-items: flex-start;">
                             <input type="checkbox" class="post-checkbox" id="subreddit-check-${post.id}" onclick="event.stopPropagation(); toggleSubredditPostSelection('${post.id}')">
                             <div style="flex: 1;">
                                 <div class="post-title">${escapeHtml(post.title)}</div>
+                                ${badges ? `<div style="margin: 8px 0;">${badges}</div>` : ''}
                                 <div class="post-meta">
                                     <strong>r/${escapeHtml(post.subreddit)}</strong>
                                     • ⬆️ ${post.score.toLocaleString()}
@@ -1076,8 +1090,8 @@
                                 </div>
                                 <div style="margin-top: 8px;">
                                     <span class="engagement-stars">${stars}</span>
-                                    <span style="color: #667eea; font-weight: 500; margin-left: 10px;">
-                                        Engagement Score: ${post.engagementScore.toLocaleString()}
+                                    <span style="color: #4a5568; font-weight: 500; margin-left: 10px;" title="Calculated based on upvotes, comments, and upvote ratio">
+                                        Engagement Score ⓘ: ${post.engagementScore.toLocaleString()}
                                         (${post.engagementRate}/10k subscribers)
                                     </span>
                                 </div>
@@ -1160,6 +1174,7 @@
             multiPostContainer.style.display = 'block';
 
             // Update title and reset results
+            document.getElementById('multiPostTitle').style.display = 'block';
             document.getElementById('multiPostTitle').textContent = `📊 Extracting ${posts.length} Posts`;
             document.getElementById('progressText').textContent = 'Starting...';
             document.getElementById('progressBar').style.width = '0%';
@@ -1175,6 +1190,7 @@
         function processNextPost() {
             if (currentPostIndex >= postsQueue.length) {
                 // All posts processed
+                document.getElementById('multiPostTitle').style.display = 'none';
                 document.getElementById('progressText').textContent = `✅ Completed ${postsQueue.length} posts!`;
                 document.getElementById('progressBar').style.width = '100%';
                 document.getElementById('multiPostActions').style.display = 'block';
@@ -1267,7 +1283,7 @@
             card.style.cssText = 'background: white; border: 3px solid #667eea; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);';
 
             card.innerHTML = `
-                <h3 style="color: #667eea; font-size: 1.5em; margin: 0 0 15px 0;">
+                <h3 style="color: #1a202c; font-size: 1.5em; margin: 0 0 15px 0; font-weight: 700;">
                     ${index + 1}. ${escapeHtml(post.title)}
                 </h3>
 
@@ -1282,23 +1298,29 @@
                         💬 ${post.num_comments.toLocaleString()}
                     </span>
                 </div>
+                <div style="margin-bottom: 20px;">
+                    <a href="${escapeHtml(post.url)}" target="_blank" style="color: #4a5568; text-decoration: none; font-size: 0.9em; display: flex; align-items: center; gap: 6px;">
+                        <span>🔗</span>
+                        <span style="text-decoration: underline;">View on Reddit</span>
+                    </a>
+                </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 20px 0;">
-                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;" title="Total number of comments found in this post">
                         <div style="font-size: 2em; font-weight: bold; color: #667eea;">${totalComments}</div>
-                        <div style="color: #718096; font-size: 0.9em;">Total Comments</div>
+                        <div style="color: #718096; font-size: 0.9em;">Total Comments ⓘ</div>
                     </div>
-                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;" title="High-quality comments extracted based on upvotes and content length">
                         <div style="font-size: 2em; font-weight: bold; color: #48bb78;">${valuableComments}</div>
-                        <div style="color: #718096; font-size: 0.9em;">Valuable Comments</div>
+                        <div style="color: #718096; font-size: 0.9em;">Valuable Comments ⓘ</div>
                     </div>
-                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;" title="Average upvotes per valuable comment">
                         <div style="font-size: 2em; font-weight: bold; color: #f59e0b;">${totalUpvotes}</div>
-                        <div style="color: #718096; font-size: 0.9em;">Avg Upvotes</div>
+                        <div style="color: #718096; font-size: 0.9em;">Avg Upvotes ⓘ</div>
                     </div>
-                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;">
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 8px; text-align: center;" title="Average word count per valuable comment">
                         <div style="font-size: 2em; font-weight: bold; color: #9f7aea;">${avgWordCount}</div>
-                        <div style="color: #718096; font-size: 0.9em;">Avg Word Count</div>
+                        <div style="color: #718096; font-size: 0.9em;">Avg Word Count ⓘ</div>
                     </div>
                 </div>
 
@@ -1318,10 +1340,10 @@
                             📄 Export PDF
                         </button>
                         <button onclick="downloadSinglePostForClaude(${index})" style="background: #48bb78; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em;">
-                            💾 Download for Claude
+                            💾 Download as Text
                         </button>
                         <button onclick="copySinglePostForClaude(${index})" style="background: #9f7aea; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 1em;">
-                            📋 Copy
+                            📋 Copy to Clipboard
                         </button>
                     </div>
                 </div>
@@ -1397,7 +1419,7 @@
                 const formattedText = formatForClaudeAnalysis(result.data);
 
                 navigator.clipboard.writeText(formattedText).then(() => {
-                    alert('✅ Content copied to clipboard! Paste it into Claude for analysis.');
+                    alert('✅ Content copied to clipboard!');
                 }).catch(err => {
                     alert('Failed to copy: ' + err);
                 });
@@ -1470,7 +1492,7 @@
                 <div style="text-align: center; padding: 40px;">
                     <div class="spinner" style="margin: 0 auto 20px;"></div>
                     <div style="color: #667eea; font-weight: 600; font-size: 1.1em; margin-bottom: 10px;">
-                        🤖 Generating AI Insights with Gemini...
+                        🤖 Generating AI Insights...
                     </div>
                     <div style="color: #718096; font-size: 0.9em;">
                         This may take 10-30 seconds for comprehensive analysis
@@ -1496,11 +1518,12 @@
                                     <span>AI-Powered Comprehensive Analysis</span>
                                 </h3>
                                 <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
-                                    Powered by ${data.model || 'Gemini 2.5 Flash'}
+                                    AI-Powered Analysis
                                 </p>
                             </div>
-                            <div style="background: white; padding: 30px; border-radius: 12px;
-                                border: 1px solid #e2e8f0; line-height: 1.8; color: #2d3748;">
+                            <div style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px);
+                                padding: 30px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.5);
+                                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); line-height: 1.8; color: #2d3748;">
                                 ${formatMarkdown(data.aiAnalysis)}
                             </div>
                         `;
@@ -1540,8 +1563,8 @@
             }
 
             // PDF export temporarily disabled - AI insights don't export to PDF yet
-            // Use "Download for Claude" or "Copy" buttons instead to get the full analysis
-            alert('PDF export is not available for AI insights yet. Please use the "Download for Claude" or "Copy" buttons to save the analysis.');
+            // Use "Download as Text" or "Copy to Clipboard" buttons instead to get the full analysis
+            alert('PDF export is not available for AI insights yet. Please use the "Download as Text" or "Copy to Clipboard" buttons to save the analysis.');
             return;
 
             /* DISABLED - was using regex insights
@@ -1753,10 +1776,10 @@
                             📄 Export Analysis as PDF
                         </button>
                         <button class="btn" onclick="downloadAnalysisForClaude(${index})" style="background: #48bb78; margin-right: 10px;">
-                            💾 Download Analysis for Claude
+                            💾 Download as Text
                         </button>
                         <button class="btn" onclick="copyAnalysisForClaude(${index})" style="background: #9f7aea;">
-                            📋 Copy Analysis to Clipboard
+                            📋 Copy to Clipboard
                         </button>
                     </div>
                 `;
@@ -1798,7 +1821,7 @@
                 const formattedText = formatForClaudeAnalysis(result.data);
 
                 navigator.clipboard.writeText(formattedText).then(() => {
-                    alert('✅ Analysis copied to clipboard! Paste it into Claude for deeper insights.');
+                    alert('✅ Analysis copied to clipboard!');
                 }).catch(err => {
                     alert('Failed to copy: ' + err);
                 });
@@ -2129,7 +2152,7 @@
 
             // Show loading
             document.getElementById('loading').style.display = 'block';
-            document.getElementById('loadingMessage').textContent = '🤖 Analyzing with Gemini AI... This may take 10-30 seconds...';
+            document.getElementById('loadingMessage').textContent = '🤖 Analyzing with AI... This may take 10-30 seconds...';
 
             // Call backend for AI-powered analysis
             const callbackName = 'callback_step3_' + Date.now();
@@ -2588,10 +2611,12 @@
                             <span>AI-Powered Comprehensive Analysis</span>
                         </h3>
                         <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
-                            Powered by ${data.model || 'Gemini 1.5 Flash'}
+                            AI-Powered Analysis
                         </p>
                     </div>
-                    <div style="background: white; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; line-height: 1.8; color: #2d3748;">
+                    <div style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px);
+                        padding: 30px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.5);
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); line-height: 1.8; color: #2d3748;">
                         ${formatMarkdown(data.aiAnalysis)}
                     </div>
                 `;
@@ -3061,8 +3086,6 @@ Now please provide your comprehensive analysis following the framework above.
                 setTimeout(() => {
                     btn.innerHTML = originalText;
                 }, 2000);
-
-                showClaudeInstructions('download');
             } catch (error) {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -3099,9 +3122,6 @@ Now please provide your comprehensive analysis following the framework above.
                         setTimeout(() => {
                             btn.innerHTML = originalText;
                         }, 2000);
-
-                        // Show instructions
-                        showClaudeInstructions('copy');
                     })
                     .catch(err => {
                         btn.innerHTML = originalText;
