@@ -1456,15 +1456,6 @@
                 return;
             }
 
-            // Get post URL for backend API call
-            const post = result.post;
-            const postUrl = post.url;
-
-            if (!postUrl) {
-                contentDiv.innerHTML = '<div style="color: #c53030;">Error: Post URL not found</div>';
-                return;
-            }
-
             // Show AI loading message
             contentDiv.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
@@ -1478,59 +1469,59 @@
                 </div>
             `;
 
-            // Call backend for AI-powered analysis using JSONP (same as Step 3)
-            const callbackName = 'callback_multipost_insights_' + Date.now() + '_' + index;
-            window[callbackName] = function(response) {
-                if (response.success && response.data) {
-                    // Display AI analysis
-                    const data = response.data;
-                    let html = '';
+            // Use google.script.run to send extracted data (no Reddit API re-fetch, no CORS issues!)
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    if (response.success && response.data) {
+                        // Display AI analysis
+                        const data = response.data;
+                        let html = '';
 
-                    if (data.mode === 'ai_analysis' && data.aiAnalysis) {
-                        // Display AI analysis with proper formatting
-                        html += `
-                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                                <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
-                                    <span>🤖</span>
-                                    <span>AI-Powered Comprehensive Analysis</span>
-                                </h3>
-                                <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
-                                    AI-Powered Analysis
-                                </p>
-                            </div>
-                            <div style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px);
-                                padding: 30px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.5);
-                                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); line-height: 1.8; color: #2d3748;">
-                                ${formatMarkdown(data.aiAnalysis)}
+                        if (data.mode === 'ai_analysis' && data.aiAnalysis) {
+                            // Display AI analysis with proper formatting
+                            html += `
+                                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                                    <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                                        <span>🤖</span>
+                                        <span>AI-Powered Comprehensive Analysis</span>
+                                    </h3>
+                                    <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 0.9em;">
+                                        AI-Powered Analysis
+                                    </p>
+                                </div>
+                                <div style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px);
+                                    padding: 30px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.5);
+                                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); line-height: 1.8; color: #2d3748;">
+                                    ${formatMarkdown(data.aiAnalysis)}
+                                </div>
+                            `;
+                        } else {
+                            html += '<p style="color: #718096;">No AI analysis available.</p>';
+                        }
+
+                        contentDiv.innerHTML = html;
+                    } else {
+                        contentDiv.innerHTML = `
+                            <div style="color: #c53030; padding: 20px; background: #fff5f5;
+                                border-radius: 8px; border: 1px solid #feb2b2;">
+                                <strong>AI Analysis Failed:</strong><br>
+                                ${response.error || response.message || 'Unknown error occurred'}
                             </div>
                         `;
-                    } else {
-                        html += '<p style="color: #718096;">No AI analysis available.</p>';
                     }
-
-                    contentDiv.innerHTML = html;
-                } else {
+                })
+                .withFailureHandler(function(error) {
+                    console.error('Error generating insights:', error);
                     contentDiv.innerHTML = `
                         <div style="color: #c53030; padding: 20px; background: #fff5f5;
                             border-radius: 8px; border: 1px solid #feb2b2;">
-                            <strong>AI Analysis Failed:</strong><br>
-                            ${response.error || response.message || 'Unknown error occurred'}
+                            <strong>Failed to generate insights:</strong><br>
+                            ${error.message}
                         </div>
                     `;
-                }
-
-                // Cleanup callback
-                delete window[callbackName];
-                // Remove script tag
-                const scriptTag = document.querySelector(`script[src*="${callbackName}"]`);
-                if (scriptTag) scriptTag.remove();
-            };
-
-            // Create script element for JSONP request
-            const scriptElement = document.createElement('script');
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(postUrl)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(['all']))}&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
+                })
+                .generateInsightsFromData(result.data);
         }
 
         function downloadPostInsightsPDF(index) {
@@ -1915,34 +1906,45 @@
                 return;
             }
 
-            // Get the Reddit URL from input field
-            const url = document.getElementById('redditUrl').value.trim();
-            if (!url) {
-                alert('Reddit URL not found. Please start over.');
-                return;
-            }
-
             // Show loading
             document.getElementById('loading').style.display = 'block';
             document.getElementById('loadingMessage').textContent = '🤖 Analyzing with AI... This may take 10-30 seconds...';
 
-            // Call backend for AI-powered analysis with all insights
-            const callbackName = 'callback_step3_' + Date.now();
-            window[callbackName] = function(response) {
-                document.getElementById('loading').style.display = 'none';
+            // Use google.script.run to send extracted data (no Reddit API re-fetch, no CORS issues!)
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    document.getElementById('loading').style.display = 'none';
 
-                if (response.success) {
-                    displayStep3(response.data);
-                } else {
-                    alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
-                }
+                    console.log('Success handler response:', response);
 
-                delete window[callbackName];
-            };
+                    if (response && response.success) {
+                        displayStep3(response.data);
+                    } else {
+                        const errorMsg = response ? (response.error || response.message || 'Unknown error') : 'No response received';
+                        console.error('Analysis failed:', errorMsg);
+                        alert('AI Analysis failed: ' + errorMsg);
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    console.error('Failure handler error:', error);
+                    console.error('Error type:', typeof error);
+                    console.error('Error details:', JSON.stringify(error));
 
-            const scriptElement = document.createElement('script');
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(['all']))}&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
+                    let errorMsg = 'Unknown error';
+                    if (error) {
+                        if (typeof error === 'string') {
+                            errorMsg = error;
+                        } else if (error.message) {
+                            errorMsg = error.message;
+                        } else {
+                            errorMsg = JSON.stringify(error);
+                        }
+                    }
+
+                    alert('Failed to generate insights: ' + errorMsg + '\n\nCheck browser console for details.');
+                })
+                .generateInsightsFromData(extractedData);
         }
 
         function analyzeAndRecommendInBrowser(contentData) {
@@ -2150,15 +2152,10 @@
         }
 
         function proceedToStep3() {
+            // LEGACY FUNCTION - no longer used in current flow
+            // Kept for backward compatibility
             if (selectedAnalyses.size === 0 || !extractedData) {
                 alert('Please select at least one analysis type');
-                return;
-            }
-
-            // Get the Reddit URL from input field
-            const url = document.getElementById('redditUrl').value.trim();
-            if (!url) {
-                alert('Reddit URL not found. Please start over.');
                 return;
             }
 
@@ -2166,23 +2163,23 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('loadingMessage').textContent = '🤖 Analyzing with AI... This may take 10-30 seconds...';
 
-            // Call backend for AI-powered analysis
-            const callbackName = 'callback_step3_' + Date.now();
-            window[callbackName] = function(response) {
-                document.getElementById('loading').style.display = 'none';
+            // Use google.script.run to send extracted data (no Reddit API re-fetch, no CORS issues!)
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    document.getElementById('loading').style.display = 'none';
 
-                if (response.success) {
-                    displayStep3(response.data);
-                } else {
-                    alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
-                }
-
-                delete window[callbackName];
-            };
-
-            const scriptElement = document.createElement('script');
-            scriptElement.src = `${SCRIPT_URL}?url=${encodeURIComponent(url)}&mode=step3_analyze&selectedAnalyses=${encodeURIComponent(JSON.stringify(Array.from(selectedAnalyses)))}&callback=${callbackName}`;
-            document.body.appendChild(scriptElement);
+                    if (response.success) {
+                        displayStep3(response.data);
+                    } else {
+                        alert('AI Analysis failed: ' + (response.error || response.message || 'Unknown error'));
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    console.error('Error:', error);
+                    alert('Failed to generate insights: ' + error.message);
+                })
+                .generateInsightsFromData(extractedData);
         }
 
         // ========================================================================

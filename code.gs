@@ -7,7 +7,7 @@ const REDDIT_CONFIG = {
 
 // Gemini AI Configuration
 const GEMINI_CONFIG = {
-  apiKey: 'AIzaSyACsM5lAgXS16dCathjD3jeKD-yGCsDPws',
+  apiKey: PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY'),
   model: 'gemini-2.5-flash', // Verified: This model exists and is available for your API key
   // Fallback models in order of preference (if primary fails)
   fallbackModels: ['gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-flash-latest'],
@@ -228,6 +228,7 @@ function analyzeWithGemini(prompt) {
  * @returns {object} Result object
  */
 function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
+  // High limits for complete, comprehensive analysis (not truncated)
   const maxOutputTokens = modelName.includes('2.5') || modelName.includes('pro') ? 65536 : 8192;
   const topK = modelName.includes('2.5') || modelName.includes('pro') ? 64 : 40;
 
@@ -543,9 +544,9 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
   console.log('Searching subreddit:', subreddit, 'Time:', timeRange, 'Limit:', limit);
 
   try {
-    // Use Reddit's public JSON API (no authentication required)
-    // This avoids 403 errors from OAuth authentication issues
-    const searchUrl = `https://www.reddit.com/r/${subreddit}/top.json`;
+    // Use Reddit OAuth API to avoid 403 errors
+    const accessToken = getRedditAccessToken();
+    const searchUrl = `https://oauth.reddit.com/r/${subreddit}/top`;
     const params = {
       't': timeRange, // hour, day, week, month, year, all
       'limit': 50, // Get more than we need for filtering
@@ -562,6 +563,7 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
     const options = {
       method: 'GET',
       headers: {
+        'Authorization': `bearer ${accessToken}`,
         'User-Agent': REDDIT_CONFIG.userAgent
       },
       muteHttpExceptions: true
@@ -880,6 +882,121 @@ function doGet(e) {
       output.setMimeType(ContentService.MimeType.JSON);
       return output.setContent(JSON.stringify(errorResponse));
     }
+  }
+}
+
+// Handle POST requests with extracted data (avoids re-fetching from Reddit)
+function doPost(e) {
+  const output = ContentService.createTextOutput();
+
+  try {
+    console.log('=== POST REQUEST RECEIVED ===');
+
+    // Parse POST body
+    const postData = JSON.parse(e.postData.contents);
+    const mode = postData.mode;
+    const contentData = postData.contentData;
+
+    console.log('POST mode:', mode);
+    console.log('ContentData received:', {
+      hasPost: !!contentData.post,
+      commentsCount: contentData.valuableComments?.length || 0,
+      hasStats: !!contentData.extractionStats
+    });
+
+    let processedData;
+
+    if (mode === 'step3_analyze') {
+      console.log('=== STEP 3 ANALYZE MODE (POST) ===');
+      console.log('Using provided contentData - NO Reddit API call!');
+
+      // Use AI-powered insights with provided data
+      try {
+        processedData = generateAIInsights(contentData);
+        console.log('AI insights generated successfully from provided data!');
+      } catch (error) {
+        console.error('Failed to generate AI insights:', error);
+        throw error;
+      }
+    } else {
+      throw new Error('Unsupported mode for POST request: ' + mode);
+    }
+
+    const responseData = {
+      success: true,
+      message: "Insights generated from provided data (no Reddit API call)",
+      mode: mode,
+      timestamp: new Date().toISOString(),
+      data: processedData,
+      dataSource: "Provided ContentData"
+    };
+
+    output.setMimeType(ContentService.MimeType.JSON);
+    return output.setContent(JSON.stringify(responseData));
+
+  } catch (error) {
+    console.error('POST Error:', error);
+
+    const errorResponse = {
+      success: false,
+      error: error.toString(),
+      message: error.message || 'Unknown error in POST handler',
+      timestamp: new Date().toISOString()
+    };
+
+    output.setMimeType(ContentService.MimeType.JSON);
+    return output.setContent(JSON.stringify(errorResponse));
+  }
+}
+
+// Generate insights from provided content data (called via google.script.run from client)
+// This avoids CORS issues and eliminates redundant Reddit API calls
+function generateInsightsFromData(contentData) {
+  try {
+    console.log('=== generateInsightsFromData called via google.script.run ===');
+    console.log('ContentData received:', {
+      hasPost: !!contentData.post,
+      postTitle: contentData.post?.title?.substring(0, 50) || 'N/A',
+      commentsCount: contentData.valuableComments?.length || 0,
+      hasStats: !!contentData.extractionStats,
+      statsExtracted: contentData.extractionStats?.extracted || 0
+    });
+
+    // Validate contentData
+    if (!contentData || !contentData.post) {
+      throw new Error('Invalid contentData: Missing post data');
+    }
+    if (!contentData.valuableComments || contentData.valuableComments.length === 0) {
+      throw new Error('Invalid contentData: No valuable comments found');
+    }
+
+    console.log('✓ Data validation passed');
+    console.log('Using provided contentData - NO Reddit API call!');
+
+    // Use AI-powered insights with provided data
+    console.log('Calling generateAIInsights...');
+    const processedData = generateAIInsights(contentData);
+    console.log('✓ AI insights generated successfully from provided data!');
+
+    return {
+      success: true,
+      message: "Insights generated from provided data (no Reddit API call)",
+      timestamp: new Date().toISOString(),
+      data: processedData,
+      dataSource: "Provided ContentData"
+    };
+
+  } catch (error) {
+    console.error('❌ generateInsightsFromData Error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+
+    return {
+      success: false,
+      error: error.toString(),
+      message: error.message || 'Unknown error in generateInsightsFromData',
+      timestamp: new Date().toISOString()
+    };
   }
 }
 
@@ -3331,145 +3448,45 @@ function formatForClaudeAnalysis(extractedData) {
   const comments = extractedData.valuableComments;
   const stats = extractedData.extractionStats;
 
-  // Universal analysis prompt
+  // Optimized analysis prompt - concise but comprehensive
   const prompt = `═══════════════════════════════════════════════════════════════════════════
 REDDIT CONTENT ANALYSIS REQUEST
 ═══════════════════════════════════════════════════════════════════════════
 
-You are an expert Reddit content analyst. Below is a Reddit post with extracted high-value comments. Provide deep, actionable insights that go beyond surface-level observations.
+You are an expert Reddit content analyst. Analyze this post and comments to provide deep, actionable insights beyond surface observations.
 
-═══════════════════════════════════════════════════════════════════════════
-ANALYSIS FRAMEWORK
-═══════════════════════════════════════════════════════════════════════════
+ANALYSIS FRAMEWORK (provide all 8 sections):
 
-1. CONTENT INTELLIGENCE
-   • What type of discussion is this? (Don't force categories - describe what you observe)
-   • What makes this content engaging to this audience?
-   • What patterns emerge that might not be immediately obvious?
+1. CONTENT INTELLIGENCE: Discussion type, engagement factors, non-obvious patterns
+2. ENGAGEMENT DYNAMICS: Why top comments resonated, consensus vs controversy, upvote patterns
+3. HIDDEN PATTERNS: Cognitive biases, emotional triggers, social dynamics, temporal/economic factors
+4. AUDIENCE INSIGHTS: Participant types, motivations, shared assumptions, underlying questions
+5. CONTENT STRATEGY: Replicable elements, optimal format/tone/timing for engagement
+6. SURPRISING FINDINGS: Counter-intuitive discoveries, easy-to-miss patterns, cultural insights
+7. ACTIONABLE RECOMMENDATIONS: 3-5 specific takeaways for content creators, marketers, researchers, OP
 
-2. ENGAGEMENT DYNAMICS
-   • Why did certain comments get high upvotes? What resonated?
-   • Is there consensus, controversy, or something else driving engagement?
-   • What's the upvote distribution telling us?
+8. DATA ANALYSIS WITH TABLES (generate 5-8 relevant markdown tables):
 
-3. HIDDEN PATTERNS
-   Look for non-obvious patterns:
-   • Cognitive biases (confirmation bias, survivorship bias, etc.)
-   • Emotional triggers (fear, hope, identity, validation)
-   • Social dynamics (expertise vs experience, contrarian vs conformist)
-   • Temporal patterns (immediate vs long-term thinking)
-   • Economic factors (price sensitivity, value perception)
+UNIVERSAL TABLES (always include 2-3):
+• Upvote Performance Tiers (Tier | Range | Count | Position | Patterns)
+• Top Comments Breakdown (Rank | Author | Upvotes | Theme | Key Factor)
+• Theme Distribution (Theme | Count | Avg Upvotes | % Discussion)
+• Word Count vs Engagement (Range | Count | Avg Upvotes | Optimal?)
+• Sentiment Analysis (Sentiment | Count | Avg Upvotes | Characteristics)
 
-4. AUDIENCE INSIGHTS
-   • Who is participating? (experts, enthusiasts, beginners, skeptics)
-   • What do they care about? (practical advice, validation, entertainment, learning)
-   • What assumptions do they share?
-   • What questions are they really asking (vs what they explicitly say)?
+CONTENT-SPECIFIC TABLES (choose 3-5 based on discussion type):
 
-5. CONTENT STRATEGY INTELLIGENCE
-   If someone wanted to create similar engaging content:
-   • What elements should they replicate?
-   • What format works best? (question, story, controversy, education)
-   • What tone resonates?
-   • What timing/context matters?
+Factual/TIL: Cognitive violations, verifiability matrix, temporal references
+Product/Review: Feature sentiment, price sensitivity, comparison matrix, purchase intent
+Opinion/Debate: Viewpoint distribution, argument quality, polarization metrics, logical fallacies
+Advice/How-to: Success rates, expert vs experience, timeline expectations, common mistakes
+Story/Experience: Emotional responses, advice vs empathy ratio, support tone, similar experiences
 
-6. SURPRISING FINDINGS
-   • What's unexpected or counter-intuitive?
-   • What would most people miss on first read?
-   • What does this reveal about the community/topic/culture?
+ANALYSIS-SPECIFIC (if relevant): Response chains, missing topics, humor vs serious, timing impact, author patterns
 
-7. ACTIONABLE RECOMMENDATIONS
-   Provide 3-5 specific, actionable takeaways for:
-   • Content creators (how to replicate engagement)
-   • Marketers (audience insights for targeting)
-   • Researchers (cultural/social patterns)
-   • The original poster (what they can learn)
+TABLE RULES: Markdown format, column headers, brief interpretation, minimum 5-10 data points, prioritize non-obvious insights, include percentages/averages/ratios.
 
-8. DATA ANALYSIS WITH TABLES
-   Generate data-driven tables that are RELEVANT to this specific content type.
-   Choose 5-8 tables from the options below based on what makes sense for THIS discussion:
-
-   UNIVERSAL TABLES (apply to most posts):
-   ┌─────────────────────────────────────────────────────────────────┐
-   │ Table 1: Upvote Performance Tiers                                │
-   │ Columns: Tier | Range | # Comments | Avg Position | Patterns    │
-   └─────────────────────────────────────────────────────────────────┘
-
-   ┌─────────────────────────────────────────────────────────────────┐
-   │ Table 2: Top 10-20 Comments Breakdown                            │
-   │ Columns: Rank | Author | Upvotes | Theme | Key Factor          │
-   └─────────────────────────────────────────────────────────────────┘
-
-   ┌─────────────────────────────────────────────────────────────────┐
-   │ Table 3: Theme Distribution & Engagement                         │
-   │ Columns: Theme | # Comments | Avg Upvotes | % of Discussion    │
-   └─────────────────────────────────────────────────────────────────┘
-
-   ┌─────────────────────────────────────────────────────────────────┐
-   │ Table 4: Word Count vs Engagement                                │
-   │ Columns: Range | # Comments | Avg Upvotes | Optimal?           │
-   └─────────────────────────────────────────────────────────────────┘
-
-   ┌─────────────────────────────────────────────────────────────────┐
-   │ Table 5: Sentiment Distribution                                  │
-   │ Columns: Sentiment | # Comments | Avg Upvotes | Characteristics│
-   └─────────────────────────────────────────────────────────────────┘
-
-   CONTENT-SPECIFIC TABLES (choose relevant ones):
-
-   For FACTUAL/TIL content:
-   • Cognitive Violation Types (Type | Definition | Avg Upvotes | Examples)
-   • "Feels Fake" Intensity Spectrum (Level | Description | # Comments | Avg Upvotes)
-   • Fact Verifiability Matrix (Type | # Comments | Trust Level | Examples)
-   • Temporal Reference Distribution (Time Period | # Comments | Patterns)
-
-   For PRODUCT/REVIEW content:
-   • Product Feature Sentiment (Feature | Positive | Negative | Net Score)
-   • Price Sensitivity Analysis (Price Tier | # Mentions | Sentiment | Willingness)
-   • Comparison Matrix (Product A vs B | Mentions | Preference | Reasons)
-   • Purchase Intent Signals (Signal Type | Frequency | Confidence Level)
-
-   For OPINION/DEBATE content:
-   • Viewpoint Distribution (Position | % Support | Avg Upvotes | Key Arguments)
-   • Argument Quality Matrix (Type | Frequency | Evidence Level | Effectiveness)
-   • Polarization Metrics (Metric | Score | Interpretation)
-   • Logical Fallacies Detected (Fallacy | Occurrences | Impact on Discussion)
-
-   For ADVICE/HOW-TO content:
-   • Solution Success Rates (Approach | Worked | Failed | Success % | Sample Size)
-   • Expert vs Experience Split (Source Type | # Comments | Credibility | Agreement)
-   • Timeline Expectations (Duration | # Mentions | Success Correlation)
-   • Common Mistakes Mentioned (Mistake | Frequency | Impact | How to Avoid)
-
-   For STORY/EXPERIENCE content:
-   • Emotional Response Distribution (Emotion | % of Comments | Typical Phrasing)
-   • Advice vs Empathy Ratio (Type | Count | % of Total | Upvote Performance)
-   • Support Tone Analysis (Tone | Frequency | Effectiveness | Examples)
-   • Similar Experience Clusters (Experience Type | # Sharing | Common Patterns)
-
-   ANALYSIS-SPECIFIC TABLES (if data supports):
-   • Response Chain Analysis (Parent Topic | Upvotes | # Replies | Chain Depth | Total Engagement)
-   • Missing Topics Analysis (Expected Topic | Presence | Possible Reasons)
-   • Humor vs Serious Performance (Tone | # Comments | Avg Upvotes | Engagement Quality)
-   • Time-of-Response Impact (Posted When | # Comments | Avg Performance)
-   • Author Activity Patterns (Repeat Commenters | # Comments | Total Upvotes)
-
-   TABLE GENERATION RULES:
-   • Use markdown table format for easy reading
-   • Include column headers and clear data
-   • Add brief interpretation after each table
-   • Only include tables that have sufficient data (minimum 5-10 data points)
-   • Prioritize tables that reveal non-obvious insights
-   • Calculate percentages, averages, and ratios where meaningful
-
-IMPORTANT ANALYSIS GUIDELINES:
-• Don't just summarize - analyze WHY things are the way they are
-• Look for patterns across multiple comments, not just individual standouts
-• Consider context: subreddit culture, current events, audience demographics
-• Be honest if something is unclear or if the data is too limited
-• Cite specific examples from the comments to support your insights
-• Generate tables in markdown format for clarity
-• Choose 5-8 most relevant tables based on content type - don't force irrelevant tables
+GUIDELINES: Analyze WHY (not just what), look for patterns across comments, consider subreddit culture/context, cite specific examples, be honest about data limitations, focus on relevance over volume.
 
 ═══════════════════════════════════════════════════════════════════════════
 POST DATA
@@ -3493,7 +3510,7 @@ POST BODY:
 ${post.selftext ? post.selftext : '[No body text - link or image post]'}
 
 ═══════════════════════════════════════════════════════════════════════════
-HIGH-VALUE COMMENTS (${comments.length} comments)
+HIGH-VALUE COMMENTS (${comments.length} comments - ANALYZE ALL)
 ═══════════════════════════════════════════════════════════════════════════
 
 ${comments.map((comment, index) => {
@@ -3516,7 +3533,7 @@ END OF DATA
 Exported: ${new Date().toISOString()}
 Analysis Tool: Reddit Analyzer v1.0
 
-Now please provide your comprehensive analysis following the framework above.
+Now provide your comprehensive analysis with all 8 sections and 5-8 relevant data tables.
 `;
 
   return prompt;
