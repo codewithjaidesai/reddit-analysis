@@ -2,7 +2,7 @@
 const REDDIT_CONFIG = {
   clientId: 'FSkASxBHOGaYVZLWpQO9TA',
   clientSecret: 'AnNiJyAazf5-iW5s16ppCzXJbLNwEw',
-  userAgent: 'web:RedditAnalyzer:v1.0.0 (by /u/gamestopfan)'
+  userAgent: 'script:RedditAnalyzer:v1.0.0 (by /u/gamestopfan)'
 };
 
 // Gemini AI Configuration
