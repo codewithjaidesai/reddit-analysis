@@ -388,9 +388,9 @@ function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit =
   console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit);
 
   try {
-    // Use Reddit's public JSON API (no authentication required)
-    // This avoids 403 errors from OAuth authentication issues
-    let searchUrl = 'https://www.reddit.com/search.json';
+    // Use Reddit OAuth API to avoid 403 errors
+    const accessToken = getRedditAccessToken();
+    let searchUrl = 'https://oauth.reddit.com/search';
     let params = {
       'q': topic,
       't': timeRange, // hour, day, week, month, year, all
@@ -420,6 +420,7 @@ function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit =
     const options = {
       method: 'GET',
       headers: {
+        'Authorization': `bearer ${accessToken}`,
         'User-Agent': REDDIT_CONFIG.userAgent
       },
       muteHttpExceptions: true
