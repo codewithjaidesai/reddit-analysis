@@ -2894,7 +2894,7 @@ function extractValuableContentOnly(redditData) {
       num_comments: post.num_comments
     },
     totalComments: allComments.length,
-    valuableComments: sorted.slice(0, 100).map(c => ({ // Top 100 valuable comments
+    valuableComments: sorted.map(c => ({ // All valuable comments (no limit for AI analysis)
       body: c.body,
       author: c.author,
       score: c.score,
@@ -3481,6 +3481,25 @@ Product/Review: Feature sentiment, price sensitivity, comparison matrix, purchas
 Opinion/Debate: Viewpoint distribution, argument quality, polarization metrics, logical fallacies
 Advice/How-to: Success rates, expert vs experience, timeline expectations, common mistakes
 Story/Experience: Emotional responses, advice vs empathy ratio, support tone, similar experiences
+
+PERSONAL STORIES & ANECDOTES (always check for these):
+Extract compelling personal narratives if they exist in the comments.
+Table format: | Story Summary | Score | Why Worth Reading | Link |
+
+What to extract:
+• First-person experiences with clear narrative (setup → events → outcome)
+• Has emotional depth, transformation, or unique insight
+• Specific and authentic (not generic advice like "just do X")
+• Complete enough to understand what happened (any length, short is fine)
+• Real personal experience (not "my friend said...")
+
+What to skip:
+• Generic advice without narrative
+• Product shilling
+• Incomplete fragments
+• Secondhand stories
+
+Use the comment permalink field for the Link column. If no quality stories exist, state: "No personal narratives found in this discussion."
 
 ANALYSIS-SPECIFIC (if relevant): Response chains, missing topics, humor vs serious, timing impact, author patterns
 
