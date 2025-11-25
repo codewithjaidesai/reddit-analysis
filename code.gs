@@ -421,7 +421,8 @@ function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit =
       method: 'GET',
       headers: {
         'Authorization': `bearer ${accessToken}`,
-        'User-Agent': REDDIT_CONFIG.userAgent
+        'User-Agent': REDDIT_CONFIG.userAgent,
+        'Accept': 'application/json'
       },
       muteHttpExceptions: true
     };
@@ -565,7 +566,8 @@ function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15) {
       method: 'GET',
       headers: {
         'Authorization': `bearer ${accessToken}`,
-        'User-Agent': REDDIT_CONFIG.userAgent
+        'User-Agent': REDDIT_CONFIG.userAgent,
+        'Accept': 'application/json'
       },
       muteHttpExceptions: true
     };
