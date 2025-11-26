@@ -337,8 +337,11 @@ function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
           result.candidates[0].content && result.candidates[0].content.parts &&
           result.candidates[0].content.parts.length > 0) {
 
-        const aiAnalysis = result.candidates[0].content.parts[0].text;
-        console.log(`✅ Success! Analysis received (${aiAnalysis.length} chars) from ${modelName}`);
+        // Concatenate ALL parts (Gemini splits long responses into multiple parts)
+        const aiAnalysis = result.candidates[0].content.parts
+          .map(part => part.text || '')
+          .join('');
+        console.log(`✅ Success! Analysis received (${aiAnalysis.length} chars, ${result.candidates[0].content.parts.length} parts) from ${modelName}`);
 
         return {
           success: true,

@@ -2693,24 +2693,28 @@
                 // Bullet lists
                 .replace(/^\• (.*$)/gm, '<li style="margin-left: 20px;">$1</li>')
                 .replace(/^- (.*$)/gm, '<li style="margin-left: 20px;">$1</li>')
-                // Tables (markdown tables)
-                .replace(/\n\|(.+)\|\n\|[-:\s|]+\|\n((?:\|.+\|\n?)+)/g, function(match, header, rows) {
-                    let tableHtml = '<table class="data-table" style="width: 100%; border-collapse: collapse; margin: 20px 0;">';
+                // Tables (markdown tables) - more flexible pattern to handle various formats
+                .replace(/(?:^|\n)\|(.+)\|[ \t]*\n\|[-:\s|]+\|[ \t]*\n((?:\|.+\|[ \t]*(?:\n|$))+)/gm, function(match, header, rows) {
+                    let tableHtml = '<table class="data-table" style="width: 100%; border-collapse: collapse; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">';
 
                     // Header
                     const headers = header.split('|').map(h => h.trim()).filter(h => h);
-                    tableHtml += '<thead><tr>';
-                    headers.forEach(h => {
-                        tableHtml += `<th style="background: #667eea; color: white; padding: 12px; text-align: left; border: 1px solid #e2e8f0;">${h}</th>`;
-                    });
-                    tableHtml += '</tr></thead><tbody>';
+                    if (headers.length > 0) {
+                        tableHtml += '<thead><tr>';
+                        headers.forEach(h => {
+                            tableHtml += `<th style="background: #667eea; color: white; padding: 12px; text-align: left; border: 1px solid #e2e8f0; font-weight: 600;">${h}</th>`;
+                        });
+                        tableHtml += '</tr></thead>';
+                    }
 
                     // Rows
-                    const rowLines = rows.trim().split('\n');
-                    rowLines.forEach(row => {
+                    tableHtml += '<tbody>';
+                    const rowLines = rows.trim().split('\n').filter(line => line.trim());
+                    rowLines.forEach((row, index) => {
                         const cells = row.split('|').map(c => c.trim()).filter(c => c);
                         if (cells.length > 0) {
-                            tableHtml += '<tr>';
+                            const bgColor = index % 2 === 0 ? '#ffffff' : '#f7fafc';
+                            tableHtml += '<tr style="background: ' + bgColor + ';">';
                             cells.forEach(cell => {
                                 tableHtml += `<td style="padding: 12px; border: 1px solid #e2e8f0;">${cell}</td>`;
                             });
@@ -2719,7 +2723,7 @@
                     });
 
                     tableHtml += '</tbody></table>';
-                    return tableHtml;
+                    return '\n' + tableHtml + '\n';
                 })
                 // Line breaks
                 .replace(/\n\n/g, '</p><p style="margin: 15px 0;">')
