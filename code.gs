@@ -3451,45 +3451,68 @@ function formatForClaudeAnalysis(extractedData) {
   const comments = extractedData.valuableComments;
   const stats = extractedData.extractionStats;
 
-  // Optimized analysis prompt - concise but comprehensive
-  const prompt = `═══════════════════════════════════════════════════════════════════════════
-REDDIT CONTENT ANALYSIS REQUEST
-═══════════════════════════════════════════════════════════════════════════
+  // Discovery-focused prompt - insights over format
+  const prompt = `You are an expert Reddit analyst. Your goal is to uncover NON-OBVIOUS, ACTIONABLE insights from this discussion that would genuinely surprise someone even if they read all the comments.
 
-You are an expert Reddit content analyst. Analyze this post and comments to provide deep, actionable insights beyond surface observations.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOUR MISSION: FIND WHAT OTHERS MISS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-ANALYSIS FRAMEWORK (provide all 8 sections):
+Don't just describe the data. Discover patterns that aren't obvious. Think like a detective, not a summarizer.
 
-1. CONTENT INTELLIGENCE: Discussion type, engagement factors, non-obvious patterns
-2. ENGAGEMENT DYNAMICS: Why top comments resonated, consensus vs controversy, upvote patterns
-3. HIDDEN PATTERNS: Cognitive biases, emotional triggers, social dynamics, temporal/economic factors
-4. AUDIENCE INSIGHTS: Participant types, motivations, shared assumptions, underlying questions
-5. CONTENT STRATEGY: Replicable elements, optimal format/tone/timing for engagement
-6. SURPRISING FINDINGS: Counter-intuitive discoveries, easy-to-miss patterns, cultural insights
-7. ACTIONABLE RECOMMENDATIONS: 3-5 specific takeaways for content creators, marketers, researchers, OP
+## WHAT TO ANALYZE:
 
-8. DATA ANALYSIS WITH TABLES (generate 5-8 relevant markdown tables):
+**1. ENGAGEMENT PATTERNS** (What ACTUALLY drives upvotes?)
+   - Do longer/shorter comments win?
+   - Does humor beat serious advice? Or vice versa?
+   - Do personal stories outperform generic advice?
+   - What specific words/phrases appear in top comments?
+   - Do questions get more engagement than answers?
+   - Does controversy/agreement matter more?
 
-UNIVERSAL TABLES (always include 2-3):
-• Upvote Performance Tiers (Tier | Range | Count | Position | Patterns)
-• Top Comments Breakdown (Rank | Author | Upvotes | Theme | Key Factor)
-• Theme Distribution (Theme | Count | Avg Upvotes | % Discussion)
-• Word Count vs Engagement (Range | Count | Avg Upvotes | Optimal?)
-• Sentiment Analysis (Sentiment | Count | Avg Upvotes | Characteristics)
+**2. HIDDEN PSYCHOLOGY** (What motivates this audience?)
+   - What are they REALLY asking for? (validation, advice, entertainment, belonging?)
+   - What fears/desires are revealed in comments?
+   - What cognitive biases show up? (confirmation bias, survivorship bias, etc.)
+   - What identity signals matter? (expertise, experience, tribe membership)
+   - What goes unsaid but is understood?
 
-CONTENT-SPECIFIC TABLES (choose 3-5 based on discussion type):
+**3. COUNTER-INTUITIVE FINDINGS** (What would surprise someone?)
+   - What breaks the expected pattern?
+   - What "should" work but doesn't?
+   - What unexpected factor correlates with success?
+   - What common wisdom is challenged here?
+   - What's the minority opinion that might be right?
 
-Factual/TIL: Cognitive violations, verifiability matrix, temporal references
-Product/Review: Feature sentiment, price sensitivity, comparison matrix, purchase intent
-Opinion/Debate: Viewpoint distribution, argument quality, polarization metrics, logical fallacies
-Advice/How-to: Success rates, expert vs experience, timeline expectations, common mistakes
-Story/Experience: Emotional responses, advice vs empathy ratio, support tone, similar experiences
+**4. ACTIONABLE INTELLIGENCE** (How can someone use this?)
+   FOR CONTENT CREATORS: What format/tone/timing would replicate this success?
+   FOR MARKETERS: What does this reveal about audience needs/values/pain points?
+   FOR COMMUNITY MANAGERS: What dynamics should be encouraged/discouraged?
+   FOR THE OP: What did they learn about their audience?
 
-ANALYSIS-SPECIFIC (if relevant): Response chains, missing topics, humor vs serious, timing impact, author patterns
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-TABLE RULES: Markdown format, column headers, brief interpretation, minimum 5-10 data points, prioritize non-obvious insights, include percentages/averages/ratios.
+## OUTPUT FORMAT:
 
-GUIDELINES: Analyze WHY (not just what), look for patterns across comments, consider subreddit culture/context, cite specific examples, be honest about data limitations, focus on relevance over volume.
+Write naturally. Use headers to organize, but focus on INSIGHTS not structure.
+
+If you find a quantitative pattern worth highlighting (e.g., "Personal experience comments got 3x more upvotes"), present it clearly - use a simple markdown table ONLY if it genuinely helps explain the insight.
+
+**DON'T:**
+- Create tables that just reorganize the data I gave you
+- List obvious facts ("Comment #1 has 500 upvotes")
+- Fill sections just because they're there
+- Use jargon without explaining value
+
+**DO:**
+- Tell me something I wouldn't notice by casually reading
+- Explain WHY patterns exist, not just WHAT they are
+- Give specific, actionable takeaways
+- Cite specific comment examples to support insights
+- Compare/contrast different approaches that succeeded/failed
+- Identify what makes THIS discussion unique
+
+If the data doesn't support a strong insight in some area, say so and move on. Quality > quantity.
 
 ═══════════════════════════════════════════════════════════════════════════
 POST DATA
@@ -3533,10 +3556,9 @@ ${comment.body}
 END OF DATA
 ═══════════════════════════════════════════════════════════════════════════
 
-Exported: ${new Date().toISOString()}
-Analysis Tool: Reddit Analyzer v1.0
+Now analyze the discussion above. Focus on discovering non-obvious patterns and providing actionable insights. What would genuinely surprise someone about this discussion? What can content creators, marketers, or community managers learn from this?
 
-Now provide your comprehensive analysis with all 8 sections and 5-8 relevant data tables.
+Be specific. Be insightful. Skip anything that's obvious or not valuable.
 `;
 
   return prompt;
