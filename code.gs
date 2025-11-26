@@ -3451,68 +3451,108 @@ function formatForClaudeAnalysis(extractedData) {
   const comments = extractedData.valuableComments;
   const stats = extractedData.extractionStats;
 
-  // Discovery-focused prompt - insights over format
-  const prompt = `You are an expert Reddit analyst. Your goal is to uncover NON-OBVIOUS, ACTIONABLE insights from this discussion that would genuinely surprise someone even if they read all the comments.
+  // Evidence-based insight extraction prompt
+  const prompt = `═══════════════════════════════════════════════════════════════════════════
+REDDIT INSIGHT EXTRACTION
+═══════════════════════════════════════════════════════════════════════════
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-YOUR MISSION: FIND WHAT OTHERS MISS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You are analyzing Reddit data to extract valuable, evidence-based insights. Your output will be read by busy professionals—every sentence must earn its place.
 
-Don't just describe the data. Discover patterns that aren't obvious. Think like a detective, not a summarizer.
+## INPUT
+- Post: title, body, subreddit, score, comment count
+- High-value comments with scores
 
-## WHAT TO ANALYZE:
+## OUTPUT STRUCTURE
 
-**1. ENGAGEMENT PATTERNS** (What ACTUALLY drives upvotes?)
-   - Do longer/shorter comments win?
-   - Does humor beat serious advice? Or vice versa?
-   - Do personal stories outperform generic advice?
-   - What specific words/phrases appear in top comments?
-   - Do questions get more engagement than answers?
-   - Does controversy/agreement matter more?
+### 1. SNAPSHOT
+One paragraph. What is this thread really about? (Often different from the literal question.) What emotional need is the community addressing?
 
-**2. HIDDEN PSYCHOLOGY** (What motivates this audience?)
-   - What are they REALLY asking for? (validation, advice, entertainment, belonging?)
-   - What fears/desires are revealed in comments?
-   - What cognitive biases show up? (confirmation bias, survivorship bias, etc.)
-   - What identity signals matter? (expertise, experience, tribe membership)
-   - What goes unsaid but is understood?
+### 2. QUANTITATIVE EXTRACTION
 
-**3. COUNTER-INTUITIVE FINDINGS** (What would surprise someone?)
-   - What breaks the expected pattern?
-   - What "should" work but doesn't?
-   - What unexpected factor correlates with success?
-   - What common wisdom is challenged here?
-   - What's the minority opinion that might be right?
+**Engagement Metrics**
+| Metric | Value |
+|--------|-------|
+| Post score | X |
+| Comments | X total → X high-value |
+| Top comment score | X (X% of post score) |
+| Score dropoff pattern | describe |
 
-**4. ACTIONABLE INTELLIGENCE** (How can someone use this?)
-   FOR CONTENT CREATORS: What format/tone/timing would replicate this success?
-   FOR MARKETERS: What does this reveal about audience needs/values/pain points?
-   FOR COMMUNITY MANAGERS: What dynamics should be encouraged/discouraged?
-   FOR THE OP: What did they learn about their audience?
+**Topic/Category Mentions**
+Count every distinct topic, item, or theme mentioned across comments. Format:
+- [Category]: X mentions
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**Platform/Brand/Tool Mentions**
+List every product, platform, app, book, or brand mentioned (unprompted endorsements signal community trust):
+- [Name]: X mentions
 
-## OUTPUT FORMAT:
+**People/Experts Referenced**
+Authors, influencers, or figures cited as authorities.
 
-Write naturally. Use headers to organize, but focus on INSIGHTS not structure.
+### 3. INSIGHTS (Tiered)
 
-If you find a quantitative pattern worth highlighting (e.g., "Personal experience comments got 3x more upvotes"), present it clearly - use a simple markdown table ONLY if it genuinely helps explain the insight.
+**Level 1 — Direct Observations**
+What the comments explicitly say. Patterns visible on first read.
+- [Insight] → Evidence: "[quote or paraphrase]" (Comment #X)
 
-**DON'T:**
-- Create tables that just reorganize the data I gave you
-- List obvious facts ("Comment #1 has 500 upvotes")
-- Fill sections just because they're there
-- Use jargon without explaining value
+**Level 2 — Cross-Comment Patterns**
+Connections across multiple L1 insights. What emerges when you combine observations?
+- [Insight] → Based on: [which L1 insights combine to reveal this]
 
-**DO:**
-- Tell me something I wouldn't notice by casually reading
-- Explain WHY patterns exist, not just WHAT they are
-- Give specific, actionable takeaways
-- Cite specific comment examples to support insights
-- Compare/contrast different approaches that succeeded/failed
-- Identify what makes THIS discussion unique
+**Level 3 — Behavioral/Psychological Depth**
+Non-obvious insights about motivation, identity, hidden tensions, or unspoken needs. What would a behavioral economist or qualitative researcher notice?
+- [Insight] → Evidence: [pattern or quotes that reveal this]
 
-If the data doesn't support a strong insight in some area, say so and move on. Quality > quantity.
+### 4. TENSIONS & PARADOXES
+What contradictions exist between:
+- The subreddit's stated identity vs. actual discussion?
+- What people say they want vs. how they behave?
+- What's defended/justified vs. what's stated freely?
+
+Note what's conspicuously ABSENT from the conversation.
+
+### 5. EXTERNAL CONNECTIONS
+Connect this thread's patterns to broader context YOU know:
+- Relevant market trends, statistics, or research
+- Adjacent communities or movements this connects to
+- Timing context (cultural moments, news, seasons) if relevant
+- How this compares to typical discourse on this topic
+
+This is where you add value beyond the raw data.
+
+### 6. WHO BENEFITS
+| Audience | Actionable Insight |
+|----------|-------------------|
+| [Specific role] | [What they should do with this] |
+
+Be specific: "PM at a habit-tracking app" not "product managers"
+
+### 7. STRATEGIC TAKEAWAY
+2-3 sentences. The single most valuable synthesis. If someone reads nothing else, what should they know?
+
+═══════════════════════════════════════════════════════════════════════════
+ANALYSIS PRINCIPLES
+═══════════════════════════════════════════════════════════════════════════
+
+ALWAYS:
+- Tie insights to evidence (quote, paraphrase, or pattern)
+- Count things that can be counted
+- Notice language patterns (metaphors, justifications, defensive framing)
+- The top-voted comment reveals emotional center of gravity
+- Treat subreddit name as stated identity; compare to behavior
+- Connect to external data/trends when you can add context
+- Adapt your category counts to match the actual topic (hobbies → hobby types; investing → asset classes; parenting → age groups; etc.)
+
+QUALITY OVER LENGTH:
+- Delete any sentence that doesn't surprise or inform
+- Short sections are fine if the data doesn't support more
+- No filler phrases or hedging language
+- If a tier has no insights, say "None identified" and move on
+
+READABILITY:
+- Use tables for structured data
+- Bold key phrases within insights
+- Keep insights to 1-2 sentences each
+- White space is your friend
 
 ═══════════════════════════════════════════════════════════════════════════
 POST DATA
@@ -3553,12 +3593,15 @@ ${comment.body}
 }).join('\n')}
 
 ═══════════════════════════════════════════════════════════════════════════
-END OF DATA
+BEGIN ANALYSIS
 ═══════════════════════════════════════════════════════════════════════════
 
-Now analyze the discussion above. Focus on discovering non-obvious patterns and providing actionable insights. What would genuinely surprise someone about this discussion? What can content creators, marketers, or community managers learn from this?
-
-Be specific. Be insightful. Skip anything that's obvious or not valuable.
+Now provide your structured analysis following the OUTPUT STRUCTURE format above. Remember:
+- Every sentence must earn its place
+- Tie all insights to evidence
+- Count what can be counted
+- Focus on non-obvious patterns
+- Be specific and actionable
 `;
 
   return prompt;
