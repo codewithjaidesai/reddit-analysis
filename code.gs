@@ -337,8 +337,11 @@ function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
           result.candidates[0].content && result.candidates[0].content.parts &&
           result.candidates[0].content.parts.length > 0) {
 
-        const aiAnalysis = result.candidates[0].content.parts[0].text;
-        console.log(`✅ Success! Analysis received (${aiAnalysis.length} chars) from ${modelName}`);
+        // Concatenate ALL parts (Gemini splits long responses into multiple parts)
+        const aiAnalysis = result.candidates[0].content.parts
+          .map(part => part.text || '')
+          .join('');
+        console.log(`✅ Success! Analysis received (${aiAnalysis.length} chars, ${result.candidates[0].content.parts.length} parts) from ${modelName}`);
 
         return {
           success: true,
@@ -3448,45 +3451,108 @@ function formatForClaudeAnalysis(extractedData) {
   const comments = extractedData.valuableComments;
   const stats = extractedData.extractionStats;
 
-  // Optimized analysis prompt - concise but comprehensive
+  // Evidence-based insight extraction prompt
   const prompt = `═══════════════════════════════════════════════════════════════════════════
-REDDIT CONTENT ANALYSIS REQUEST
+REDDIT INSIGHT EXTRACTION
 ═══════════════════════════════════════════════════════════════════════════
 
-You are an expert Reddit content analyst. Analyze this post and comments to provide deep, actionable insights beyond surface observations.
+You are analyzing Reddit data to extract valuable, evidence-based insights. Your output will be read by busy professionals—every sentence must earn its place.
 
-ANALYSIS FRAMEWORK (provide all 8 sections):
+## INPUT
+- Post: title, body, subreddit, score, comment count
+- High-value comments with scores
 
-1. CONTENT INTELLIGENCE: Discussion type, engagement factors, non-obvious patterns
-2. ENGAGEMENT DYNAMICS: Why top comments resonated, consensus vs controversy, upvote patterns
-3. HIDDEN PATTERNS: Cognitive biases, emotional triggers, social dynamics, temporal/economic factors
-4. AUDIENCE INSIGHTS: Participant types, motivations, shared assumptions, underlying questions
-5. CONTENT STRATEGY: Replicable elements, optimal format/tone/timing for engagement
-6. SURPRISING FINDINGS: Counter-intuitive discoveries, easy-to-miss patterns, cultural insights
-7. ACTIONABLE RECOMMENDATIONS: 3-5 specific takeaways for content creators, marketers, researchers, OP
+## OUTPUT STRUCTURE
 
-8. DATA ANALYSIS WITH TABLES (generate 5-8 relevant markdown tables):
+### 1. SNAPSHOT
+One paragraph. What is this thread really about? (Often different from the literal question.) What emotional need is the community addressing?
 
-UNIVERSAL TABLES (always include 2-3):
-• Upvote Performance Tiers (Tier | Range | Count | Position | Patterns)
-• Top Comments Breakdown (Rank | Author | Upvotes | Theme | Key Factor)
-• Theme Distribution (Theme | Count | Avg Upvotes | % Discussion)
-• Word Count vs Engagement (Range | Count | Avg Upvotes | Optimal?)
-• Sentiment Analysis (Sentiment | Count | Avg Upvotes | Characteristics)
+### 2. QUANTITATIVE EXTRACTION
 
-CONTENT-SPECIFIC TABLES (choose 3-5 based on discussion type):
+**Engagement Metrics**
+| Metric | Value |
+|--------|-------|
+| Post score | X |
+| Comments | X total → X high-value |
+| Top comment score | X (X% of post score) |
+| Score dropoff pattern | describe |
 
-Factual/TIL: Cognitive violations, verifiability matrix, temporal references
-Product/Review: Feature sentiment, price sensitivity, comparison matrix, purchase intent
-Opinion/Debate: Viewpoint distribution, argument quality, polarization metrics, logical fallacies
-Advice/How-to: Success rates, expert vs experience, timeline expectations, common mistakes
-Story/Experience: Emotional responses, advice vs empathy ratio, support tone, similar experiences
+**Topic/Category Mentions**
+Count every distinct topic, item, or theme mentioned across comments. Format:
+- [Category]: X mentions
 
-ANALYSIS-SPECIFIC (if relevant): Response chains, missing topics, humor vs serious, timing impact, author patterns
+**Platform/Brand/Tool Mentions**
+List every product, platform, app, book, or brand mentioned (unprompted endorsements signal community trust):
+- [Name]: X mentions
 
-TABLE RULES: Markdown format, column headers, brief interpretation, minimum 5-10 data points, prioritize non-obvious insights, include percentages/averages/ratios.
+**People/Experts Referenced**
+Authors, influencers, or figures cited as authorities.
 
-GUIDELINES: Analyze WHY (not just what), look for patterns across comments, consider subreddit culture/context, cite specific examples, be honest about data limitations, focus on relevance over volume.
+### 3. INSIGHTS (Tiered)
+
+**Level 1 — Direct Observations**
+What the comments explicitly say. Patterns visible on first read.
+- [Insight] → Evidence: "[quote or paraphrase]" (Comment #X)
+
+**Level 2 — Cross-Comment Patterns**
+Connections across multiple L1 insights. What emerges when you combine observations?
+- [Insight] → Based on: [which L1 insights combine to reveal this]
+
+**Level 3 — Behavioral/Psychological Depth**
+Non-obvious insights about motivation, identity, hidden tensions, or unspoken needs. What would a behavioral economist or qualitative researcher notice?
+- [Insight] → Evidence: [pattern or quotes that reveal this]
+
+### 4. TENSIONS & PARADOXES
+What contradictions exist between:
+- The subreddit's stated identity vs. actual discussion?
+- What people say they want vs. how they behave?
+- What's defended/justified vs. what's stated freely?
+
+Note what's conspicuously ABSENT from the conversation.
+
+### 5. EXTERNAL CONNECTIONS
+Connect this thread's patterns to broader context YOU know:
+- Relevant market trends, statistics, or research
+- Adjacent communities or movements this connects to
+- Timing context (cultural moments, news, seasons) if relevant
+- How this compares to typical discourse on this topic
+
+This is where you add value beyond the raw data.
+
+### 6. WHO BENEFITS
+| Audience | Actionable Insight |
+|----------|-------------------|
+| [Specific role] | [What they should do with this] |
+
+Be specific: "PM at a habit-tracking app" not "product managers"
+
+### 7. STRATEGIC TAKEAWAY
+2-3 sentences. The single most valuable synthesis. If someone reads nothing else, what should they know?
+
+═══════════════════════════════════════════════════════════════════════════
+ANALYSIS PRINCIPLES
+═══════════════════════════════════════════════════════════════════════════
+
+ALWAYS:
+- Tie insights to evidence (quote, paraphrase, or pattern)
+- Count things that can be counted
+- Notice language patterns (metaphors, justifications, defensive framing)
+- The top-voted comment reveals emotional center of gravity
+- Treat subreddit name as stated identity; compare to behavior
+- Connect to external data/trends when you can add context
+- Adapt your category counts to match the actual topic (hobbies → hobby types; investing → asset classes; parenting → age groups; etc.)
+
+QUALITY OVER LENGTH:
+- Delete any sentence that doesn't surprise or inform
+- Short sections are fine if the data doesn't support more
+- No filler phrases or hedging language
+- If a tier has no insights, say "None identified" and move on
+
+READABILITY:
+- Use tables for structured data
+- Bold key phrases within insights
+- Keep insights to 1-2 sentences each
+- White space is your friend
 
 ═══════════════════════════════════════════════════════════════════════════
 POST DATA
@@ -3527,13 +3593,15 @@ ${comment.body}
 }).join('\n')}
 
 ═══════════════════════════════════════════════════════════════════════════
-END OF DATA
+BEGIN ANALYSIS
 ═══════════════════════════════════════════════════════════════════════════
 
-Exported: ${new Date().toISOString()}
-Analysis Tool: Reddit Analyzer v1.0
-
-Now provide your comprehensive analysis with all 8 sections and 5-8 relevant data tables.
+Now provide your structured analysis following the OUTPUT STRUCTURE format above. Remember:
+- Every sentence must earn its place
+- Tie all insights to evidence
+- Count what can be counted
+- Focus on non-obvious patterns
+- Be specific and actionable
 `;
 
   return prompt;
