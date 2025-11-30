@@ -1,12 +1,16 @@
 // API Configuration
+//
+// INSTRUCTIONS FOR NON-CODERS:
+// After you deploy the backend to Vercel, you'll get a URL.
+// Replace the URL below with your actual backend URL.
+//
+// Example: If your backend is at https://reddit-analyzer-xyz.vercel.app
+// Change the line below to:
+// baseUrl: 'https://reddit-analyzer-xyz.vercel.app',
+
 const API_CONFIG = {
-    // Change this to your deployed backend URL
-    // For local development: 'http://localhost:3000'
-    // For Vercel: 'https://your-project.vercel.app'
-    // For Railway: 'https://your-project.up.railway.app'
-    baseUrl: window.location.hostname === 'localhost'
-        ? 'http://localhost:3000'
-        : 'https://your-backend-url-here.vercel.app', // UPDATE THIS!
+    // 👇 PASTE YOUR BACKEND URL HERE (between the quotes)
+    baseUrl: 'PASTE_YOUR_BACKEND_URL_HERE',
 
     endpoints: {
         extract: '/api/analyze/extract',
