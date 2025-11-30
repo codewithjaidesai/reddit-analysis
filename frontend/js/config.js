@@ -9,8 +9,8 @@
 // baseUrl: 'https://reddit-analyzer-xyz.vercel.app',
 
 const API_CONFIG = {
-    // 👇 PASTE YOUR BACKEND URL HERE (between the quotes)
-    baseUrl: 'PASTE_YOUR_BACKEND_URL_HERE',
+    // Backend URL - Updated: 2025-11-30
+    baseUrl: 'https://reddit-analysis.vercel.app',
 
     endpoints: {
         extract: '/api/analyze/extract',
