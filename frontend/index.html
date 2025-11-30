@@ -14,24 +14,170 @@
         </header>
 
         <main>
-            <!-- Input Section -->
-            <section class="input-section">
-                <div class="input-group">
-                    <input
-                        type="text"
-                        id="redditUrl"
-                        placeholder="Paste Reddit post URL here..."
-                        class="url-input"
-                    />
-                    <button id="analyzeBtn" class="analyze-btn">
-                        <span class="btn-text">Analyze</span>
-                        <span class="btn-loader" style="display: none;">
-                            <span class="spinner"></span>
-                        </span>
-                    </button>
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" onclick="switchTab('url')">
+                    🔗 Analyze URL
+                </button>
+                <button class="tab-btn" onclick="switchTab('topic')">
+                    🔍 Topic Search
+                </button>
+                <button class="tab-btn" onclick="switchTab('subreddit')">
+                    📊 Subreddit Analysis
+                </button>
+            </div>
+
+            <!-- Tab 1: URL Analysis -->
+            <div id="urlTab" class="tab-content active">
+                <div class="input-section">
+                    <h2>Analyze Single Reddit Post</h2>
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            id="redditUrl"
+                            placeholder="Paste Reddit post URL here..."
+                            class="url-input"
+                        />
+                        <button id="analyzeBtn" class="analyze-btn" onclick="analyzeUrl()">
+                            <span class="btn-text">Analyze</span>
+                            <span class="btn-loader" style="display: none;">
+                                <span class="spinner"></span>
+                            </span>
+                        </button>
+                    </div>
+                    <p class="hint">Example: https://www.reddit.com/r/AskReddit/comments/...</p>
                 </div>
-                <p class="hint">Example: https://www.reddit.com/r/AskReddit/comments/...</p>
-            </section>
+            </div>
+
+            <!-- Tab 2: Topic Search -->
+            <div id="topicTab" class="tab-content" style="display: none;">
+                <div class="input-section">
+                    <h2>Search Reddit by Topic</h2>
+                    <div class="search-form">
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                id="topicQuery"
+                                placeholder="Enter topic or keywords..."
+                                class="url-input"
+                            />
+                        </div>
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label>Time Range:</label>
+                                <select id="topicTimeRange" class="select-input">
+                                    <option value="day">Past 24 Hours</option>
+                                    <option value="week" selected>Past Week</option>
+                                    <option value="month">Past Month</option>
+                                    <option value="year">Past Year</option>
+                                    <option value="all">All Time</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Max Results:</label>
+                                <select id="topicLimit" class="select-input">
+                                    <option value="10">10 posts</option>
+                                    <option value="15" selected>15 posts</option>
+                                    <option value="25">25 posts</option>
+                                    <option value="50">50 posts</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="checkbox-group">
+                            <label>
+                                <input type="checkbox" id="topicSubredditFilter" onchange="toggleTopicSubredditInput()">
+                                🎯 Search specific subreddits only
+                            </label>
+                            <div id="topicSubredditInputDiv" style="display: none; margin-top: 10px;">
+                                <input
+                                    type="text"
+                                    id="topicSubreddits"
+                                    placeholder="e.g., AskReddit, science, technology"
+                                    class="url-input"
+                                />
+                                <p class="hint">Comma-separated list of subreddits</p>
+                            </div>
+                        </div>
+                        <button class="analyze-btn" onclick="searchByTopic()">
+                            🔍 Search Posts
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Topic Search Results -->
+                <div id="topicResults" style="display: none;">
+                    <div class="results-header">
+                        <h3 id="topicResultsTitle">Search Results</h3>
+                        <div id="topicResultsSummary"></div>
+                    </div>
+                    <div id="topicPostsList"></div>
+                    <div id="topicSelectedActions" style="display: none;">
+                        <div class="selected-summary">
+                            <span id="topicSelectedCount">0 posts selected</span>
+                            <button class="analyze-btn" onclick="analyzeTopicSelectedPosts()">
+                                📊 Analyze Selected Posts
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Subreddit Analysis -->
+            <div id="subredditTab" class="tab-content" style="display: none;">
+                <div class="input-section">
+                    <h2>Analyze Subreddit Top Posts</h2>
+                    <div class="search-form">
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                id="subredditName"
+                                placeholder="Enter subreddit name (without r/)..."
+                                class="url-input"
+                            />
+                        </div>
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label>Time Range:</label>
+                                <select id="subredditTimeRange" class="select-input">
+                                    <option value="day">Past 24 Hours</option>
+                                    <option value="week" selected>Past Week</option>
+                                    <option value="month">Past Month</option>
+                                    <option value="year">Past Year</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Max Results:</label>
+                                <select id="subredditLimit" class="select-input">
+                                    <option value="10">10 posts</option>
+                                    <option value="15" selected>15 posts</option>
+                                    <option value="25">25 posts</option>
+                                    <option value="50">50 posts</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="analyze-btn" onclick="searchSubreddit()">
+                            📊 Get Top Posts
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Subreddit Search Results -->
+                <div id="subredditResults" style="display: none;">
+                    <div class="results-header">
+                        <h3 id="subredditResultsTitle">Top Posts</h3>
+                        <div id="subredditResultsSummary"></div>
+                    </div>
+                    <div id="subredditPostsList"></div>
+                    <div id="subredditSelectedActions" style="display: none;">
+                        <div class="selected-summary">
+                            <span id="subredditSelectedCount">0 posts selected</span>
+                            <button class="analyze-btn" onclick="analyzeSubredditSelectedPosts()">
+                                📊 Analyze Selected Posts
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Status Section -->
             <section id="statusSection" class="status-section" style="display: none;">
@@ -48,15 +194,24 @@
             <section id="resultsSection" class="results-section" style="display: none;">
                 <!-- Extracted Data -->
                 <div id="extractedDataCard" class="result-card" style="display: none;">
-                    <h2>📊 Extracted Data</h2>
+                    <div class="card-header">
+                        <h2>📊 Extracted Data</h2>
+                        <button class="export-btn" onclick="exportData()">📥 Export</button>
+                    </div>
                     <div id="extractedDataContent"></div>
                 </div>
 
                 <!-- AI Insights -->
                 <div id="insightsCard" class="result-card" style="display: none;">
-                    <h2>🤖 AI-Powered Insights</h2>
+                    <div class="card-header">
+                        <h2>🤖 AI-Powered Insights</h2>
+                        <button class="export-btn" onclick="exportInsights()">📥 Export as PDF</button>
+                    </div>
                     <div id="insightsContent"></div>
                 </div>
+
+                <!-- Multi-Post Results -->
+                <div id="multiPostResults" style="display: none;"></div>
             </section>
 
             <!-- Error Section -->
@@ -71,11 +226,14 @@
         </main>
 
         <footer>
-            <p>Powered by Gemini AI • Node.js Backend</p>
+            <p>Powered by Gemini AI • Node.js Backend • <a href="https://github.com/codewithjaidesai/reddit-analysis" target="_blank">GitHub</a></p>
         </footer>
     </div>
 
     <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

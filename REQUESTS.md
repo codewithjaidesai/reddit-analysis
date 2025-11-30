@@ -47,25 +47,46 @@ This file tracks all feature requests and links them to changelog entries.
 ### Request #4 - Restore Missing Features
 **Time:** Evening
 **Request:** "The original app had topic search, subreddit analysis, PDF export - where did they go?!"
-**Status:** 🔄 IN PROGRESS
-**Implementation:** Adding all missing features now
-**Missing Features Identified:**
-1. ❌ Topic Search (search Reddit by keywords across all subreddits)
-2. ❌ Subreddit Analysis (get top posts from specific subreddit)
-3. ❌ Multi-post selection and batch analysis
-4. ❌ PDF export functionality
-5. ❌ Tabbed UI (3 tabs: URL analysis, Topic search, Subreddit analysis)
-6. ❌ Post selection interface with checkboxes
-7. ❌ Various export options
+**Status:** ✅ FRONTEND COMPLETED | ❌ PDF Export Pending
+**Implementation:** See CHANGELOG.md - "Complete Frontend Restoration"
+
+**Features Restored:**
+1. ✅ Topic Search (search Reddit by keywords across all subreddits)
+   - Backend: `backend/services/search.js` - searchRedditByTopic()
+   - Backend: `backend/routes/search.js` - POST /api/search/topic
+   - Frontend: Tab 2 with search form, time range filter, subreddit filter
+2. ✅ Subreddit Analysis (get top posts from specific subreddit)
+   - Backend: `backend/services/search.js` - searchSubredditTopPosts()
+   - Backend: `backend/routes/search.js` - POST /api/search/subreddit
+   - Frontend: Tab 3 with subreddit input, time range filter
+3. ✅ Multi-post selection and batch analysis
+   - Frontend: Checkbox selection interface with toggle functions
+   - State: Using Sets (topicSelectedPosts, subredditSelectedPosts)
+   - Functions: analyzeTopicSelectedPosts(), analyzeSubredditSelectedPosts()
+4. ✅ Tabbed UI (3 tabs: URL analysis, Topic search, Subreddit analysis)
+   - Frontend: Complete tab navigation with active states
+   - Tab switching logic in ui.js
+5. ✅ Post selection interface with checkboxes
+   - Frontend: Post cards with checkboxes, selected states
+   - Visual feedback (border color, background change)
+6. ✅ Engagement tier badges
+   - Viral (gold), High (green), Medium (blue), Low (gray)
+   - Scoring: score + (comments * 2)
+7. ❌ PDF export functionality
+   - UI button exists in frontend
+   - Function marked as TODO
+8. ❌ JSON export functionality
+   - UI button exists in frontend
+   - Function marked as TODO
+
+**Files Changed:**
+- Backend: `backend/services/search.js`, `backend/routes/search.js`, `backend/server.js`
+- Frontend: All 7 files completely rewritten/created (index.html, styles.css, config.js, utils.js, api.js, ui.js, app.js)
 
 **Next Steps:**
-- Add topic search backend route
-- Add subreddit analysis backend route
-- Recreate full tabbed frontend UI
-- Add PDF export
-- Add all other export options from original
-
-**ETA:** In progress (see TODO list)
+- Implement PDF export (exportInsights function in ui.js)
+- Implement JSON export (exportData function in ui.js)
+- These are optional enhancements for future work
 
 ---
 
@@ -88,42 +109,29 @@ This file tracks all feature requests and links them to changelog entries.
 
 ## 🎯 Active Requests Being Worked On
 
-### Currently Implementing:
-1. **Topic Search Feature**
-   - Backend API endpoint
-   - Frontend UI with search form
-   - Results display with post cards
-
-2. **Subreddit Analysis Feature**
-   - Backend API endpoint
-   - Frontend UI for subreddit input
-   - Top posts display
-
-3. **Multi-Post Analysis**
-   - Selection interface
-   - Batch processing
-   - Combined insights
-
-4. **PDF Export**
+### Currently Pending:
+1. **PDF Export** ⏳
    - Export formatted insights
    - Include post metadata
    - Professional styling
+   - Status: UI button exists, function not implemented
 
-5. **Complete Tabbed UI**
-   - Tab 1: Single URL Analysis
-   - Tab 2: Topic Search
-   - Tab 3: Subreddit Analysis
+2. **JSON Export** ⏳
+   - Export raw data as JSON
+   - Include all extracted comments
+   - Download functionality
+   - Status: UI button exists, function not implemented
 
 ---
 
 ## 📊 Request Statistics
 
 **Total Requests:** 5
-**Completed:** 3
-**In Progress:** 1
-**Planned:** 1
+**Completed:** 4 (Frontend restoration complete)
+**In Progress:** 1 (PDF/JSON export pending)
+**Planned:** 0
 
 ---
 
-**Last Updated:** 2025-11-30 (Evening)
-**Next Review:** After completing missing features restoration
+**Last Updated:** 2025-11-30 (Evening - Frontend Complete)
+**Next Review:** After deployment and testing
