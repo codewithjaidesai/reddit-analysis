@@ -83,10 +83,14 @@ This file tracks all feature requests and links them to changelog entries.
 - Backend: `backend/services/search.js`, `backend/routes/search.js`, `backend/server.js`
 - Frontend: All 7 files completely rewritten/created (index.html, styles.css, config.js, utils.js, api.js, ui.js, app.js)
 
+**Deployment Status:**
+- ✅ All code merged to main branch
+- ✅ Vercel auto-deploying
+- Ready for testing!
+
 **Next Steps:**
-- Implement PDF export (exportInsights function in ui.js)
-- Implement JSON export (exportData function in ui.js)
-- These are optional enhancements for future work
+- Implement PDF export (exportInsights function in ui.js) - Optional
+- Implement JSON export (exportData function in ui.js) - Optional
 
 ---
 
