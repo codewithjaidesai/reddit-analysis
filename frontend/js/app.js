@@ -1,33 +1,16 @@
+// Main application logic
+
 // State management
-let currentAnalysis = null;
-
-// DOM Elements
-const urlInput = document.getElementById('redditUrl');
-const analyzeBtn = document.getElementById('analyzeBtn');
-const statusSection = document.getElementById('statusSection');
-const statusText = document.getElementById('statusText');
-const progressBar = document.getElementById('progressBar');
-const resultsSection = document.getElementById('resultsSection');
-const extractedDataCard = document.getElementById('extractedDataCard');
-const extractedDataContent = document.getElementById('extractedDataContent');
-const insightsCard = document.getElementById('insightsCard');
-const insightsContent = document.getElementById('insightsContent');
-const errorSection = document.getElementById('errorSection');
-const errorMessage = document.getElementById('errorMessage');
-
-// Event Listeners
-analyzeBtn.addEventListener('click', handleAnalyze);
-urlInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        handleAnalyze();
-    }
-});
+let topicSelectedPosts = new Set();
+let subredditSelectedPosts = new Set();
+let currentTopicResults = [];
+let currentSubredditResults = [];
 
 /**
- * Main analysis handler
+ * Analyze single URL
  */
-async function handleAnalyze() {
-    const url = urlInput.value.trim();
+async function analyzeUrl() {
+    const url = document.getElementById('redditUrl').value.trim();
 
     if (!url) {
         showError('Please enter a Reddit URL');
@@ -41,287 +24,324 @@ async function handleAnalyze() {
 
     // Reset UI
     hideAll();
-    setButtonLoading(true);
-    showStatus('Initializing analysis...', 10);
+    setButtonLoading('analyzeBtn', true);
+    showStatus('Extracting Reddit data...', 20);
 
     try {
         // Call the full analysis endpoint
-        const result = await callAPI(API_CONFIG.endpoints.full, { url });
+        showStatus('Analyzing comments...', 40);
+        const result = await fullAnalysis(url);
 
         if (!result.success) {
             throw new Error(result.error || 'Analysis failed');
         }
 
-        // Display results
-        showStatus('Analysis complete!', 100);
+        showStatus('Generating AI insights...', 70);
         await sleep(500);
-        displayResults(result);
+
+        showStatus('Complete!', 100);
+        await sleep(500);
+
+        // Display results
+        hideAll();
+        document.getElementById('resultsSection').style.display = 'block';
+
+        if (result.extractedData) {
+            displayExtractedData(result.extractedData);
+        }
+
+        if (result.insights && result.insights.aiAnalysis) {
+            displayInsights(result.insights.aiAnalysis);
+        }
 
     } catch (error) {
         console.error('Analysis error:', error);
         showError(error.message || 'An unexpected error occurred');
     } finally {
-        setButtonLoading(false);
+        setButtonLoading('analyzeBtn', false);
     }
 }
 
 /**
- * Call API endpoint
+ * Search by topic
  */
-async function callAPI(endpoint, data) {
-    const url = API_CONFIG.baseUrl + endpoint;
+async function searchByTopic() {
+    const topic = document.getElementById('topicQuery').value.trim();
 
-    console.log('Calling API:', url);
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    if (!topic) {
+        showError('Please enter a topic to search');
+        return;
     }
 
-    return await response.json();
-}
+    const timeRange = document.getElementById('topicTimeRange').value;
+    const limit = parseInt(document.getElementById('topicLimit').value);
 
-/**
- * Display analysis results
- */
-function displayResults(result) {
+    let subreddits = '';
+    if (document.getElementById('topicSubredditFilter').checked) {
+        subreddits = document.getElementById('topicSubreddits').value.trim();
+    }
+
+    // Reset
     hideAll();
+    topicSelectedPosts.clear();
+    showStatus('Searching Reddit...', 50);
 
-    const { extractedData, insights } = result;
+    try {
+        const result = await searchTopic(topic, timeRange, subreddits, limit);
 
-    // Show extracted data
-    if (extractedData) {
-        displayExtractedData(extractedData);
+        if (!result.success) {
+            throw new Error(result.error || 'Search failed');
+        }
+
+        currentTopicResults = result.posts;
+
+        // Display results
+        hideAll();
+        document.getElementById('topicResults').style.display = 'block';
+        document.getElementById('topicResultsTitle').textContent = `Found ${result.afterFiltering} posts for "${topic}"`;
+        document.getElementById('topicResultsSummary').textContent =
+            `Filtered ${result.afterFiltering} high-engagement posts from ${result.totalFound} total results`;
+
+        displayPostCards(result.posts, 'topicPostsList', topicSelectedPosts, 'toggleTopicPost');
+        updateTopicSelectedCount();
+
+    } catch (error) {
+        console.error('Search error:', error);
+        showError(error.message || 'Search failed');
     }
-
-    // Show insights
-    if (insights && insights.aiAnalysis) {
-        displayInsights(insights.aiAnalysis);
-    }
-
-    resultsSection.style.display = 'block';
 }
 
 /**
- * Display extracted data summary
+ * Toggle topic post selection
  */
-function displayExtractedData(data) {
-    const { post, valuableComments, extractionStats } = data;
-
-    const html = `
-        <div class="data-summary">
-            <h3>${escapeHtml(post.title)}</h3>
-            <div class="meta">
-                <span>r/${post.subreddit}</span> •
-                <span>by u/${post.author}</span> •
-                <span>${post.score} upvotes</span> •
-                <span>${post.num_comments} comments</span>
-            </div>
-            <div class="stats" style="margin-top: 20px;">
-                <div class="stat-item">
-                    <div class="stat-value">${extractionStats.extracted}</div>
-                    <div class="stat-label">High-Value Comments</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${extractionStats.percentageKept}%</div>
-                    <div class="stat-label">Retention Rate</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${extractionStats.averageScore}</div>
-                    <div class="stat-label">Avg Score</div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    extractedDataContent.innerHTML = html;
-    extractedDataCard.style.display = 'block';
-}
-
-/**
- * Display AI insights
- */
-function displayInsights(analysisText) {
-    const formattedHtml = formatMarkdown(analysisText);
-    insightsContent.innerHTML = formattedHtml;
-    insightsCard.style.display = 'block';
-}
-
-/**
- * Format markdown to HTML
- */
-function formatMarkdown(text) {
-    if (!text) return '';
-
-    // Escape HTML first
-    let html = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    // Format markdown
-    html = html
-        // Headers
-        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-        // Bold
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        // Italic
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        // Code blocks
-        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-        // Inline code
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        // Bullet lists
-        .replace(/^\• (.*$)/gm, '<li>$1</li>')
-        .replace(/^- (.*$)/gm, '<li>$1</li>')
-        // Tables (markdown tables)
-        .replace(/(?:^|\n)\|(.+)\|[ \t]*\n\|[-:\s|]+\|[ \t]*\n((?:\|.+\|[ \t]*(?:\n|$))+)/gm, function(match, header, rows) {
-            let tableHtml = '<table>';
-
-            // Header
-            const headers = header.split('|').map(h => h.trim()).filter(h => h);
-            if (headers.length > 0) {
-                tableHtml += '<thead><tr>';
-                headers.forEach(h => {
-                    tableHtml += `<th>${h}</th>`;
-                });
-                tableHtml += '</tr></thead>';
-            }
-
-            // Rows
-            tableHtml += '<tbody>';
-            const rowLines = rows.trim().split('\n').filter(line => line.trim());
-            rowLines.forEach((row) => {
-                const cells = row.split('|').map(c => c.trim()).filter(c => c);
-                if (cells.length > 0) {
-                    tableHtml += '<tr>';
-                    cells.forEach(cell => {
-                        tableHtml += `<td>${cell}</td>`;
-                    });
-                    tableHtml += '</tr>';
-                }
-            });
-
-            tableHtml += '</tbody></table>';
-            return '\n' + tableHtml + '\n';
-        })
-        // Line breaks
-        .replace(/\n\n/g, '</p><p>')
-        .replace(/\n/g, '<br>');
-
-    return '<p>' + html + '</p>';
-}
-
-/**
- * Show status message
- */
-function showStatus(message, progress) {
-    hideAll();
-    statusText.textContent = message;
-    progressBar.style.width = progress + '%';
-    statusSection.style.display = 'block';
-}
-
-/**
- * Show error message
- */
-function showError(message) {
-    hideAll();
-    errorMessage.textContent = message;
-    errorSection.style.display = 'block';
-}
-
-/**
- * Hide all sections
- */
-function hideAll() {
-    statusSection.style.display = 'none';
-    resultsSection.style.display = 'none';
-    extractedDataCard.style.display = 'none';
-    insightsCard.style.display = 'none';
-    errorSection.style.display = 'none';
-}
-
-/**
- * Set button loading state
- */
-function setButtonLoading(loading) {
-    analyzeBtn.disabled = loading;
-    const btnText = analyzeBtn.querySelector('.btn-text');
-    const btnLoader = analyzeBtn.querySelector('.btn-loader');
-
-    if (loading) {
-        btnText.style.display = 'none';
-        btnLoader.style.display = 'inline-block';
+function toggleTopicPost(postId) {
+    if (topicSelectedPosts.has(postId)) {
+        topicSelectedPosts.delete(postId);
+        document.getElementById(`post-${postId}`).classList.remove('selected');
+        document.getElementById(`check-${postId}`).checked = false;
     } else {
-        btnText.style.display = 'inline';
-        btnLoader.style.display = 'none';
+        topicSelectedPosts.add(postId);
+        document.getElementById(`post-${postId}`).classList.add('selected');
+        document.getElementById(`check-${postId}`).checked = true;
+    }
+    updateTopicSelectedCount();
+}
+
+/**
+ * Update topic selected count
+ */
+function updateTopicSelectedCount() {
+    const count = topicSelectedPosts.size;
+    document.getElementById('topicSelectedCount').textContent =
+        `${count} post${count !== 1 ? 's' : ''} selected`;
+
+    document.getElementById('topicSelectedActions').style.display =
+        count > 0 ? 'block' : 'none';
+}
+
+/**
+ * Analyze selected topic posts
+ */
+async function analyzeTopicSelectedPosts() {
+    if (topicSelectedPosts.size === 0) {
+        showError('Please select at least one post');
+        return;
+    }
+
+    const selectedUrls = currentTopicResults
+        .filter(post => topicSelectedPosts.has(post.id))
+        .map(post => post.url);
+
+    await analyzeMultiplePosts(selectedUrls);
+}
+
+/**
+ * Search subreddit
+ */
+async function searchSubreddit() {
+    const subreddit = document.getElementById('subredditName').value.trim();
+
+    if (!subreddit) {
+        showError('Please enter a subreddit name');
+        return;
+    }
+
+    const timeRange = document.getElementById('subredditTimeRange').value;
+    const limit = parseInt(document.getElementById('subredditLimit').value);
+
+    // Reset
+    hideAll();
+    subredditSelectedPosts.clear();
+    showStatus('Getting top posts...', 50);
+
+    try {
+        const result = await searchSubreddit(subreddit, timeRange, limit);
+
+        if (!result.success) {
+            throw new Error(result.error || 'Search failed');
+        }
+
+        currentSubredditResults = result.posts;
+
+        // Display results
+        hideAll();
+        document.getElementById('subredditResults').style.display = 'block';
+        document.getElementById('subredditResultsTitle').textContent =
+            `Top Posts from r/${subreddit}`;
+        document.getElementById('subredditResultsSummary').textContent =
+            `Found ${result.afterFiltering} high-engagement posts from ${result.totalFound} total`;
+
+        displayPostCards(result.posts, 'subredditPostsList', subredditSelectedPosts, 'toggleSubredditPost');
+        updateSubredditSelectedCount();
+
+    } catch (error) {
+        console.error('Search error:', error);
+        showError(error.message || 'Search failed');
     }
 }
 
 /**
- * Utility: Sleep
+ * Toggle subreddit post selection
  */
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+function toggleSubredditPost(postId) {
+    if (subredditSelectedPosts.has(postId)) {
+        subredditSelectedPosts.delete(postId);
+        document.getElementById(`post-${postId}`).classList.remove('selected');
+        document.getElementById(`check-${postId}`).checked = false;
+    } else {
+        subredditSelectedPosts.add(postId);
+        document.getElementById(`post-${postId}`).classList.add('selected');
+        document.getElementById(`check-${postId}`).checked = true;
+    }
+    updateSubredditSelectedCount();
 }
 
 /**
- * Utility: Escape HTML
+ * Update subreddit selected count
  */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+function updateSubredditSelectedCount() {
+    const count = subredditSelectedPosts.size;
+    document.getElementById('subredditSelectedCount').textContent =
+        `${count} post${count !== 1 ? 's' : ''} selected`;
+
+    document.getElementById('subredditSelectedActions').style.display =
+        count > 0 ? 'block' : 'none';
 }
 
-// Add CSS for stats display
-const style = document.createElement('style');
-style.textContent = `
-    .data-summary h3 {
-        color: var(--primary);
-        margin-bottom: 10px;
+/**
+ * Analyze selected subreddit posts
+ */
+async function analyzeSubredditSelectedPosts() {
+    if (subredditSelectedPosts.size === 0) {
+        showError('Please select at least one post');
+        return;
     }
 
-    .meta {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
+    const selectedUrls = currentSubredditResults
+        .filter(post => subredditSelectedPosts.has(post.id))
+        .map(post => post.url);
+
+    await analyzeMultiplePosts(selectedUrls);
+}
+
+/**
+ * Analyze multiple posts
+ */
+async function analyzeMultiplePosts(urls) {
+    hideAll();
+    showStatus(`Analyzing ${urls.length} posts...`, 0);
+
+    const results = [];
+
+    for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        const progress = ((i + 1) / urls.length) * 100;
+
+        showStatus(`Analyzing post ${i + 1} of ${urls.length}...`, progress);
+
+        try {
+            const result = await fullAnalysis(url);
+            results.push({
+                url,
+                success: result.success,
+                data: result
+            });
+        } catch (error) {
+            results.push({
+                url,
+                success: false,
+                error: error.message
+            });
+        }
     }
 
-    .stats {
-        display: flex;
-        gap: 20px;
-        justify-content: space-around;
-        padding: 20px;
-        background: white;
-        border-radius: 8px;
-        border: 1px solid var(--border);
-    }
+    // Display multi-post results
+    displayMultiPostResults(results);
+}
 
-    .stat-item {
-        text-align: center;
-    }
+/**
+ * Display multi-post results
+ */
+function displayMultiPostResults(results) {
+    hideAll();
+    document.getElementById('resultsSection').style.display = 'block';
+    document.getElementById('multiPostResults').style.display = 'block';
 
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--primary);
-    }
+    const html = results.map((result, index) => {
+        if (!result.success) {
+            return `
+                <div class="result-card" style="background: #fff5f5; border-color: #f56565;">
+                    <h3 style="color: #f56565;">Post ${index + 1} - Failed</h3>
+                    <p>${result.error || 'Analysis failed'}</p>
+                </div>
+            `;
+        }
 
-    .stat-label {
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-        margin-top: 5px;
+        const data = result.data;
+        let content = `<div class="result-card">`;
+
+        content += `<h3 style="color: var(--primary); margin-bottom: 20px;">Post ${index + 1}</h3>`;
+
+        if (data.extractedData) {
+            const post = data.extractedData.post;
+            const stats = data.extractedData.extractionStats;
+
+            content += `
+                <div class="data-summary">
+                    <h4>${escapeHtml(post.title)}</h4>
+                    <div class="meta">
+                        <span>r/${post.subreddit}</span> •
+                        <span>${formatNumber(post.score)} upvotes</span> •
+                        <span>${stats.extracted} high-value comments</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (data.insights && data.insights.aiAnalysis) {
+            content += `
+                <div style="margin-top: 20px; padding: 20px; background: white; border-radius: 8px;">
+                    ${formatMarkdown(data.insights.aiAnalysis)}
+                </div>
+            `;
+        }
+
+        content += `</div>`;
+        return content;
+    }).join('');
+
+    document.getElementById('multiPostResults').innerHTML = html;
+}
+
+// Keyboard shortcuts
+document.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && e.target.id === 'redditUrl') {
+        analyzeUrl();
     }
-`;
-document.head.appendChild(style);
+    if (e.key === 'Enter' && e.target.id === 'topicQuery') {
+        searchByTopic();
+    }
+    if (e.key === 'Enter' && e.target.id === 'subredditName') {
+        searchSubreddit();
+    }
+});

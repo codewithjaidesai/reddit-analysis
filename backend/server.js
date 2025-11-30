@@ -3,6 +3,7 @@ const cors = require('cors');
 const config = require('./config');
 const apiLimiter = require('./middleware/rateLimiter');
 const analyzeRoutes = require('./routes/analyze');
+const searchRoutes = require('./routes/search');
 
 const app = express();
 
@@ -24,10 +25,12 @@ app.get('/', (req, res) => {
     message: 'Reddit Analyzer API',
     version: '2.0.0',
     endpoints: {
-      health: 'GET /',
-      extract: 'POST /api/analyze/extract',
-      insights: 'POST /api/analyze/insights',
-      full: 'POST /api/analyze/full'
+      health: 'GET /health',
+      analyze_extract: 'POST /api/analyze/extract',
+      analyze_insights: 'POST /api/analyze/insights',
+      analyze_full: 'POST /api/analyze/full',
+      search_topic: 'POST /api/search/topic',
+      search_subreddit: 'POST /api/search/subreddit'
     }
   });
 });
@@ -42,6 +45,7 @@ app.get('/health', (req, res) => {
 
 // API routes with rate limiting
 app.use('/api/analyze', apiLimiter, analyzeRoutes);
+app.use('/api/search', apiLimiter, searchRoutes);
 
 // 404 handler
 app.use((req, res) => {
