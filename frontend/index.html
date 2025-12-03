@@ -38,7 +38,7 @@
                             placeholder="Paste Reddit post URL here..."
                             class="url-input"
                         />
-                        <button id="analyzeBtn" class="analyze-btn" onclick="analyzeUrl()">
+                        <button id="analyzeBtn" class="analyze-btn" onclick="handleAnalyzeUrl()">
                             <span class="btn-text">Analyze</span>
                             <span class="btn-loader" style="display: none;">
                                 <span class="spinner"></span>
@@ -98,7 +98,7 @@
                                 <p class="hint">Comma-separated list of subreddits</p>
                             </div>
                         </div>
-                        <button class="analyze-btn" onclick="searchByTopic()">
+                        <button class="analyze-btn" onclick="handleSearchByTopic()">
                             🔍 Search Posts
                         </button>
                     </div>
@@ -155,7 +155,7 @@
                                 </select>
                             </div>
                         </div>
-                        <button class="analyze-btn" onclick="searchSubreddit()">
+                        <button class="analyze-btn" onclick="handleSearchSubreddit()">
                             📊 Get Top Posts
                         </button>
                     </div>
