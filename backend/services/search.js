@@ -14,8 +14,11 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
   console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit);
 
   try {
-    // Use Reddit's public JSON API (no authentication required)
-    let searchUrl = 'https://www.reddit.com/search.json';
+    // Get OAuth access token (Reddit requires authentication for search)
+    const accessToken = await getRedditAccessToken();
+
+    // Use Reddit's OAuth API with authentication
+    let searchUrl = 'https://oauth.reddit.com/search';
     let params = {
       q: topic,
       t: timeRange,
@@ -34,10 +37,11 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       }
     }
 
-    console.log('Fetching from Reddit search API...');
+    console.log('Fetching from Reddit OAuth search API...');
     const response = await axios.get(searchUrl, {
       params,
       headers: {
+        'Authorization': `bearer ${accessToken}`,
         'User-Agent': config.reddit.userAgent
       }
     });
