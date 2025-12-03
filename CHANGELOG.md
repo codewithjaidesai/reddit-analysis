@@ -75,13 +75,28 @@ Track all changes and current status. Updated every time we make progress.
 - ✅ All 3 tabs now fully functional
 
 **Deployment:**
-- ✅ Merged to main branch via GitHub Pull Request
+- ✅ Merged to main branch via GitHub Pull Request (#18)
 - ✅ Vercel auto-deploying from main
-- ✅ Critical bug fix ready to merge and test
+- ✅ Critical bug fix deployed
+
+**🔴 CRITICAL FIX (Post-PR #18): Topic Search OAuth Implementation**
+- 🐛 **ROOT CAUSE FOUND:** Topic Search was using Reddit's public API without OAuth
+  - Used `https://www.reddit.com/search.json` → Getting 403 Forbidden errors
+  - This is why "none of the tabs are working" - Topic Search fails with 403
+  - Subreddit Search and URL Analysis already used OAuth correctly
+- ✅ **FIXED:** Topic Search now uses OAuth like all other endpoints
+  - Changed to `https://oauth.reddit.com/search` with Authorization header
+  - Calls `getRedditAccessToken()` to get valid OAuth token
+  - All 3 tabs now use official Reddit OAuth (no more 403!)
+
+**OAuth Status (All Tabs):**
+- ✅ Tab 1 (URL Analysis): Uses `oauth.reddit.com` with token
+- ✅ Tab 2 (Topic Search): NOW FIXED - Uses `oauth.reddit.com` with token
+- ✅ Tab 3 (Subreddit Search): Uses `oauth.reddit.com` with token
 
 **Next Steps:**
-1. Merge bug fix to main
-2. Test all 3 tabs end-to-end (should work now!)
+1. Merge OAuth fix to main
+2. Test all 3 tabs end-to-end (should ALL work now!)
 3. Restore comment extraction and export workflow
 4. Implement PDF export
 

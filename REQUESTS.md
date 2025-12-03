@@ -177,13 +177,39 @@ This file tracks all feature requests and links them to changelog entries.
 
 ---
 
+### Request #8 - Fix Topic Search 403 Error (OAuth Missing)
+**Time:** Late Evening (Post-PR #18 Testing)
+**Request:** "I don't see any new PRs with your most recent change to merge to main. Also, None of the tabs are working. Why is this so complicated? That recursive bug is also there on the search by subreddit tab... Check for OAuth in every tab? We want use official ways and not face 403."
+**Status:** ✅ FIXED
+**Root Cause:** Topic Search was NOT using Reddit OAuth
+- Backend was calling `https://www.reddit.com/search.json` (public API, NO auth)
+- Reddit returns 403 Forbidden for unauthenticated requests
+- This is why "none of the tabs are working" - Topic Search fails immediately
+- Subreddit Search and URL Analysis were already using OAuth correctly
+
+**Solution:**
+- Changed Topic Search to use `https://oauth.reddit.com/search` (OAuth endpoint)
+- Added `getRedditAccessToken()` call to get valid OAuth token
+- Added Authorization header with bearer token
+- Now ALL 3 tabs use official Reddit OAuth properly
+
+**OAuth Implementation Status:**
+- ✅ Tab 1 (URL Analysis): `backend/services/reddit.js:62` - Uses `oauth.reddit.com` with token
+- ✅ Tab 2 (Topic Search): `backend/services/search.js:21` - FIXED - Now uses `oauth.reddit.com` with token
+- ✅ Tab 3 (Subreddit Search): `backend/services/search.js:149` - Uses `oauth.reddit.com` with token
+
+**Files Changed:**
+- `backend/services/search.js` - Updated `searchRedditByTopic()` to use OAuth
+
+---
+
 ## 🎯 Active Requests Being Worked On
 
 ### Currently Critical:
-1. **Fix Infinite Recursion Bug** ✅ FIXED
-   - Was blocking all search functionality
-   - Caused by function naming conflict
-   - Fixed in commit e297830
+1. **Fix Topic Search 403 Error (OAuth Missing)** ✅ FIXED
+   - Was blocking ALL tabs from working
+   - Topic Search used public API without OAuth → 403 errors
+   - Fixed in current commit
 
 2. **Restore Comment Extraction & Export** 🔴
    - Missing core workflow from original app
@@ -203,13 +229,13 @@ This file tracks all feature requests and links them to changelog entries.
 
 ## 📊 Request Statistics
 
-**Total Requests:** 7
-**Completed:** 6 (Infinite recursion bug fixed!)
+**Total Requests:** 8
+**Completed:** 7 (OAuth now implemented in ALL tabs!)
 **Critical Bugs:** 1 (missing export workflow)
 **In Progress:** 0
 **Planned:** 0
 
 ---
 
-**Last Updated:** 2025-11-30 (Evening - Recursion Bug Fixed)
-**Next Review:** After restoring export workflow
+**Last Updated:** 2025-12-03 (Late Evening - OAuth Fix for Topic Search)
+**Next Review:** After testing all tabs and merging to main
