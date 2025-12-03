@@ -1,11 +1,5 @@
 // Main application logic
 
-// Store references to API functions before defining UI handlers
-// (to avoid naming conflicts with global functions)
-const apiSearchTopic = searchTopic;
-const apiSearchSubreddit = searchSubreddit;
-const apiFullAnalysis = fullAnalysis;
-
 // State management
 let topicSelectedPosts = new Set();
 let subredditSelectedPosts = new Set();
@@ -15,7 +9,7 @@ let currentSubredditResults = [];
 /**
  * Analyze single URL
  */
-async function analyzeUrl() {
+async function handleAnalyzeUrl() {
     const url = document.getElementById('redditUrl').value.trim();
 
     if (!url) {
@@ -36,7 +30,7 @@ async function analyzeUrl() {
     try {
         // Call the full analysis endpoint
         showStatus('Analyzing comments...', 40);
-        const result = await apiFullAnalysis(url);
+        const result = await fullAnalysis(url);
 
         if (!result.success) {
             throw new Error(result.error || 'Analysis failed');
@@ -71,7 +65,7 @@ async function analyzeUrl() {
 /**
  * Search by topic
  */
-async function searchByTopic() {
+async function handleSearchByTopic() {
     const topic = document.getElementById('topicQuery').value.trim();
 
     if (!topic) {
@@ -93,7 +87,7 @@ async function searchByTopic() {
     showStatus('Searching Reddit...', 50);
 
     try {
-        const result = await apiSearchTopic(topic, timeRange, subreddits, limit);
+        const result = await searchTopic(topic, timeRange, subreddits, limit);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
@@ -164,7 +158,7 @@ async function analyzeTopicSelectedPosts() {
 /**
  * Search subreddit
  */
-async function searchSubreddit() {
+async function handleSearchSubreddit() {
     const subreddit = document.getElementById('subredditName').value.trim();
 
     if (!subreddit) {
@@ -181,7 +175,7 @@ async function searchSubreddit() {
     showStatus('Getting top posts...', 50);
 
     try {
-        const result = await apiSearchSubreddit(subreddit, timeRange, limit);
+        const result = await searchSubreddit(subreddit, timeRange, limit);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
@@ -266,7 +260,7 @@ async function analyzeMultiplePosts(urls) {
         showStatus(`Analyzing post ${i + 1} of ${urls.length}...`, progress);
 
         try {
-            const result = await apiFullAnalysis(url);
+            const result = await fullAnalysis(url);
             results.push({
                 url,
                 success: result.success,
@@ -342,12 +336,12 @@ function displayMultiPostResults(results) {
 // Keyboard shortcuts
 document.addEventListener('keypress', function(e) {
     if (e.key === 'Enter' && e.target.id === 'redditUrl') {
-        analyzeUrl();
+        handleAnalyzeUrl();
     }
     if (e.key === 'Enter' && e.target.id === 'topicQuery') {
-        searchByTopic();
+        handleSearchByTopic();
     }
     if (e.key === 'Enter' && e.target.id === 'subredditName') {
-        searchSubreddit();
+        handleSearchSubreddit();
     }
 });
