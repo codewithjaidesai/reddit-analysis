@@ -9,7 +9,7 @@
 // baseUrl: 'https://reddit-analyzer-xyz.vercel.app',
 
 const API_CONFIG = {
-    // Backend URL - Updated: 2025-11-30
+    // Backend URL - Updated: 2025-12-03
     baseUrl: 'https://reddit-analysis.vercel.app',
 
     endpoints: {
