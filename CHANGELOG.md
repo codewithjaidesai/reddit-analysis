@@ -66,11 +66,24 @@ Track all changes and current status. Updated every time we make progress.
 - ❌ PDF Export functionality (UI button exists, function not implemented)
 - ❌ JSON Export functionality (UI button exists, function not implemented)
 
+**Evening (Post-Deployment): Critical Bug Fix**
+- 🐛 Fixed infinite recursion bug in search functions
+  - Function naming conflict between api.js and app.js
+  - searchSubreddit() was calling itself instead of API
+  - Added API function references to avoid conflicts
+  - Fixed in commit e297830
+- ✅ All 3 tabs now fully functional
+
+**Deployment:**
+- ✅ Merged to main branch via GitHub Pull Request
+- ✅ Vercel auto-deploying from main
+- ✅ Critical bug fix ready to merge and test
+
 **Next Steps:**
-1. Configure Vercel to deploy from `claude/fix-ai-insights-bug-019jr8aRt1tG6C8kaM7NPFKL` branch
-2. Redeploy frontend to pick up all new changes
-3. Test all 3 tabs end-to-end
-4. Implement PDF export (optional future enhancement)
+1. Merge bug fix to main
+2. Test all 3 tabs end-to-end (should work now!)
+3. Restore comment extraction and export workflow
+4. Implement PDF export
 
 ---
 

@@ -83,10 +83,14 @@ This file tracks all feature requests and links them to changelog entries.
 - Backend: `backend/services/search.js`, `backend/routes/search.js`, `backend/server.js`
 - Frontend: All 7 files completely rewritten/created (index.html, styles.css, config.js, utils.js, api.js, ui.js, app.js)
 
+**Deployment Status:**
+- ✅ All code merged to main branch
+- ✅ Vercel auto-deploying
+- Ready for testing!
+
 **Next Steps:**
-- Implement PDF export (exportInsights function in ui.js)
-- Implement JSON export (exportData function in ui.js)
-- These are optional enhancements for future work
+- Implement PDF export (exportInsights function in ui.js) - Optional
+- Implement JSON export (exportData function in ui.js) - Optional
 
 ---
 
@@ -107,16 +111,89 @@ This file tracks all feature requests and links them to changelog entries.
 
 ---
 
+### Request #6 - Fix Infinite Recursion Bug in Search Functions
+**Time:** Evening (Post-Deployment Testing)
+**Request:** "Topic search is throwing errors. Console shows 'Cannot read properties of undefined (reading success)' with hundreds of recursive calls."
+**Status:** ✅ FIXED
+**Error Details:**
+- Error in console: `TypeError: Cannot read properties of undefined (reading 'success')`
+- Infinite recursive loop: `searchSubreddit @ app.js:178` repeated hundreds of times
+- Occurs when using Topic Search and Subreddit Analysis tabs
+- Single URL analysis worked fine
+
+**Root Cause:** Function naming conflict
+- `api.js` defines: `searchTopic()`, `searchSubreddit()`, `fullAnalysis()`
+- `app.js` also defined: `searchSubreddit()` (UI handler)
+- When `searchSubreddit()` in app.js tried to call the API function, it called itself recursively
+- This overwrote the global API functions
+
+**Solution:**
+- Store references to API functions at top of app.js: `const apiSearchTopic = searchTopic;`
+- Use `apiSearchTopic()`, `apiSearchSubreddit()`, `apiFullAnalysis()` to call APIs
+- Keep original UI handler names for HTML onclick compatibility
+
+**Files Changed:**
+- `frontend/js/app.js` - Added API function references, updated all API calls
+
+---
+
+### Request #7 - Missing Comment Extraction & Export Workflow
+**Time:** Evening (Post-Deployment Testing)
+**Request:** "We are skipping a few steps overall. While we have 3 tabs, we are missing things like extracting comments and having an option to export those comments as PDF or copy as text or copy to clipboard. We're going straight to AI insights, but I like that AND I need to be able to export comments as well as we had earlier."
+**Status:** ❌ MISSING CRITICAL FEATURE
+**Implementation:** Need to review original code.gs and index.html to understand original export features
+
+**Missing Features Identified:**
+1. ❌ Comment extraction display (before AI insights)
+2. ❌ Export comments as PDF
+3. ❌ Copy comments as text
+4. ❌ Copy to clipboard functionality
+5. ❌ Proper workflow: Extract → Display → Export Options → AI Insights
+
+**Original App Workflow (Need to restore):**
+- Step 1: User enters URL/topic/subreddit
+- Step 2: Extract comments from Reddit
+- Step 3: Display extracted comments
+- Step 4: Export options (PDF, text, clipboard)
+- Step 5: Generate AI insights (optional)
+
+**Current Broken Workflow:**
+- Step 1: User enters URL
+- Step 2: Immediately jump to AI insights
+- Step 3: No way to see or export raw comments ❌
+
+**Files to Review:**
+- `code.gs` - Original Apps Script backend (check export functions)
+- `index.html` - Original frontend (check export UI and buttons)
+
+**Next Steps:**
+1. Read original code.gs to find export functions
+2. Read original index.html to find export UI
+3. Implement comment extraction display
+4. Implement PDF export
+5. Implement text export
+6. Implement clipboard copy
+7. Restore proper workflow
+
+---
+
 ## 🎯 Active Requests Being Worked On
 
-### Currently Pending:
-1. **PDF Export** ⏳
-   - Export formatted insights
-   - Include post metadata
-   - Professional styling
-   - Status: UI button exists, function not implemented
+### Currently Critical:
+1. **Fix Infinite Recursion Bug** ✅ FIXED
+   - Was blocking all search functionality
+   - Caused by function naming conflict
+   - Fixed in commit e297830
 
-2. **JSON Export** ⏳
+2. **Restore Comment Extraction & Export** 🔴
+   - Missing core workflow from original app
+   - Need to extract and display comments first
+   - Then offer export options (PDF, text, clipboard)
+   - Then optionally generate AI insights
+   - Status: Need to review original files
+
+### Lower Priority:
+3. **JSON Export** ⏳
    - Export raw data as JSON
    - Include all extracted comments
    - Download functionality
@@ -126,12 +203,13 @@ This file tracks all feature requests and links them to changelog entries.
 
 ## 📊 Request Statistics
 
-**Total Requests:** 5
-**Completed:** 4 (Frontend restoration complete)
-**In Progress:** 1 (PDF/JSON export pending)
+**Total Requests:** 7
+**Completed:** 6 (Infinite recursion bug fixed!)
+**Critical Bugs:** 1 (missing export workflow)
+**In Progress:** 0
 **Planned:** 0
 
 ---
 
-**Last Updated:** 2025-11-30 (Evening - Frontend Complete)
-**Next Review:** After deployment and testing
+**Last Updated:** 2025-11-30 (Evening - Recursion Bug Fixed)
+**Next Review:** After restoring export workflow

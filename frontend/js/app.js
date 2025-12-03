@@ -1,5 +1,11 @@
 // Main application logic
 
+// Store references to API functions before defining UI handlers
+// (to avoid naming conflicts with global functions)
+const apiSearchTopic = searchTopic;
+const apiSearchSubreddit = searchSubreddit;
+const apiFullAnalysis = fullAnalysis;
+
 // State management
 let topicSelectedPosts = new Set();
 let subredditSelectedPosts = new Set();
@@ -30,7 +36,7 @@ async function analyzeUrl() {
     try {
         // Call the full analysis endpoint
         showStatus('Analyzing comments...', 40);
-        const result = await fullAnalysis(url);
+        const result = await apiFullAnalysis(url);
 
         if (!result.success) {
             throw new Error(result.error || 'Analysis failed');
@@ -87,7 +93,7 @@ async function searchByTopic() {
     showStatus('Searching Reddit...', 50);
 
     try {
-        const result = await searchTopic(topic, timeRange, subreddits, limit);
+        const result = await apiSearchTopic(topic, timeRange, subreddits, limit);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
@@ -175,7 +181,7 @@ async function searchSubreddit() {
     showStatus('Getting top posts...', 50);
 
     try {
-        const result = await searchSubreddit(subreddit, timeRange, limit);
+        const result = await apiSearchSubreddit(subreddit, timeRange, limit);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
@@ -260,7 +266,7 @@ async function analyzeMultiplePosts(urls) {
         showStatus(`Analyzing post ${i + 1} of ${urls.length}...`, progress);
 
         try {
-            const result = await fullAnalysis(url);
+            const result = await apiFullAnalysis(url);
             results.push({
                 url,
                 success: result.success,
