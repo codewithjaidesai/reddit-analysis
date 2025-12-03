@@ -111,20 +111,29 @@ This file tracks all feature requests and links them to changelog entries.
 
 ---
 
-### Request #6 - Fix 403 Error on Topic Search
+### Request #6 - Fix Infinite Recursion Bug in Search Functions
 **Time:** Evening (Post-Deployment Testing)
-**Request:** "Topic search is throwing 403 errors. I thought we wouldn't hit 403 errors because we built on Vercel to avoid this exact issue."
-**Status:** 🔴 CRITICAL BUG - Blocking topic search functionality
+**Request:** "Topic search is throwing errors. Console shows 'Cannot read properties of undefined (reading success)' with hundreds of recursive calls."
+**Status:** ✅ FIXED
 **Error Details:**
-- Error in console: `app.js:109 Search error: Error: Request failed with status code 403`
-- Occurs when using Topic Search tab
-- Single URL analysis works fine
-**Root Cause:** Need to investigate
-**Next Steps:**
-- Check backend search endpoint authentication
-- Verify Reddit API credentials/tokens
-- Check CORS configuration
-- Test search endpoint directly
+- Error in console: `TypeError: Cannot read properties of undefined (reading 'success')`
+- Infinite recursive loop: `searchSubreddit @ app.js:178` repeated hundreds of times
+- Occurs when using Topic Search and Subreddit Analysis tabs
+- Single URL analysis worked fine
+
+**Root Cause:** Function naming conflict
+- `api.js` defines: `searchTopic()`, `searchSubreddit()`, `fullAnalysis()`
+- `app.js` also defined: `searchSubreddit()` (UI handler)
+- When `searchSubreddit()` in app.js tried to call the API function, it called itself recursively
+- This overwrote the global API functions
+
+**Solution:**
+- Store references to API functions at top of app.js: `const apiSearchTopic = searchTopic;`
+- Use `apiSearchTopic()`, `apiSearchSubreddit()`, `apiFullAnalysis()` to call APIs
+- Keep original UI handler names for HTML onclick compatibility
+
+**Files Changed:**
+- `frontend/js/app.js` - Added API function references, updated all API calls
 
 ---
 
@@ -171,10 +180,10 @@ This file tracks all feature requests and links them to changelog entries.
 ## 🎯 Active Requests Being Worked On
 
 ### Currently Critical:
-1. **Fix 403 Error on Topic Search** 🔴
-   - Blocking all search functionality
-   - Single URL works, topic/subreddit searches fail
-   - Status: Investigating
+1. **Fix Infinite Recursion Bug** ✅ FIXED
+   - Was blocking all search functionality
+   - Caused by function naming conflict
+   - Fixed in commit e297830
 
 2. **Restore Comment Extraction & Export** 🔴
    - Missing core workflow from original app
@@ -195,12 +204,12 @@ This file tracks all feature requests and links them to changelog entries.
 ## 📊 Request Statistics
 
 **Total Requests:** 7
-**Completed:** 5
-**Critical Bugs:** 2 (403 error, missing export workflow)
+**Completed:** 6 (Infinite recursion bug fixed!)
+**Critical Bugs:** 1 (missing export workflow)
 **In Progress:** 0
 **Planned:** 0
 
 ---
 
-**Last Updated:** 2025-11-30 (Evening - Post-Deployment Issues Found)
-**Next Review:** After fixing critical bugs
+**Last Updated:** 2025-11-30 (Evening - Recursion Bug Fixed)
+**Next Review:** After restoring export workflow
