@@ -47,6 +47,8 @@ async function handleAnalyzeUrl() {
         document.getElementById('resultsSection').style.display = 'block';
 
         if (result.extractedData) {
+            // Store extracted data globally for export functions
+            window.currentExtractedData = result.extractedData;
             displayExtractedData(result.extractedData);
         }
 
@@ -282,10 +284,16 @@ async function analyzeMultiplePosts(urls) {
 /**
  * Display multi-post results
  */
+// Store multi-post results globally for export
+window.multiPostResults = [];
+
 function displayMultiPostResults(results) {
     hideAll();
     document.getElementById('resultsSection').style.display = 'block';
     document.getElementById('multiPostResults').style.display = 'block';
+
+    // Store results globally
+    window.multiPostResults = results;
 
     const html = results.map((result, index) => {
         if (!result.success) {
@@ -314,6 +322,17 @@ function displayMultiPostResults(results) {
                         <span>${formatNumber(post.score)} upvotes</span> •
                         <span>${stats.extracted} high-value comments</span>
                     </div>
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button onclick="exportMultiPostPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                            📄 Export PDF
+                        </button>
+                        <button onclick="copyMultiPostForAI(${index})" style="background: #9f7aea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                            📋 Copy for AI
+                        </button>
+                        <button onclick="copyMultiPostAsText(${index})" style="background: #48bb78; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                            📝 Copy Text
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -331,6 +350,28 @@ function displayMultiPostResults(results) {
     }).join('');
 
     document.getElementById('multiPostResults').innerHTML = html;
+}
+
+// Export functions for multi-post results
+function exportMultiPostPDF(index) {
+    if (window.multiPostResults[index] && window.multiPostResults[index].data.extractedData) {
+        window.currentExtractedData = window.multiPostResults[index].data.extractedData;
+        exportToPDF();
+    }
+}
+
+function copyMultiPostForAI(index) {
+    if (window.multiPostResults[index] && window.multiPostResults[index].data.extractedData) {
+        window.currentExtractedData = window.multiPostResults[index].data.extractedData;
+        copyToClipboard();
+    }
+}
+
+function copyMultiPostAsText(index) {
+    if (window.multiPostResults[index] && window.multiPostResults[index].data.extractedData) {
+        window.currentExtractedData = window.multiPostResults[index].data.extractedData;
+        copyAsText();
+    }
 }
 
 // Keyboard shortcuts

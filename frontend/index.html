@@ -195,8 +195,13 @@
                 <!-- Extracted Data -->
                 <div id="extractedDataCard" class="result-card" style="display: none;">
                     <div class="card-header">
-                        <h2>📊 Extracted Data</h2>
-                        <button class="export-btn" onclick="exportData()">📥 Export</button>
+                        <h2>📊 Extracted Comments</h2>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="export-btn" onclick="exportToPDF()" style="background: #ed8936;">📄 Export PDF</button>
+                            <button class="export-btn" onclick="copyToClipboard()" style="background: #9f7aea;">📋 Copy for AI</button>
+                            <button class="export-btn" onclick="copyAsText()" style="background: #48bb78;">📝 Copy Text</button>
+                            <button class="export-btn" onclick="exportData()">💾 Export JSON</button>
+                        </div>
                     </div>
                     <div id="extractedDataContent"></div>
                 </div>
