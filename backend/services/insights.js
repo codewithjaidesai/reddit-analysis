@@ -11,106 +11,154 @@ function formatAnalysisPrompt(extractedData) {
   const stats = extractedData.extractionStats;
 
   const prompt = `═══════════════════════════════════════════════════════════════════════════
-REDDIT INSIGHT EXTRACTION
+REDDIT CONTENT INTELLIGENCE ANALYSIS
 ═══════════════════════════════════════════════════════════════════════════
 
-You are analyzing Reddit data to extract valuable, evidence-based insights. Your output will be read by busy professionals—every sentence must earn its place.
+You are a strategic content analyst helping businesses extract actionable insights from Reddit discussions. Your analysis will be used for marketing strategy, SEO planning, product development, and competitive intelligence.
 
-## INPUT
-- Post: title, body, subreddit, score, comment count
-- High-value comments with scores
-
-## OUTPUT STRUCTURE
-
-### 1. SNAPSHOT
-One paragraph. What is this thread really about? (Often different from the literal question.) What emotional need is the community addressing?
-
-### 2. QUANTITATIVE EXTRACTION
-
-**Engagement Metrics**
-| Metric | Value |
-|--------|-------|
-| Post score | X |
-| Comments | X total → X high-value |
-| Top comment score | X (X% of post score) |
-| Score dropoff pattern | describe |
-
-**Topic/Category Mentions**
-Count every distinct topic, item, or theme mentioned across comments. Format:
-- [Category]: X mentions
-
-**Platform/Brand/Tool Mentions**
-List every product, platform, app, book, or brand mentioned (unprompted endorsements signal community trust):
-- [Name]: X mentions
-
-**People/Experts Referenced**
-Authors, influencers, or figures cited as authorities.
-
-### 3. INSIGHTS (Tiered)
-
-**Level 1 — Direct Observations**
-What the comments explicitly say. Patterns visible on first read.
-- [Insight] → Evidence: "[quote or paraphrase]" (Comment #X)
-
-**Level 2 — Cross-Comment Patterns**
-Connections across multiple L1 insights. What emerges when you combine observations?
-- [Insight] → Based on: [which L1 insights combine to reveal this]
-
-**Level 3 — Behavioral/Psychological Depth**
-Non-obvious insights about motivation, identity, hidden tensions, or unspoken needs. What would a behavioral economist or qualitative researcher notice?
-- [Insight] → Evidence: [pattern or quotes that reveal this]
-
-### 4. TENSIONS & PARADOXES
-What contradictions exist between:
-- The subreddit's stated identity vs. actual discussion?
-- What people say they want vs. how they behave?
-- What's defended/justified vs. what's stated freely?
-
-Note what's conspicuously ABSENT from the conversation.
-
-### 5. EXTERNAL CONNECTIONS
-Connect this thread's patterns to broader context YOU know:
-- Relevant market trends, statistics, or research
-- Adjacent communities or movements this connects to
-- Timing context (cultural moments, news, seasons) if relevant
-- How this compares to typical discourse on this topic
-
-This is where you add value beyond the raw data.
-
-### 6. WHO BENEFITS
-| Audience | Actionable Insight |
-|----------|-------------------|
-| [Specific role] | [What they should do with this] |
-
-Be specific: "PM at a habit-tracking app" not "product managers"
-
-### 7. STRATEGIC TAKEAWAY
-2-3 sentences. The single most valuable synthesis. If someone reads nothing else, what should they know?
+Your job: Understand the content deeply, ask the right questions, and extract insights that drive business decisions.
 
 ═══════════════════════════════════════════════════════════════════════════
-ANALYSIS PRINCIPLES
+ANALYSIS FRAMEWORK
 ═══════════════════════════════════════════════════════════════════════════
 
-ALWAYS:
-- Tie insights to evidence (quote, paraphrase, or pattern)
-- Count things that can be counted
-- Notice language patterns (metaphors, justifications, defensive framing)
-- The top-voted comment reveals emotional center of gravity
-- Treat subreddit name as stated identity; compare to behavior
-- Connect to external data/trends when you can add context
-- Adapt your category counts to match the actual topic (hobbies → hobby types; investing → asset classes; parenting → age groups; etc.)
+## PHASE 1: DEEP UNDERSTANDING
 
-QUALITY OVER LENGTH:
-- Delete any sentence that doesn't surprise or inform
-- Short sections are fine if the data doesn't support more
-- No filler phrases or hedging language
-- If a tier has no insights, say "None identified" and move on
+Read all the content carefully. Before extracting anything, understand:
+- What is this discussion REALLY about? (Often different from the surface topic)
+- What problem, need, desire, or pain point is being addressed?
+- What's the emotional and practical context?
+- Who is participating and why do they care?
 
-READABILITY:
-- Use tables for structured data
-- Bold key phrases within insights
-- Keep insights to 1-2 sentences each
-- White space is your friend
+## PHASE 2: GENERATE KEY QUESTIONS
+
+Based on what you've read, identify 4-6 critical questions that would provide business value. These should be specific to THIS content, not generic. Ask yourself:
+
+- What would a marketer want to know about this audience?
+- What product opportunities or gaps are revealed?
+- What content/SEO opportunities exist?
+- What language, messaging, or positioning insights emerge?
+- What quantitative patterns matter for business decisions?
+
+Examples of good questions (adapt to YOUR content):
+- "What specific pain points do users mention most frequently?"
+- "Which solutions/tools are recommended and why?"
+- "What objections or concerns appear repeatedly?"
+- "What language patterns indicate purchase intent or dissatisfaction?"
+- "What emerging trends or shifts in behavior are visible?"
+
+## PHASE 3: EXTRACT INSIGHTS (QUALITATIVE + QUANTITATIVE)
+
+Answer your questions with evidence-backed insights. Mix both types intelligently:
+
+**QUALITATIVE INSIGHTS** (The "why" and "how")
+- Motivations, emotions, mental models
+- Pain points and desired outcomes
+- Objections, concerns, hesitations
+- Language patterns and framing
+- Unspoken needs or tensions
+- Community norms and values
+
+**QUANTITATIVE INSIGHTS** (The "what" and "how much")
+- Frequency patterns (which topics/problems/solutions dominate?)
+- Engagement indicators (what content resonates most?)
+- Sentiment distribution (positive/negative/mixed reactions)
+- Mention counts (products, brands, methods—when revealing)
+- Conversion signals (recommendations, endorsements, warnings)
+- Demographic or behavioral segments visible in data
+
+CRITICAL: Extract quantitative insights that reveal patterns, preferences, or opportunities—not just mechanical counting. Numbers should tell a story.
+
+Format each insight as:
+**[Insight Title]**
+[1-3 sentences explaining the insight]
+- Evidence: [quote/paraphrase/pattern + source]
+- Business value: [why this matters]
+
+## PHASE 4: BUSINESS IMPLICATIONS
+
+Organize actionable implications by function:
+
+**FOR MARKETING & MESSAGING**
+- Positioning angles and value propositions
+- Language and terminology to use (or avoid)
+- Audience segments and targeting opportunities
+- Channel and format recommendations
+- Campaign or content ideas
+
+**FOR PRODUCT & DEVELOPMENT**
+- Feature requests or gaps identified
+- User needs and pain points to solve
+- Competitive insights and alternatives mentioned
+- User experience expectations
+- Integration or partnership opportunities
+
+**FOR SEO & CONTENT STRATEGY**
+- High-value topics and questions to target
+- Keywords and phrases used naturally by audience
+- Content formats that resonate
+- Information gaps to fill
+- Search intent patterns
+
+═══════════════════════════════════════════════════════════════════════════
+QUALITY STANDARDS
+═══════════════════════════════════════════════════════════════════════════
+
+✓ ACTIONABLE: Every insight should suggest a concrete action or decision
+✓ EVIDENCE-BASED: Tie insights to specific quotes, patterns, or data
+✓ NON-OBVIOUS: Prioritize insights that aren't immediately visible
+✓ BUSINESS-FOCUSED: Always connect findings to business value
+✓ ADAPTIVE: Let the content guide your analysis—not a rigid template
+✓ QUANTITATIVE + QUALITATIVE: Use both to paint a complete picture
+✓ SPECIFIC: Names, numbers, examples over vague generalizations
+✓ CONCISE: Every sentence must earn its place
+
+✗ Avoid mechanical counting without context
+✗ Avoid generic insights that could apply to any thread
+✗ Avoid hedging language ("might", "could", "possibly")
+✗ Avoid filler sections—if there's nothing valuable, skip it
+✗ Avoid ignoring quantitative patterns when they reveal opportunities
+
+═══════════════════════════════════════════════════════════════════════════
+OUTPUT FORMAT
+═══════════════════════════════════════════════════════════════════════════
+
+# CONTENT OVERVIEW
+[2-3 sentences: What is this content about and why does it matter?]
+
+# KEY QUESTIONS FOR ANALYSIS
+[List 4-6 questions you'll answer based on this specific content]
+
+# INSIGHTS & FINDINGS
+
+## [Category/Theme 1]
+[Organize insights by themes that emerge from the content—not predetermined categories]
+
+**[Insight Title]**
+[Description with evidence and business value]
+
+**[Insight Title]**
+[Description with evidence and business value]
+
+## [Category/Theme 2]
+[Continue as needed...]
+
+# BUSINESS IMPLICATIONS
+
+## For Marketing & Messaging
+- [Actionable recommendation]
+- [Actionable recommendation]
+
+## For Product & Development
+- [Actionable recommendation]
+- [Actionable recommendation]
+
+## For SEO & Content Strategy
+- [Actionable recommendation]
+- [Actionable recommendation]
+
+# STRATEGIC SUMMARY
+[2-3 sentences: The single most valuable insight from this analysis. If a busy executive reads only this, what should they know?]
 
 ═══════════════════════════════════════════════════════════════════════════
 POST DATA
@@ -152,12 +200,20 @@ ${comment.body}
 BEGIN ANALYSIS
 ═══════════════════════════════════════════════════════════════════════════
 
-Now provide your structured analysis following the OUTPUT STRUCTURE format above. Remember:
-- Every sentence must earn its place
-- Tie all insights to evidence
-- Count what can be counted
-- Focus on non-obvious patterns
-- Be specific and actionable
+Now analyze this content following the framework above:
+
+1. First, read and understand the content deeply
+2. Generate 4-6 key questions specific to THIS content
+3. Extract insights (both qualitative and quantitative) with evidence
+4. Provide business implications organized by function
+5. End with a strategic summary
+
+Remember:
+- Be adaptive—let the content guide your analysis
+- Balance qualitative depth with quantitative patterns
+- Make every insight actionable and business-focused
+- Use evidence from the comments to support findings
+- Skip sections that don't add value for THIS specific content
 `;
 
   return prompt;
