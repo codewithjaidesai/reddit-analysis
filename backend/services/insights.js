@@ -49,25 +49,46 @@ Examples of good questions (adapt to YOUR content):
 
 ## PHASE 3: EXTRACT INSIGHTS (QUALITATIVE + QUANTITATIVE)
 
-Answer your questions with evidence-backed insights. Mix both types intelligently:
+Answer your questions with evidence-backed insights. You MUST extract both types:
 
-**QUALITATIVE INSIGHTS** (The "why" and "how")
+### 3A. QUANTITATIVE ANALYSIS (Required First)
+
+Before diving into qualitative insights, read through ALL comments and identify what's countable. Let the content show you what patterns exist—don't start with predetermined categories.
+
+**YOUR PROCESS:**
+
+1. **Read systematically** - Go through every comment with a tally mindset
+2. **Notice repetition** - What topics, problems, groups, or behaviors appear multiple times?
+3. **Count deliberately** - Actually tally occurrences as you go (don't estimate)
+4. **Group intelligently** - Related concepts go together (e.g., "depression" + "burnout" + "overwhelmed" = mental health theme)
+5. **Ask "so what?"** - For each pattern, explain what it reveals about business opportunity
+
+**WHAT MAKES A PATTERN VALUABLE:**
+
+Extract patterns that reveal:
+- Market demand or pain points (frequency indicates opportunity size)
+- Distinct audience segments (who are the people in this discussion?)
+- Preferences or consensus (what do people agree on?)
+- Behavioral signals (what do actions/language reveal?)
+- Business relevance (pricing, competition, unmet needs, trust)
+
+**THINK CREATIVELY:** Every thread has unique countable patterns. Your job is to discover what they are for THIS content, not fit the content into predetermined boxes.
+
+Past analyses have found patterns like: problem frequency, demographic segments, brand mentions, engagement correlations, professional perspectives, conversion signals—but YOUR analysis might reveal completely different patterns depending on the content.
+
+Only count patterns appearing 2+ times. Always tie numbers to business interpretation.
+
+### 3B. QUALITATIVE INSIGHTS
+
+After quantitative analysis, extract deeper qualitative insights:
+
 - Motivations, emotions, mental models
 - Pain points and desired outcomes
 - Objections, concerns, hesitations
 - Language patterns and framing
 - Unspoken needs or tensions
 - Community norms and values
-
-**QUANTITATIVE INSIGHTS** (The "what" and "how much")
-- Frequency patterns (which topics/problems/solutions dominate?)
-- Engagement indicators (what content resonates most?)
-- Sentiment distribution (positive/negative/mixed reactions)
-- Mention counts (products, brands, methods—when revealing)
-- Conversion signals (recommendations, endorsements, warnings)
-- Demographic or behavioral segments visible in data
-
-CRITICAL: Extract quantitative insights that reveal patterns, preferences, or opportunities—not just mechanical counting. Numbers should tell a story.
+- Psychological or behavioral depth
 
 Format each insight as:
 **[Insight Title]**
@@ -129,7 +150,25 @@ OUTPUT FORMAT
 # KEY QUESTIONS FOR ANALYSIS
 [List 4-6 questions you'll answer based on this specific content]
 
-# INSIGHTS & FINDINGS
+# QUANTITATIVE PATTERNS (REQUIRED)
+
+Present the countable patterns you discovered in this content. Organize however makes sense—no predetermined structure.
+
+**Format each pattern as:**
+**[Pattern Title]:** X count/frequency → [Business interpretation]
+
+**Examples from past analyses** (yours will be unique):
+- "Mental health mentions: 8 comments → Significant addressable market segment"
+- "ADHD households: 5 distinct mentions → Specific persona needing organization solutions"
+- "Compassion stories: 1000+ avg upvotes vs horror: 300 avg → Empathy messaging resonates 3x more"
+- "Age concentration: 30s (8 mentions) vs 20s (2) and 40+ (3) → Peak pain point in 30s demographic"
+- "DIY attempts before buying: 7 comments → Audience tries self-solution first, market to failures"
+
+Your patterns should be specific to what you actually found in THIS thread.
+
+**Quantitative Summary:** [1-2 sentences synthesizing what these numbers collectively reveal about the business opportunity]
+
+# QUALITATIVE INSIGHTS & FINDINGS
 
 ## [Category/Theme 1]
 [Organize insights by themes that emerge from the content—not predetermined categories]
@@ -202,18 +241,26 @@ BEGIN ANALYSIS
 
 Now analyze this content following the framework above:
 
-1. First, read and understand the content deeply
-2. Generate 4-6 key questions specific to THIS content
-3. Extract insights (both qualitative and quantitative) with evidence
-4. Provide business implications organized by function
-5. End with a strategic summary
+1. **Read and understand** the content deeply (Phase 1)
+2. **Generate 4-6 key questions** specific to THIS content (Phase 2)
+3. **QUANTITATIVE ANALYSIS FIRST** - Systematically count patterns (Phase 3A)
+   - Read through ALL comments and tally frequency patterns
+   - Document demographic segments, problems, solutions, behaviors
+   - Explain what the numbers reveal about business opportunities
+4. **Extract qualitative insights** with evidence (Phase 3B)
+5. **Provide business implications** organized by function (Phase 4)
+6. **End with strategic summary**
 
-Remember:
-- Be adaptive—let the content guide your analysis
-- Balance qualitative depth with quantitative patterns
-- Make every insight actionable and business-focused
-- Use evidence from the comments to support findings
-- Skip sections that don't add value for THIS specific content
+CRITICAL REQUIREMENTS:
+✓ The "QUANTITATIVE PATTERNS" section is MANDATORY—always include it
+✓ BUT be adaptive—only extract patterns that actually exist in THIS content
+✓ Don't force subsections or categories that don't apply
+✓ Actually count occurrences—don't estimate
+✓ Every number must have business interpretation, not just counts
+✓ Organize findings in whatever structure makes sense for this content
+✓ Balance quantitative patterns with qualitative depth
+✓ Make every insight actionable and business-focused
+✓ Use evidence from the comments to support all findings
 `;
 
   return prompt;
