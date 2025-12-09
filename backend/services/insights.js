@@ -53,49 +53,45 @@ Answer your questions with evidence-backed insights. You MUST extract both types
 
 ### 3A. QUANTITATIVE ANALYSIS (Required First)
 
-Before diving into qualitative insights, systematically analyze the data to identify patterns. Count and document:
+Before diving into qualitative insights, systematically analyze the data to identify countable patterns. Look for what's ACTUALLY present in this content - don't force patterns that don't exist.
 
-**1. Problem/Topic Frequency**
-- What issues, pain points, or topics appear repeatedly?
-- Example: "Mental health crisis: 8 comments | Pet/pest infestations: 12 comments | Financial hardship: 7 comments"
-- Business value: Reveals market size and addressable segments
+**PATTERN TYPES TO CONSIDER (extract what's relevant):**
 
-**2. Demographic Segments**
-- What distinct audience groups are visible in the discussion?
-- Example: "Single mothers struggling: 4 mentions | Older divorced women: 3 mentions | ADHD households: 5 mentions"
-- Business value: Target personas for marketing and product development
+1. **Problem/Topic Frequency** - What issues/topics appear repeatedly?
+   - Example: "Mental health: 8 | Pest issues: 12 | Financial hardship: 7"
+   - Value: Market size indicators
 
-**3. Solution/Brand/Tool Mentions**
-- What products, services, methods, or brands are discussed?
-- Note: Only count if they reveal preference patterns or trust signals
-- Example: "Brand X: 12 recommendations | Method Y: 8 mentions with positive context"
-- Business value: Competitive intelligence and partnership opportunities
+2. **Demographic Segments** - What distinct audience groups are visible?
+   - Example: "Single moms: 4 | Older divorced women: 3 | ADHD households: 5"
+   - Value: Target personas
 
-**4. Professional Perspectives Present**
-- What types of professionals are commenting? (shows channel partner opportunities)
-- Example: "Cleaners: 3 | Pest controllers: 2 | Electricians: 1"
+3. **Solution/Brand/Tool Mentions** - What products/methods are discussed? (only if meaningful)
+   - Example: "Brand X: 12 recommendations with positive context"
+   - Value: Competitive intelligence
 
-**5. Behavioral Patterns**
-- What correlations or consistent behaviors appear across multiple comments?
-- Example: "Clean homes apologize (4 confirmations) | Messy homes don't acknowledge (4 confirmations)"
-- Business value: Messaging and positioning strategy
+4. **Professional Perspectives** - What types of professionals are commenting? (if present)
+   - Example: "Cleaners: 3 | Pest controllers: 2 | Electricians: 1"
+   - Value: Partnership opportunities
 
-**6. Engagement Pattern Analysis**
-- What types of content get highest engagement and why?
-- Example: "Compassionate action stories: 1000+ upvotes | Horror stories: 200-400 upvotes"
-- Business value: Content strategy and brand positioning
+5. **Behavioral Patterns** - What correlations appear across comments?
+   - Example: "Clean homes apologize (4 confirmations) | Messy don't (4 confirmations)"
+   - Value: Messaging strategy
 
-**7. Conversion/Trust Signals**
-- What indicates buying intent, trust, or willingness to pay?
-- Example: "Price sensitivity mentions: 3 | Professionals charging less: 3 | Willingness to hire help: X mentions"
-- Business value: Pricing strategy and value proposition
+6. **Engagement Patterns** - What content types get high/low engagement?
+   - Example: "Compassion stories: 1000+ upvotes | Horror stories: 300 avg"
+   - Value: Content strategy
 
-HOW TO COUNT:
+7. **Conversion/Trust Signals** - What indicates buying intent or willingness to pay?
+   - Example: "Price sensitivity: 3 mentions | Help-seeking: 5 mentions"
+   - Value: Pricing insights
+
+**HOW TO EXTRACT:**
 - Read through ALL comments systematically
 - Tally as you go—don't estimate
-- Group related concepts (e.g., "depression," "mental health," "overwhelmed" = mental health category)
-- Only count patterns that appear 2+ times
-- Explain what the numbers reveal, not just the count
+- Group related concepts (e.g., "depression" + "overwhelmed" = mental health category)
+- Only count patterns appearing 2+ times
+- Extract what's meaningful for THIS content—skip what isn't
+- Always explain what the numbers reveal about business opportunity
 
 ### 3B. QUALITATIVE INSIGHTS
 
@@ -171,32 +167,26 @@ OUTPUT FORMAT
 
 # QUANTITATIVE PATTERNS (REQUIRED)
 
-Systematically count and analyze patterns across the comments. Present findings with counts and business interpretation:
+Systematically count and analyze patterns that are relevant to THIS content. Organize findings in whatever way makes sense - don't force subsections if they don't apply.
 
-## Problem/Topic Frequency
-- [Problem/topic]: X comments → [What this reveals about market/demand]
-- [Problem/topic]: X comments → [What this reveals]
+Consider these pattern types (extract what's relevant):
+- Problem/topic frequency (if multiple issues appear)
+- Demographic segments (if distinct groups are visible)
+- Solutions/brands/tools (if discussed meaningfully)
+- Professional perspectives (if present)
+- Behavioral correlations (if consistent patterns emerge)
+- Engagement patterns (what content resonates)
+- Conversion/trust signals (buying intent, willingness to pay)
 
-## Demographic Segments Identified
-- [Segment]: X mentions → [Target audience insight]
-- [Segment]: X mentions → [Target audience insight]
+Format: Present each finding as:
+**[Pattern Title]:** X count/frequency → [What this reveals about business opportunity]
 
-## Solutions/Tools/Brands Mentioned
-- [Product/method]: X mentions, context: [positive/negative/mixed] → [Competitive insight]
-(Only include if pattern is meaningful—skip if no brands/tools discussed)
+Example formats (adapt to your content):
+- "Mental health mentions: 8 comments → Indicates significant addressable segment"
+- "ADHD households: 5 distinct mentions → Specific persona with organization pain points"
+- "Compassion stories: 1000+ avg upvotes vs horror stories: 300 avg → Empathy-driven content resonates 3x more"
 
-## Behavioral Correlations
-- [Pattern]: X confirmations → [What this means for messaging/positioning]
-(Skip if no clear behavioral patterns emerge)
-
-## Engagement Insights
-- [Content type]: X avg upvotes → [What resonates and why]
-- [Content type]: X avg upvotes → [What resonates and why]
-
-## Other Quantitative Findings
-[Any other countable patterns specific to THIS content that reveal business value]
-
-**Key Takeaway:** [1-2 sentences synthesizing what these numbers collectively reveal]
+End with: **Quantitative Summary:** [1-2 sentences synthesizing what these numbers collectively reveal]
 
 # QUALITATIVE INSIGHTS & FINDINGS
 
@@ -282,14 +272,15 @@ Now analyze this content following the framework above:
 6. **End with strategic summary**
 
 CRITICAL REQUIREMENTS:
-✓ The "QUANTITATIVE PATTERNS" section is MANDATORY—do not skip it
-✓ Actually count occurrences across comments—don't estimate
-✓ Every number must be tied to business value/interpretation
-✓ Balance quantitative depth with qualitative insights
+✓ The "QUANTITATIVE PATTERNS" section is MANDATORY—always include it
+✓ BUT be adaptive—only extract patterns that actually exist in THIS content
+✓ Don't force subsections or categories that don't apply
+✓ Actually count occurrences—don't estimate
+✓ Every number must have business interpretation, not just counts
+✓ Organize findings in whatever structure makes sense for this content
+✓ Balance quantitative patterns with qualitative depth
 ✓ Make every insight actionable and business-focused
-✓ Use evidence from the comments to support findings
-✓ Be adaptive—let THIS content guide your analysis
-✓ Only skip subsections if genuinely no relevant data exists
+✓ Use evidence from the comments to support all findings
 `;
 
   return prompt;
