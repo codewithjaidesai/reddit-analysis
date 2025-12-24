@@ -179,6 +179,8 @@ function extractValuableContent(comments, post) {
   if (validComments.length === 0) {
     return {
       post: {
+        id: post.id,
+        permalink: post.permalink,
         title: post.title,
         selftext: post.selftext || '',
         author: post.author,
@@ -233,6 +235,8 @@ function extractValuableContent(comments, post) {
 
   return {
     post: {
+      id: post.id,
+      permalink: post.permalink,
       title: post.title,
       selftext: post.selftext || '',
       author: post.author,

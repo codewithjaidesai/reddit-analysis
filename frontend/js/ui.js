@@ -239,6 +239,7 @@ METADATA:
 • Post Score: ${post.score} upvotes
 • Total Comments: ${post.num_comments}
 • High-Value Comments Extracted: ${extractionStats.extracted}
+${post.permalink ? `• Source URL: https://reddit.com${post.permalink}` : ''}
 
 POST BODY:
 ${post.selftext || '[No body text - link or image post]'}
@@ -250,12 +251,16 @@ HIGH-VALUE COMMENTS (${valuableComments.length} comments)
 `;
 
     valuableComments.forEach((comment, index) => {
+        const commentUrl = post.permalink && post.id && comment.id
+            ? `https://reddit.com${post.permalink}${comment.id}/`
+            : null;
         output += `
 ────────────────────────────────────────────────────────────────────────────
 COMMENT #${index + 1}
 ────────────────────────────────────────────────────────────────────────────
 Author: u/${comment.author}
 Score: ${comment.score} upvotes${comment.awards > 0 ? ` | Awards: ${comment.awards}` : ''}
+${commentUrl ? `Comment URL: ${commentUrl}` : ''}
 
 ${comment.body}
 `;
@@ -366,6 +371,7 @@ function exportToPDF() {
                 Posted by u/${escapeHtml(post.author)} •
                 ${post.score} upvotes •
                 ${post.num_comments} comments
+                ${post.permalink ? `<br><strong>Source:</strong> <a href="https://reddit.com${post.permalink}" target="_blank" style="color: #667eea; text-decoration: none;">https://reddit.com${post.permalink}</a>` : ''}
             </div>
 
             <div class="stats">
@@ -391,14 +397,18 @@ function exportToPDF() {
 
             <h2>High-Value Comments (${valuableComments.length})</h2>
 
-            ${valuableComments.map((comment, index) => `
+            ${valuableComments.map((comment, index) => {
+                const commentUrl = post.permalink && post.id && comment.id
+                    ? `https://reddit.com${post.permalink}${comment.id}/`
+                    : null;
+                return `
                 <div class="comment">
                     <div class="comment-header">
-                        #${index + 1} • u/${escapeHtml(comment.author)} • ${comment.score} upvotes${comment.awards > 0 ? ` • ${comment.awards} awards` : ''}
+                        #${index + 1} • u/${escapeHtml(comment.author)} • ${comment.score} upvotes${comment.awards > 0 ? ` • ${comment.awards} awards` : ''}${commentUrl ? ` • <a href="${commentUrl}" target="_blank" style="color: #667eea; text-decoration: none;">View on Reddit</a>` : ''}
                     </div>
                     <div class="comment-body">${escapeHtml(comment.body)}</div>
                 </div>
-            `).join('')}
+            `}).join('')}
 
             <div class="meta" style="margin-top: 30px; text-align: center; font-size: 12px;">
                 Exported: ${new Date().toLocaleString()}<br>
@@ -516,6 +526,7 @@ function exportInsightsPDF() {
 
             <div class="header-meta">
                 <strong>Analysis of:</strong> ${escapeHtml(postTitle)}<br>
+                ${window.currentExtractedData?.post?.permalink ? `<strong>Source:</strong> <a href="https://reddit.com${window.currentExtractedData.post.permalink}" target="_blank" style="color: #667eea; text-decoration: none;">View on Reddit →</a><br>` : ''}
                 <strong>Generated:</strong> ${new Date().toLocaleString()}<br>
                 <strong>Tool:</strong> Reddit Analyzer v2.0
             </div>
