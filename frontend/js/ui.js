@@ -131,6 +131,9 @@ function displayExtractedData(data) {
  * Display AI insights
  */
 function displayInsights(analysisText) {
+    // Store insights for export
+    window.currentAIInsights = analysisText;
+
     const formattedHtml = formatMarkdown(analysisText);
     document.getElementById('insightsContent').innerHTML = formattedHtml;
     document.getElementById('insightsCard').style.display = 'block';
@@ -407,6 +410,130 @@ function exportToPDF() {
                     🖨️ Print / Save as PDF
                 </button>
                 <button onclick="window.close()" style="padding: 10px 20px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px;">
+                    ✕ Close
+                </button>
+            </div>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+/**
+ * Export AI insights as PDF
+ */
+function exportInsightsPDF() {
+    if (!window.currentAIInsights) {
+        alert('No AI insights to export. Please generate insights first.');
+        return;
+    }
+
+    // Get post title if available
+    const postTitle = window.currentExtractedData?.post?.title || 'Reddit Analysis';
+
+    // Create a new window for PDF export
+    const printWindow = window.open('', '', 'width=800,height=600');
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>AI Insights - ${escapeHtml(postTitle)}</title>
+            <style>
+                body {
+                    font-family: 'Georgia', 'Times New Roman', serif;
+                    line-height: 1.8;
+                    max-width: 800px;
+                    margin: 20px;
+                    color: #2d3748;
+                }
+                h1 {
+                    color: #1a202c;
+                    border-bottom: 3px solid #667eea;
+                    padding-bottom: 15px;
+                    margin-bottom: 30px;
+                    font-size: 28px;
+                }
+                h2 {
+                    color: #2d3748;
+                    margin-top: 30px;
+                    margin-bottom: 15px;
+                    font-size: 22px;
+                    border-left: 4px solid #667eea;
+                    padding-left: 12px;
+                }
+                h3 {
+                    color: #4a5568;
+                    margin-top: 20px;
+                    margin-bottom: 10px;
+                    font-size: 18px;
+                }
+                p {
+                    margin: 12px 0;
+                }
+                ul, ol {
+                    margin: 10px 0;
+                    padding-left: 30px;
+                }
+                li {
+                    margin: 8px 0;
+                }
+                strong {
+                    color: #1a202c;
+                }
+                em {
+                    color: #4a5568;
+                }
+                .header-meta {
+                    background: #f7fafc;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 20px 0;
+                    font-size: 14px;
+                    color: #718096;
+                }
+                .insights-content {
+                    margin-top: 30px;
+                }
+                .footer {
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e2e8f0;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #a0aec0;
+                }
+                @media print {
+                    body { margin: 0; padding: 20px; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>🤖 AI-Powered Content Intelligence</h1>
+
+            <div class="header-meta">
+                <strong>Analysis of:</strong> ${escapeHtml(postTitle)}<br>
+                <strong>Generated:</strong> ${new Date().toLocaleString()}<br>
+                <strong>Tool:</strong> Reddit Analyzer v2.0
+            </div>
+
+            <div class="insights-content">
+                ${formatMarkdown(window.currentAIInsights)}
+            </div>
+
+            <div class="footer">
+                Reddit Analyzer v2.0 • AI-Powered Business Intelligence<br>
+                Exported: ${new Date().toISOString()}
+            </div>
+
+            <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
+                <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    🖨️ Print / Save as PDF
+                </button>
+                <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     ✕ Close
                 </button>
             </div>

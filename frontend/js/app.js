@@ -340,6 +340,12 @@ function displayMultiPostResults(results) {
         if (data.insights && data.insights.aiAnalysis) {
             content += `
                 <div style="margin-top: 20px; padding: 20px; background: white; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0;">
+                        <h3 style="margin: 0; color: #2d3748;">🤖 AI-Powered Insights</h3>
+                        <button onclick="exportMultiPostInsightsPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                            📄 Export PDF
+                        </button>
+                    </div>
                     ${formatMarkdown(data.insights.aiAnalysis)}
                 </div>
             `;
@@ -371,6 +377,22 @@ function copyMultiPostAsText(index) {
     if (window.multiPostResults[index] && window.multiPostResults[index].data.extractedData) {
         window.currentExtractedData = window.multiPostResults[index].data.extractedData;
         copyAsText();
+    }
+}
+
+function exportMultiPostInsightsPDF(index) {
+    if (window.multiPostResults[index]) {
+        const result = window.multiPostResults[index];
+        // Set the current insights and extracted data for export
+        if (result.data.insights && result.data.insights.aiAnalysis) {
+            window.currentAIInsights = result.data.insights.aiAnalysis;
+            if (result.data.extractedData) {
+                window.currentExtractedData = result.data.extractedData;
+            }
+            exportInsightsPDF();
+        } else {
+            alert('No insights available for this post');
+        }
     }
 }
 
