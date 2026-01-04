@@ -141,63 +141,128 @@ QUALITY STANDARDS
 ✗ Avoid ignoring quantitative patterns when they reveal opportunities
 
 ═══════════════════════════════════════════════════════════════════════════
+VISUAL FORMATTING REQUIREMENTS (MANDATORY)
+═══════════════════════════════════════════════════════════════════════════
+
+✓ ALL quantitative data MUST use tables with percentages
+✓ Maximum 2 sentences per paragraph
+✓ Use • bullets for all lists
+✓ Bold all **numbers** and **key findings**
+✓ Add visual icons: 📊 (data), 💡 (insight), 🔗 (derived), ✅ (action), ⚠️ (warning)
+✓ Use visual separators (───) between major sections
+✓ Keep paragraphs short and scannable
+
+═══════════════════════════════════════════════════════════════════════════
 OUTPUT FORMAT
 ═══════════════════════════════════════════════════════════════════════════
 
-# CONTENT OVERVIEW
-[2-3 sentences: What is this content about and why does it matter?]
+# ⚡ EXECUTIVE SUMMARY (30 seconds)
 
-# KEY QUESTIONS FOR ANALYSIS
-[List 4-6 questions you'll answer based on this specific content]
+**Biggest Finding:** [One sentence - the most important discovery]
 
-# QUANTITATIVE PATTERNS (REQUIRED)
+**Key Opportunity:** [One sentence - biggest business opportunity]
 
-Present the countable patterns you discovered in this content. Organize however makes sense—no predetermined structure.
+**Immediate Action:** [One specific thing to do right now]
 
-**Format each pattern as:**
-**[Pattern Title]:** X count/frequency → [Business interpretation]
+───
 
-**Examples from past analyses** (yours will be unique):
-- "Mental health mentions: 8 comments → Significant addressable market segment"
-- "ADHD households: 5 distinct mentions → Specific persona needing organization solutions"
-- "Compassion stories: 1000+ avg upvotes vs horror: 300 avg → Empathy messaging resonates 3x more"
-- "Age concentration: 30s (8 mentions) vs 20s (2) and 40+ (3) → Peak pain point in 30s demographic"
-- "DIY attempts before buying: 7 comments → Audience tries self-solution first, market to failures"
+# 📊 QUANTITATIVE PATTERNS
 
-Your patterns should be specific to what you actually found in THIS thread.
+## [Pattern Category Name]
 
-**Quantitative Summary:** [1-2 sentences synthesizing what these numbers collectively reveal about the business opportunity]
+Use tables for all quantitative data. Group intelligently, show percentages.
 
-# QUALITATIVE INSIGHTS & FINDINGS
+**IMPORTANT:** Don't just count raw occurrences. Group up (find higher-level categories) and group down (break into meaningful subcategories).
 
-## [Category/Theme 1]
-[Organize insights by themes that emerge from the content—not predetermined categories]
+**Example - If analyzing starters mentioned:**
+
+BAD (just counting):
+- Spring rolls: 5
+- Fries: 8
+- Salad: 3
+
+GOOD (intelligent grouping):
+
+| Preparation Method | Count | % of Total | Business Insight |
+|-------------------|-------|------------|------------------|
+| Fried | 14 | 65% | Dominant preference for indulgent options |
+| Steamed | 5 | 23% | Secondary interest in lighter prep |
+| Fresh | 3 | 14% | Health-conscious segment exists but small |
+
+| Health Profile | Count | % of Total | Business Insight |
+|----------------|-------|------------|------------------|
+| Indulgent | 16 | 73% | Primary audience seeks comfort food |
+| Healthy | 6 | 27% | Quarter of market wants healthier options |
+
+**Key Finding:** [1-2 sentences summarizing the table's business implications]
+
+## [Next Pattern Category]
+...
+
+**Quantitative Summary:** [What all these numbers collectively reveal about business opportunities]
+
+───
+
+# 💡 QUALITATIVE INSIGHTS
+
+## [Theme/Category from content]
 
 **[Insight Title]**
-[Description with evidence and business value]
+- **Finding:** [1-2 sentences max]
+- **Evidence:** "[Quote or pattern]" (Comment #X)
+- **Business Value:** [Why this matters - 1 sentence]
 
-**[Insight Title]**
-[Description with evidence and business value]
+**[Next Insight]**
+...
 
-## [Category/Theme 2]
-[Continue as needed...]
+## [Next Theme]
+...
 
-# BUSINESS IMPLICATIONS
+───
+
+# 🔗 DERIVED INSIGHTS & IMPLICATIONS
+
+This section connects dots and reveals cascading effects. Not just what data says, but what it IMPLIES.
+
+## [Insight Chain Title]
+
+**Observable Pattern:**
+[What the data directly shows - 1-2 sentences]
+
+**Derived Implications:**
+1. **Immediate Effect** → [What this directly causes]
+2. **Secondary Effect** → [What the immediate effect causes]
+3. **Tertiary Effect** → [Cascading impact if applicable]
+
+**Business Probability:** [High/Medium/Low confidence + why]
+
+**Strategic Action:** [Specific recommendation based on this chain]
+
+## [Next Insight Chain]
+...
+
+───
+
+# 🎯 BUSINESS IMPLICATIONS
 
 ## For Marketing & Messaging
-- [Actionable recommendation]
-- [Actionable recommendation]
+✅ [Specific actionable item]
+✅ [Specific actionable item]
+✅ [Specific actionable item]
 
 ## For Product & Development
-- [Actionable recommendation]
-- [Actionable recommendation]
+✅ [Specific actionable item]
+✅ [Specific actionable item]
 
 ## For SEO & Content Strategy
-- [Actionable recommendation]
-- [Actionable recommendation]
+✅ [Specific actionable item]
+✅ [Specific actionable item]
 
-# STRATEGIC SUMMARY
-[2-3 sentences: The single most valuable insight from this analysis. If a busy executive reads only this, what should they know?]
+───
+
+# 📌 STRATEGIC SUMMARY
+
+[2-3 sentences: If a busy executive reads only this, what's the single most valuable insight and what should they do?]
 
 ═══════════════════════════════════════════════════════════════════════════
 POST DATA
@@ -243,24 +308,52 @@ Now analyze this content following the framework above:
 
 1. **Read and understand** the content deeply (Phase 1)
 2. **Generate 4-6 key questions** specific to THIS content (Phase 2)
-3. **QUANTITATIVE ANALYSIS FIRST** - Systematically count patterns (Phase 3A)
-   - Read through ALL comments and tally frequency patterns
-   - Document demographic segments, problems, solutions, behaviors
-   - Explain what the numbers reveal about business opportunities
-4. **Extract qualitative insights** with evidence (Phase 3B)
-5. **Provide business implications** organized by function (Phase 4)
-6. **End with strategic summary**
+3. **START WITH EXECUTIVE SUMMARY** - Write the 30-second summary FIRST
+4. **QUANTITATIVE ANALYSIS with intelligent grouping** (Phase 3A)
+   - Count patterns AND group them intelligently
+   - Show percentages and distributions
+   - Group UP (higher-level categories) and DOWN (meaningful subcategories)
+   - Use TABLES for all quantitative data
+5. **Extract qualitative insights** with evidence (Phase 3B)
+6. **Create DERIVED INSIGHTS** - Connect dots, show cascading effects, make predictions
+7. **Provide business implications** organized by function (Phase 4)
+8. **End with strategic summary**
 
 CRITICAL REQUIREMENTS:
-✓ The "QUANTITATIVE PATTERNS" section is MANDATORY—always include it
-✓ BUT be adaptive—only extract patterns that actually exist in THIS content
-✓ Don't force subsections or categories that don't apply
+
+VISUAL FORMATTING (MANDATORY):
+✓ ALL quantitative data MUST be in tables with percentages
+✓ Use icons: ⚡ 📊 💡 🔗 ✅ ⚠️
+✓ Maximum 2 sentences per paragraph
+✓ Bold all **numbers** and **key findings**
+✓ Use • bullets for all lists
+✓ Use ─── separators between major sections
+
+QUANTITATIVE ANALYSIS (MANDATORY):
+✓ Don't just count—GROUP INTELLIGENTLY
+✓ Show percentages and distributions
+✓ Find higher-level patterns (group up)
+✓ Break into subcategories when revealing (group down)
+✓ Example: Don't list "spring rolls: 5, fries: 8" → Instead group as "Fried: 65%, Steamed: 23%"
+
+DERIVED INSIGHTS SECTION (MANDATORY):
+✓ Must include "🔗 DERIVED INSIGHTS & IMPLICATIONS" section
+✓ At least 2-3 insight chains
+✓ Show Observable Pattern → Immediate Effect → Secondary Effect → Strategic Action
+✓ Include business probability/confidence level
+✓ Connect dots that aren't explicitly stated in data
+
+EXECUTIVE SUMMARY (MANDATORY):
+✓ Must start with "⚡ EXECUTIVE SUMMARY (30 seconds)"
+✓ Include: Biggest Finding + Key Opportunity + Immediate Action
+✓ Each must be ONE sentence only
+
+CONTENT QUALITY:
+✓ Be adaptive—only extract patterns that actually exist in THIS content
 ✓ Actually count occurrences—don't estimate
-✓ Every number must have business interpretation, not just counts
-✓ Organize findings in whatever structure makes sense for this content
-✓ Balance quantitative patterns with qualitative depth
-✓ Make every insight actionable and business-focused
-✓ Use evidence from the comments to support all findings
+✓ Every insight must have evidence + business value
+✓ Make every recommendation specific and actionable
+✓ Skip sections only if genuinely no relevant data exists
 `;
 
   return prompt;
