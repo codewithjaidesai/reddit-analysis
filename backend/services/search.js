@@ -3,24 +3,56 @@ const config = require('../config');
 const { getRedditAccessToken } = require('./reddit');
 
 /**
+ * Enhance search query with template-specific synonyms and modifiers
+ * @param {string} topic - Base search query
+ * @param {string} template - Analysis template type
+ * @returns {string} Enhanced query
+ */
+function enhanceQueryWithTemplate(topic, template) {
+  if (!template || template === 'all') {
+    return topic; // No enhancement for general analysis
+  }
+
+  const modifiers = {
+    'pain_points': '(problem OR issue OR frustration OR complaint OR bug OR annoying OR broken OR doesn\'t work)',
+    'competitive': '(vs OR versus OR compare OR comparison OR alternative OR instead OR better than OR worse than)',
+    'features': '(feature OR wish OR want OR need OR should have OR missing OR would be great)',
+    'market_gaps': '(missing OR lacking OR no one does OR wish there was OR gap OR opportunity OR need for)'
+  };
+
+  const modifier = modifiers[template];
+  if (modifier) {
+    console.log(`Template "${template}" enhancing query with: ${modifier}`);
+    return `${topic} ${modifier}`;
+  }
+
+  return topic;
+}
+
+/**
  * Search Reddit by topic across all or specific subreddits
  * @param {string} topic - Search query
  * @param {string} timeRange - Time filter (hour, day, week, month, year, all)
  * @param {string} subreddits - Comma-separated subreddit list (optional)
  * @param {number} limit - Number of results (default: 15)
+ * @param {string} template - Analysis template for query enhancement (optional)
  * @returns {Promise<object>} Search results
  */
-async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit = 15) {
-  console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit);
+async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit = 15, template = 'all') {
+  console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit, 'Template:', template);
 
   try {
     // Get Reddit OAuth token first
     const accessToken = await getRedditAccessToken();
 
+    // Enhance query with template
+    const enhancedQuery = enhanceQueryWithTemplate(topic, template);
+    console.log('Enhanced query:', enhancedQuery);
+
     // Use Reddit's OAuth API to avoid 403 errors
     let searchUrl = 'https://oauth.reddit.com/search';
     let params = {
-      q: topic,
+      q: enhancedQuery,
       t: timeRange,
       sort: 'relevance',
       limit: 100, // Get more to filter by engagement
@@ -33,7 +65,7 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     if (subreddits && subreddits.trim()) {
       const subredditList = subreddits.split(',').map(s => s.trim()).filter(s => s);
       if (subredditList.length > 0) {
-        params.q = `${topic} (subreddit:${subredditList.join(' OR subreddit:')})`;
+        params.q = `${enhancedQuery} (subreddit:${subredditList.join(' OR subreddit:')})`;
       }
     }
 
@@ -258,5 +290,6 @@ async function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15
 
 module.exports = {
   searchRedditByTopic,
-  searchSubredditTopPosts
+  searchSubredditTopPosts,
+  enhanceQueryWithTemplate
 };

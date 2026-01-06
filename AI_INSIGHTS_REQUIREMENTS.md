@@ -1,3 +1,100 @@
+# Reddit Analysis Tool - Product Vision & Roadmap
+
+## 🎯 Product Vision
+
+**Transform Reddit discussions into strategic business intelligence through problem-first research.**
+
+This tool helps businesses extract actionable insights from Reddit for marketing strategy, SEO planning, product development, and competitive intelligence. Unlike generic analytics tools, we focus on helping researchers ask the right questions and discover non-obvious patterns that drive business decisions.
+
+**Core Principles:**
+- Problem-first approach (research questions drive analysis, not features)
+- Individual post depth over multi-post breadth (for now)
+- Actionable insights over vanity metrics
+- Visual, scannable output over dense text blocks
+- Intelligent pattern recognition over mechanical counting
+
+---
+
+## ✅ COMPLETED FEATURES (Built & Deployed)
+
+### AI Insights Quality Improvements
+- ✅ **Executive Summary** - 30-second scannable overview (Biggest Finding + Key Opportunity + Immediate Action)
+- ✅ **Visual Formatting** - Tables, icons (⚡📊💡🔗✅⚠️), 2-sentence max paragraphs, visual separators
+- ✅ **Intelligent Quantitative Grouping** - Group up/down with percentages, not just raw counts
+- ✅ **Derived Insights Section** - Observable Pattern → Immediate → Secondary → Tertiary effects
+- ✅ **Structured Business Implications** - Organized by Marketing, Product, SEO/Content
+
+### Export & Data Features
+- ✅ **AI Insights PDF Export** - Export formatted insights as PDF (all 3 tabs)
+- ✅ **Comments PDF/Text Export** - Export raw comments with metadata
+- ✅ **Reddit Source URLs** - Post permalinks in all exports for authenticity validation
+- ✅ **Individual Comment URLs** - Direct links to each comment for verification
+
+### Core Extraction
+- ✅ **Single URL Analysis** - Analyze individual Reddit posts
+- ✅ **Search by Topic** - Find relevant posts by keyword with quality filtering
+- ✅ **Search by Subreddit** - Analyze posts from specific communities
+
+---
+
+## 📋 RECENTLY COMPLETED
+
+### Phase 1: Research Context + Templates ✅ (COMPLETED)
+**Goal:** Make tool problem-first by adding research questions and analysis templates
+
+**What was built:**
+- ✅ Research question input (optional, at top of Search by Topic tab)
+- ✅ Analysis templates dropdown: All Insights, Pain Points, Competitive Analysis, Features, Market Gaps
+- ✅ Template-driven search enhancement (adds synonyms to queries while keeping quality filters)
+- ✅ Recent Searches dropdown (browser localStorage, silent feature)
+- ✅ Research context passed to AI for better analysis
+- ✅ "Search by Topic" is now the default tab
+
+**Technical changes:**
+- ✅ `frontend/index.html` - UI layout with research input and templates
+- ✅ `frontend/css/styles.css` - Styles for new UI components
+- ✅ `backend/services/search.js` - Added `enhanceQueryWithTemplate()` function
+- ✅ `backend/routes/search.js` - Accept `template` and `researchQuestion` parameters
+- ✅ `backend/routes/analyze.js` - Pass research context to insights generation
+- ✅ `frontend/js/app.js` - Handle template selection, recent searches, and search context
+- ✅ `frontend/js/api.js` - Updated API calls to pass research context
+- ✅ `backend/services/insights.js` - Pass research context to AI prompt
+
+**How it works:**
+1. User enters research question (optional) and selects analysis template
+2. Template adds synonyms to search query (e.g., "pain_points" adds "problem OR issue OR frustration")
+3. Search finds more relevant posts using enhanced query
+4. Research context is passed to AI for focused analysis
+5. Recent searches saved to localStorage and shown in dropdown
+
+---
+
+## 📋 CURRENTLY BUILDING (In Progress)
+
+**Status:** Phase 1 completed - ready for next phase
+
+---
+
+## ❌ FUTURE PIPELINE (Not Building Yet)
+
+### Problem-First Approach Phases
+- ❌ **Phase 2: Research Projects** (1 day) - Group related analyses, track progress
+- ❌ **Phase 3: Cross-Post Synthesis** (2 days) - **KILLER FEATURE** - Combine insights from multiple posts
+- ❌ **Phase 5: Comparison View** (1 day) - Side-by-side insights for different segments
+
+### Platform Expansion (Multi-Source Intelligence)
+- ❌ **YouTube Comments Analysis** (Q1 2026) - Extract and analyze video comments
+- ❌ **App Store Reviews (iOS)** (Q2 2026) - Extract reviews with ratings and sentiment
+- ❌ **Google Play Store Reviews** (Q3 2026) - Android feedback analysis
+- ❌ **Multi-Source Synthesis** (Q4 2026) - Analyze same topic across all platforms
+
+### UI/UX Enhancements
+- ❌ **Frontend CSS Improvements** - Better table styling, visual cards, spacing
+- ❌ **Interactive Features** - Collapsible sections, charts/graphs
+- ❌ **Comparison Charts** - Visual comparison between platforms/segments
+
+---
+
 # AI Insights Output Requirements
 
 ## Problem Statement

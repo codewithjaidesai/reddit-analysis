@@ -3,12 +3,42 @@ const { analyzeWithGemini } = require('./gemini');
 /**
  * Format extracted Reddit data for AI analysis
  * @param {object} extractedData - Extracted Reddit post and comments
+ * @param {string} researchQuestion - Optional research question for context
+ * @param {string} template - Optional analysis template
  * @returns {string} Formatted prompt
  */
-function formatAnalysisPrompt(extractedData) {
+function formatAnalysisPrompt(extractedData, researchQuestion = null, template = 'all') {
   const post = extractedData.post;
   const comments = extractedData.valuableComments;
   const stats = extractedData.extractionStats;
+
+  // Build research context section if provided
+  let researchContext = '';
+  if (researchQuestion) {
+    researchContext = `
+═══════════════════════════════════════════════════════════════════════════
+RESEARCH CONTEXT (IMPORTANT - READ FIRST)
+═══════════════════════════════════════════════════════════════════════════
+
+The user is researching: "${researchQuestion}"
+
+${template && template !== 'all' ? `Analysis Focus: ${template.replace('_', ' ').toUpperCase()}
+
+` : ''}Your analysis should directly answer this research question and provide insights specifically relevant to what the user is trying to understand.
+
+`;
+  } else if (template && template !== 'all') {
+    researchContext = `
+═══════════════════════════════════════════════════════════════════════════
+ANALYSIS FOCUS
+═══════════════════════════════════════════════════════════════════════════
+
+Analysis Template: ${template.replace('_', ' ').toUpperCase()}
+
+Focus your analysis on patterns and insights relevant to this specific area.
+
+`;
+  }
 
   const prompt = `═══════════════════════════════════════════════════════════════════════════
 REDDIT CONTENT INTELLIGENCE ANALYSIS
@@ -17,6 +47,7 @@ REDDIT CONTENT INTELLIGENCE ANALYSIS
 You are a strategic content analyst helping businesses extract actionable insights from Reddit discussions. Your analysis will be used for marketing strategy, SEO planning, product development, and competitive intelligence.
 
 Your job: Understand the content deeply, ask the right questions, and extract insights that drive business decisions.
+${researchContext}
 
 ═══════════════════════════════════════════════════════════════════════════
 ANALYSIS FRAMEWORK
@@ -362,20 +393,24 @@ CONTENT QUALITY:
 /**
  * Generate AI insights from extracted Reddit data
  * @param {object} contentData - Extracted Reddit data
+ * @param {string} researchQuestion - Optional research question for context
+ * @param {string} template - Optional analysis template
  * @returns {Promise<object>} AI analysis result
  */
-async function generateAIInsights(contentData) {
+async function generateAIInsights(contentData, researchQuestion = null, template = 'all') {
   console.log('Generating AI-powered insights with Gemini');
   console.log('Content data received:', {
     hasPost: !!contentData.post,
     commentsCount: contentData.valuableComments?.length || 0,
-    hasStats: !!contentData.extractionStats
+    hasStats: !!contentData.extractionStats,
+    hasResearchQuestion: !!researchQuestion,
+    template: template || 'all'
   });
 
   try {
-    // Build analysis prompt
+    // Build analysis prompt with research context
     console.log('Building analysis prompt...');
-    const prompt = formatAnalysisPrompt(contentData);
+    const prompt = formatAnalysisPrompt(contentData, researchQuestion, template);
     console.log('Prompt length:', prompt.length, 'characters');
 
     // Call Gemini API
