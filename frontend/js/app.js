@@ -65,7 +65,7 @@ async function handleAnalyzeUrl() {
 }
 
 /**
- * Search by topic
+ * Search by topic with research context
  */
 async function handleSearchByTopic() {
     const topic = document.getElementById('topicQuery').value.trim();
@@ -77,11 +77,30 @@ async function handleSearchByTopic() {
 
     const timeRange = document.getElementById('topicTimeRange').value;
     const limit = parseInt(document.getElementById('topicLimit').value);
+    const template = document.getElementById('analysisTemplate').value;
+    const researchQuestion = document.getElementById('researchQuestion').value.trim();
 
     let subreddits = '';
     if (document.getElementById('topicSubredditFilter').checked) {
         subreddits = document.getElementById('topicSubreddits').value.trim();
     }
+
+    // Save to recent searches
+    saveRecentSearch({
+        topic,
+        timeRange,
+        subreddits,
+        limit,
+        template,
+        researchQuestion,
+        timestamp: Date.now()
+    });
+
+    // Store research context globally for later use
+    window.currentResearchContext = {
+        researchQuestion,
+        template
+    };
 
     // Reset
     hideAll();
@@ -89,7 +108,7 @@ async function handleSearchByTopic() {
     showStatus('Searching Reddit...', 50);
 
     try {
-        const result = await searchTopic(topic, timeRange, subreddits, limit);
+        const result = await searchTopic(topic, timeRange, subreddits, limit, template, researchQuestion);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
@@ -100,9 +119,18 @@ async function handleSearchByTopic() {
         // Display results
         hideAll();
         document.getElementById('topicResults').style.display = 'block';
-        document.getElementById('topicResultsTitle').textContent = `Found ${result.afterFiltering} posts for "${topic}"`;
-        document.getElementById('topicResultsSummary').textContent =
-            `Filtered ${result.afterFiltering} high-engagement posts from ${result.totalFound} total results`;
+
+        let titleText = `Found ${result.afterFiltering} posts for "${topic}"`;
+        if (template && template !== 'all') {
+            titleText += ` (${template.replace('_', ' ')})`;
+        }
+        document.getElementById('topicResultsTitle').textContent = titleText;
+
+        let summaryText = `Filtered ${result.afterFiltering} high-engagement posts from ${result.totalFound} total results`;
+        if (researchQuestion) {
+            summaryText += ` | Research: "${researchQuestion.substring(0, 80)}${researchQuestion.length > 80 ? '...' : ''}"`;
+        }
+        document.getElementById('topicResultsSummary').textContent = summaryText;
 
         displayPostCards(result.posts, 'topicPostsList', topicSelectedPosts, 'toggleTopicPost');
         updateTopicSelectedCount();
@@ -247,11 +275,16 @@ async function analyzeSubredditSelectedPosts() {
 }
 
 /**
- * Analyze multiple posts
+ * Analyze multiple posts with research context
  */
 async function analyzeMultiplePosts(urls) {
     hideAll();
     showStatus(`Analyzing ${urls.length} posts...`, 0);
+
+    // Get research context if available
+    const researchContext = window.currentResearchContext || {};
+    const researchQuestion = researchContext.researchQuestion || null;
+    const template = researchContext.template || null;
 
     const results = [];
 
@@ -262,7 +295,7 @@ async function analyzeMultiplePosts(urls) {
         showStatus(`Analyzing post ${i + 1} of ${urls.length}...`, progress);
 
         try {
-            const result = await fullAnalysis(url);
+            const result = await fullAnalysis(url, researchQuestion, template);
             results.push({
                 url,
                 success: result.success,
@@ -395,6 +428,81 @@ function exportMultiPostInsightsPDF(index) {
         }
     }
 }
+
+/**
+ * Recent Searches Management (localStorage)
+ */
+function saveRecentSearch(searchData) {
+    try {
+        const MAX_RECENT = 10;
+        let recents = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+
+        // Add new search to beginning
+        recents.unshift(searchData);
+
+        // Keep only last MAX_RECENT
+        recents = recents.slice(0, MAX_RECENT);
+
+        localStorage.setItem('recentSearches', JSON.stringify(recents));
+        updateRecentSearchesDropdown();
+    } catch (error) {
+        console.error('Error saving recent search:', error);
+    }
+}
+
+function loadRecentSearch(index) {
+    if (!index) return;
+
+    try {
+        const recents = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        const search = recents[index];
+
+        if (search) {
+            // Populate form fields
+            document.getElementById('topicQuery').value = search.topic || '';
+            document.getElementById('topicTimeRange').value = search.timeRange || 'week';
+            document.getElementById('topicLimit').value = search.limit || 15;
+            document.getElementById('analysisTemplate').value = search.template || 'all';
+            document.getElementById('researchQuestion').value = search.researchQuestion || '';
+
+            if (search.subreddits) {
+                document.getElementById('topicSubredditFilter').checked = true;
+                document.getElementById('topicSubredditInputDiv').style.display = 'block';
+                document.getElementById('topicSubreddits').value = search.subreddits;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading recent search:', error);
+    }
+}
+
+function updateRecentSearchesDropdown() {
+    try {
+        const dropdown = document.getElementById('recentSearches');
+        const recents = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+
+        if (recents.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        dropdown.style.display = 'block';
+        dropdown.innerHTML = '<option value="">Recent Searches</option>';
+
+        recents.forEach((search, index) => {
+            const label = search.topic.substring(0, 40) + (search.topic.length > 40 ? '...' : '');
+            const templateTag = search.template && search.template !== 'all' ? ` [${search.template.replace('_', ' ')}]` : '';
+            dropdown.innerHTML += `<option value="${index}">${label}${templateTag}</option>`;
+        });
+    } catch (error) {
+        console.error('Error updating recent searches dropdown:', error);
+    }
+}
+
+// Initialize recent searches dropdown on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateRecentSearchesDropdown();
+});
 
 // Keyboard shortcuts
 document.addEventListener('keypress', function(e) {

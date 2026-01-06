@@ -43,11 +43,11 @@ router.post('/extract', async (req, res) => {
 
 /**
  * POST /api/analyze/insights
- * Generate AI insights from extracted data
+ * Generate AI insights from extracted data with optional research context
  */
 router.post('/insights', async (req, res) => {
   try {
-    const { contentData } = req.body;
+    const { contentData, researchQuestion, template } = req.body;
 
     if (!contentData) {
       return res.status(400).json({
@@ -57,9 +57,15 @@ router.post('/insights', async (req, res) => {
     }
 
     console.log('Generating insights for post:', contentData.post?.title);
+    if (researchQuestion) {
+      console.log('Research question:', researchQuestion);
+    }
+    if (template) {
+      console.log('Analysis template:', template);
+    }
 
-    // Generate AI insights
-    const insights = await generateAIInsights(contentData);
+    // Generate AI insights with research context
+    const insights = await generateAIInsights(contentData, researchQuestion, template);
 
     res.json({
       success: true,
@@ -77,11 +83,11 @@ router.post('/insights', async (req, res) => {
 
 /**
  * POST /api/analyze/full
- * Extract data AND generate insights in one call
+ * Extract data AND generate insights in one call with optional research context
  */
 router.post('/full', async (req, res) => {
   try {
-    const { url } = req.body;
+    const { url, researchQuestion, template } = req.body;
 
     if (!url) {
       return res.status(400).json({
@@ -91,6 +97,12 @@ router.post('/full', async (req, res) => {
     }
 
     console.log('Full analysis for:', url);
+    if (researchQuestion) {
+      console.log('Research question:', researchQuestion);
+    }
+    if (template) {
+      console.log('Analysis template:', template);
+    }
 
     // Step 1: Extract Reddit data
     const extractResult = await extractRedditData(url);
@@ -99,8 +111,8 @@ router.post('/full', async (req, res) => {
       return res.status(400).json(extractResult);
     }
 
-    // Step 2: Generate insights
-    const insights = await generateAIInsights(extractResult.data);
+    // Step 2: Generate insights with research context
+    const insights = await generateAIInsights(extractResult.data, researchQuestion, template);
 
     res.json({
       success: true,

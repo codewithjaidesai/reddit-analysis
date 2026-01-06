@@ -32,28 +32,38 @@ async function extractRedditData(url) {
 }
 
 /**
- * Generate AI insights from extracted data
+ * Generate AI insights from extracted data with optional research context
  */
-async function generateInsights(contentData) {
-    return await callAPI(API_CONFIG.endpoints.insights, { contentData });
+async function generateInsights(contentData, researchQuestion = null, template = null) {
+    return await callAPI(API_CONFIG.endpoints.insights, {
+        contentData,
+        researchQuestion,
+        template
+    });
 }
 
 /**
  * Full analysis (extract + insights)
  */
-async function fullAnalysis(url) {
-    return await callAPI(API_CONFIG.endpoints.full, { url });
+async function fullAnalysis(url, researchQuestion = null, template = null) {
+    return await callAPI(API_CONFIG.endpoints.full, {
+        url,
+        researchQuestion,
+        template
+    });
 }
 
 /**
- * Search Reddit by topic
+ * Search Reddit by topic with optional research context
  */
-async function searchTopic(topic, timeRange, subreddits, limit) {
+async function searchTopic(topic, timeRange, subreddits, limit, template = 'all', researchQuestion = null) {
     return await callAPI('/api/search/topic', {
         topic,
         timeRange,
         subreddits,
-        limit
+        limit,
+        template,
+        researchQuestion
     });
 }
 

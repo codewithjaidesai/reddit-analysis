@@ -11,15 +11,20 @@
         <header>
             <h1>🔍 Reddit Insight Analyzer</h1>
             <p class="subtitle">Extract evidence-based insights from Reddit discussions</p>
+            <div class="header-actions">
+                <select id="recentSearches" class="recent-searches-dropdown" style="display: none;" onchange="loadRecentSearch(this.value)">
+                    <option value="">Recent Searches</option>
+                </select>
+            </div>
         </header>
 
         <main>
             <!-- Tab Navigation -->
             <div class="tab-navigation">
-                <button class="tab-btn active" onclick="switchTab('url')">
+                <button class="tab-btn" onclick="switchTab('url')">
                     🔗 Analyze URL
                 </button>
-                <button class="tab-btn" onclick="switchTab('topic')">
+                <button class="tab-btn active" onclick="switchTab('topic')">
                     🔍 Topic Search
                 </button>
                 <button class="tab-btn" onclick="switchTab('subreddit')">
@@ -28,7 +33,7 @@
             </div>
 
             <!-- Tab 1: URL Analysis -->
-            <div id="urlTab" class="tab-content active">
+            <div id="urlTab" class="tab-content" style="display: none;">
                 <div class="input-section">
                     <h2>Analyze Single Reddit Post</h2>
                     <div class="input-group">
@@ -50,9 +55,39 @@
             </div>
 
             <!-- Tab 2: Topic Search -->
-            <div id="topicTab" class="tab-content" style="display: none;">
+            <div id="topicTab" class="tab-content active">
                 <div class="input-section">
                     <h2>Search Reddit by Topic</h2>
+
+                    <!-- Research Context (Optional) -->
+                    <div class="research-context-section">
+                        <label for="researchQuestion" class="context-label">
+                            💡 What are you researching? <span class="optional-tag">(Optional)</span>
+                        </label>
+                        <textarea
+                            id="researchQuestion"
+                            placeholder="e.g., Why do users prefer Notion over Evernote for note-taking?"
+                            class="research-input"
+                            rows="2"
+                        ></textarea>
+                        <p class="hint">Adding context helps AI generate more focused insights</p>
+                    </div>
+
+                    <!-- Analysis Template -->
+                    <div class="template-section">
+                        <label for="analysisTemplate" class="template-label">
+                            🎯 Analysis Focus
+                        </label>
+                        <select id="analysisTemplate" class="select-input">
+                            <option value="all">All Insights (General Analysis)</option>
+                            <option value="pain_points">Pain Points Discovery</option>
+                            <option value="competitive">Competitive Analysis</option>
+                            <option value="features">Feature Requests & Needs</option>
+                            <option value="market_gaps">Market Gaps & Opportunities</option>
+                        </select>
+                        <p class="hint">Template enhances search relevance and analysis focus</p>
+                    </div>
+
                     <div class="search-form">
                         <div class="input-group">
                             <input
