@@ -336,3 +336,243 @@ Before submitting output, verify:
 - ❌ Just counting without interpretation
 - ❌ No derived implications
 - ❌ Vague or generic insights
+- ❌ Vague or generic insights
+
+---
+
+## Problem-First Approach (Product Direction)
+
+### Current Problem
+The tool is feature-driven rather than problem-driven. Users paste random URLs without clear research objectives, leading to insights that feel "interesting but not useful."
+
+### Solution: Research Context & Project Management
+
+#### Phase 1: Research Context (Quick Win - 2 hours)
+**Add research question input before analysis**
+
+Before analyzing any Reddit post, ask:
+```
+What are you researching?
+[Text input]
+Example: "Why do users prefer Notion over Evernote?"
+
+Optional tags: [Competitive Analysis] [Feature Research] [Pain Points]
+```
+
+**Benefits:**
+- Forces problem-first thinking
+- Insights become answers to specific questions
+- Better context for AI analysis
+
+#### Phase 2: Research Projects (Medium - 1 day)
+**Group related analyses together**
+
+```
+MY RESEARCH PROJECTS
+┌─────────────────────────────────────┐
+│ 📁 Subscription Churn Analysis      │
+│    Posts analyzed: 8                │
+│    [View] [Add Posts] [Export]      │
+├─────────────────────────────────────┤
+│ 📁 Competitor Analysis              │
+│    Posts analyzed: 12               │
+│    [View] [Add Posts] [Export]      │
+└─────────────────────────────────────┘
+```
+
+**Benefits:**
+- Organize research over time
+- Track progress on projects
+- Build comprehensive reports
+
+#### Phase 3: Cross-Post Synthesis (High Impact - 2 days)
+**Combine insights from multiple posts**
+
+```
+SYNTHESIZED INSIGHTS (8 posts analyzed)
+
+📊 PATTERNS ACROSS DISCUSSIONS
+
+| Theme | Frequency | Confidence |
+|-------|-----------|------------|
+| Billing confusion | 6/8 posts | High |
+| Poor onboarding | 5/8 posts | High |
+
+🔗 CROSS-POST DERIVED INSIGHTS
+
+Pattern: Billing confusion in 75% of discussions
+→ Immediate: Drop-off at renewal
+→ Secondary: Support ticket spikes
+→ Recommendation: Add billing preview 7 days before charge
+```
+
+**Benefits:**
+- See patterns invisible in single posts
+- Higher confidence in findings
+- Strategic insights, not tactical observations
+
+#### Phase 4: Research Templates (Quick Win - 4 hours)
+**Pre-built research scenarios**
+
+```
+CHOOSE RESEARCH TYPE:
+- 🎯 Competitive Analysis
+- 💡 Feature Validation
+- 😤 Pain Point Discovery
+- 📈 Market Opportunity
+```
+
+**Benefits:**
+- Guided workflows
+- Higher success rate
+- Users know what to research
+
+#### Phase 5: Comparison View (Medium - 1 day)
+**Side-by-side insights**
+
+```
+COMPARING: r/productivity vs r/ObsidianMD
+
+┌─────────────────────┬─────────────────────┐
+│ r/productivity      │ r/ObsidianMD        │
+├─────────────────────┼─────────────────────┤
+│ Top concern:        │ Top concern:        │
+│ Pricing (67%)       │ Learning curve (82%)│
+└─────────────────────┴─────────────────────┘
+```
+
+**Benefits:**
+- Understand different segments
+- Market segmentation opportunities
+
+### Implementation Priority
+1. **This week:** Research question input (2 hours)
+2. **Next week:** Research templates (4 hours)
+3. **Week 3:** Project management (1 day)
+4. **Week 4:** Cross-post synthesis (killer feature - 2 days)
+
+---
+
+## Future Platform Expansion
+
+### Additional Content Sources (Planned)
+
+The tool currently focuses on Reddit. Future expansion will include:
+
+#### 1. YouTube Comments Analysis
+- Extract comments from videos
+- Analyze sentiment and themes
+- Identify influencer impact
+- Compare discussion quality vs Reddit
+
+**Use cases:**
+- Product launch feedback
+- Tutorial/education content validation
+- Influencer audience analysis
+- Competitive video content research
+
+#### 2. App Store Reviews (iOS)
+- Extract reviews with ratings
+- Analyze feature requests
+- Track sentiment over versions
+- Identify bug patterns and UX issues
+
+**Use cases:**
+- Product roadmap prioritization
+- Competitive app analysis
+- Version release impact tracking
+- User pain point discovery
+
+#### 3. Google Play Store Reviews (Android)
+- Extract reviews with ratings
+- Compare iOS vs Android user feedback
+- Device/OS-specific issues
+- Regional sentiment analysis
+
+**Use cases:**
+- Platform-specific feature development
+- Cross-platform comparison
+- Market-specific insights
+- Technical issue identification
+
+### Multi-Source Analysis (Future Goal)
+
+**Vision:** Analyze the same topic across multiple platforms
+
+Example research flow:
+```
+RESEARCH: "Notion user feedback on mobile experience"
+
+Sources:
+- Reddit r/Notion: 10 posts
+- App Store reviews: 500 reviews
+- YouTube video comments: 5 videos
+- Play Store reviews: 500 reviews
+
+SYNTHESIZED INSIGHTS ACROSS PLATFORMS:
+
+Mobile sync issues:
+- Reddit: 8/10 posts mention sync problems
+- App Store: 45% of 1-star reviews cite sync
+- YouTube: Top complaint in tutorial comments
+- Play Store: 52% of recent negative reviews
+
+→ HIGH CONFIDENCE: Sync is critical issue across all platforms
+→ PRIORITY: Immediate fix required
+```
+
+### Technical Considerations
+
+**API Requirements:**
+- YouTube Data API v3 (comment extraction)
+- App Store Connect API or web scraping
+- Google Play Developer API or web scraping
+- Rate limiting and quota management
+
+**Data Consistency:**
+- Unified data format across sources
+- Consistent sentiment analysis
+- Cross-platform comparison methodology
+
+**Feature Parity:**
+- Same AI analysis quality across sources
+- Consistent export formats
+- Unified project management
+
+### Implementation Timeline
+
+**Not immediate** - Focus on problem-first approach first:
+1. ✅ Fix Reddit tool to be problem-first
+2. ✅ Validate with users
+3. ✅ Build cross-post synthesis
+4. → Then expand to new platforms
+
+**Estimated timeline for platform expansion:**
+- Q1 2026: YouTube comments
+- Q2 2026: App Store reviews
+- Q3 2026: Play Store reviews
+- Q4 2026: Multi-source synthesis
+
+---
+
+## Notes on Focused Extraction
+
+**User requirement:** Option to focus on one medium at a time
+
+**Implementation approach:**
+```
+SELECT CONTENT SOURCE:
+○ Reddit Only
+○ YouTube Only
+○ App Store Only
+○ Play Store Only
+○ All Sources (synthesize)
+
+[Continue →]
+```
+
+This allows:
+- Faster analysis (single source)
+- Source-specific insights
+- Gradual adoption of multi-source
+- Easier testing and validation
