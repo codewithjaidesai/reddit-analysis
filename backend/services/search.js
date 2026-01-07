@@ -9,15 +9,40 @@ const { getRedditAccessToken } = require('./reddit');
  * @returns {string} Enhanced query
  */
 function enhanceQueryWithTemplate(topic, template) {
+  const topicLower = topic.toLowerCase();
+
+  // For "All Insights", detect query intent and add smart enhancements
   if (!template || template === 'all') {
-    return topic; // No enhancement for general analysis
+    // Detect comparison queries (vs, versus, or, compared to, etc.)
+    if (topicLower.includes(' vs ') ||
+        topicLower.includes(' versus ') ||
+        topicLower.includes(' or ') ||
+        topicLower.includes(' compared ') ||
+        topicLower.includes(' alternative')) {
+      console.log('Detected comparison query, enhancing with comparison terms');
+      return `${topic} (compare OR comparison OR review)`;
+    }
+
+    // Detect question queries (why, how, what, etc.)
+    if (topicLower.startsWith('why ') ||
+        topicLower.startsWith('how ') ||
+        topicLower.startsWith('what ') ||
+        topicLower.includes('why do') ||
+        topicLower.includes('how to')) {
+      console.log('Detected question query, enhancing with discussion terms');
+      return `${topic} (discussion OR experience OR opinion)`;
+    }
+
+    // For general queries, no enhancement
+    return topic;
   }
 
+  // Template-specific enhancements (simplified for better Reddit search compatibility)
   const modifiers = {
-    'pain_points': '(problem OR issue OR frustration OR complaint OR bug OR annoying OR broken OR doesn\'t work)',
-    'competitive': '(vs OR versus OR compare OR comparison OR alternative OR instead OR better than OR worse than)',
-    'features': '(feature OR wish OR want OR need OR should have OR missing OR would be great)',
-    'market_gaps': '(missing OR lacking OR no one does OR wish there was OR gap OR opportunity OR need for)'
+    'pain_points': '(problem OR issue OR frustration)',
+    'competitive': '(vs OR compare OR alternative OR review)',
+    'features': '(feature OR wish OR request)',
+    'market_gaps': '(missing OR lacking OR need)'
   };
 
   const modifier = modifiers[template];
