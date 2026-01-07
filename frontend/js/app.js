@@ -220,6 +220,60 @@ async function handleSearchByTopic() {
         }
         console.log('---\n');
 
+        // Display backend debug information
+        if (result.debug) {
+            console.log('\n🔧 BACKEND DEBUG INFO:');
+            console.log('═══════════════════════════════════════');
+            console.log('Original Query:', result.debug.originalQuery);
+            console.log('Formatted Query (after phrase matching):', result.debug.formattedQuery);
+            console.log('Final Query (sent to Reddit):', result.debug.finalQuery);
+            console.log('');
+            console.log('Template:', result.debug.template);
+            console.log('Custom Keywords:', result.debug.customKeywords);
+            console.log('');
+            console.log('User Specified Subreddits:', result.debug.userSpecifiedSubreddits);
+            console.log('Auto-Suggested Subreddits:', result.debug.autoSuggestedSubreddits || 'None');
+            console.log('Effective Subreddits:', result.debug.effectiveSubreddits);
+            console.log('');
+            console.log('Reddit API URL:', result.debug.redditApiUrl);
+            console.log('');
+
+            if (result.debug.samplePosts && result.debug.samplePosts.length > 0) {
+                console.log('Sample Posts Returned by Reddit:');
+                result.debug.samplePosts.forEach((post, i) => {
+                    console.log(`  ${i + 1}. r/${post.subreddit} - ${post.title}`);
+                    console.log(`     Score: ${post.score}, Comments: ${post.comments}, Ratio: ${post.upvoteRatio}`);
+                });
+            } else {
+                console.log('⚠️  Reddit returned 0 posts');
+            }
+            console.log('');
+
+            if (result.debug.filterStats) {
+                console.log('Filter Statistics:');
+                console.log(`  Total posts from Reddit: ${result.debug.filterStats.total}`);
+                console.log(`  Passed all filters: ${result.debug.filterStats.passed}`);
+                console.log(`  Filter criteria: score ≥ ${result.debug.filterStats.minScore}, comments ≥ ${result.debug.filterStats.minComments}, ratio ≥ ${result.debug.filterStats.minUpvoteRatio}`);
+                console.log(`  Filtered out:`);
+                console.log(`    - Low score: ${result.debug.filterStats.lowScore}`);
+                console.log(`    - Low comments: ${result.debug.filterStats.lowComments}`);
+                console.log(`    - Low upvote ratio: ${result.debug.filterStats.lowUpvoteRatio}`);
+                console.log(`    - Is video: ${result.debug.filterStats.isVideo}`);
+                console.log(`    - Is stickied: ${result.debug.filterStats.isStickied}`);
+            }
+
+            if (result.debug.filteredExamples && result.debug.filteredExamples.length > 0) {
+                console.log('');
+                console.log('⚠️  Examples of Filtered Posts:');
+                result.debug.filteredExamples.forEach((post, i) => {
+                    console.log(`  ${i + 1}. r/${post.subreddit} - ${post.title}`);
+                    console.log(`     Failed: ${post.failedReasons.join(', ')}`);
+                });
+            }
+
+            console.log('═══════════════════════════════════════\n');
+        }
+
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
         }
