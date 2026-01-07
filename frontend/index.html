@@ -59,18 +59,19 @@
                 <div class="input-section">
                     <h2>Search Reddit by Topic</h2>
 
-                    <!-- Research Context (Optional) -->
+                    <!-- Research Question (REQUIRED) -->
                     <div class="research-context-section">
                         <label for="researchQuestion" class="context-label">
-                            💡 What are you researching? <span class="optional-tag">(Optional)</span>
+                            💡 What are you researching? <span class="required-tag">*</span>
                         </label>
                         <textarea
                             id="researchQuestion"
-                            placeholder="e.g., Why do users prefer Notion over Evernote for note-taking?"
+                            placeholder="e.g., 'Why do users prefer Notion over Evernote?' or just 'notion vs evernote'"
                             class="research-input"
                             rows="2"
+                            required
                         ></textarea>
-                        <p class="hint">Adding context helps AI generate more focused insights</p>
+                        <p class="hint">Enter your research question or keywords - this drives your search and analysis</p>
                     </div>
 
                     <!-- Analysis Template -->
@@ -88,15 +89,51 @@
                         <p class="hint">Template enhances search relevance and analysis focus</p>
                     </div>
 
-                    <div class="search-form">
-                        <div class="input-group">
+                    <!-- Search Method Selection -->
+                    <div class="search-method-section">
+                        <label class="method-label">
+                            🔍 How do you want to find posts?
+                        </label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="searchMethod" value="reddit" checked onchange="toggleSearchMethod()">
+                                <span class="radio-label">Search across Reddit</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="searchMethod" value="subreddits" onchange="toggleSearchMethod()">
+                                <span class="radio-label">Search specific subreddits only</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="searchMethod" value="urls" onchange="toggleSearchMethod()">
+                                <span class="radio-label">I have specific URLs to analyze</span>
+                            </label>
+                        </div>
+
+                        <!-- Subreddit Input (shown when subreddits radio selected) -->
+                        <div id="subredditMethodInput" style="display: none; margin-top: 15px;">
                             <input
                                 type="text"
-                                id="topicQuery"
-                                placeholder="Enter topic or keywords..."
+                                id="topicSubreddits"
+                                placeholder="e.g., AskReddit, productivity, Notion"
                                 class="url-input"
                             />
+                            <p class="hint">Comma-separated list of subreddits</p>
                         </div>
+
+                        <!-- URL Input (shown when URLs radio selected) -->
+                        <div id="urlMethodInput" style="display: none; margin-top: 15px;">
+                            <textarea
+                                id="topicUrls"
+                                placeholder="Paste Reddit post URLs here (one per line)..."
+                                class="url-textarea"
+                                rows="4"
+                            ></textarea>
+                            <p class="hint">Enter one or more Reddit post URLs, separated by new lines</p>
+                        </div>
+                    </div>
+
+                    <!-- Search Filters -->
+                    <div class="search-form">
                         <div class="filter-row">
                             <div class="filter-group">
                                 <label>Time Range:</label>
@@ -118,23 +155,8 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="checkbox-group">
-                            <label>
-                                <input type="checkbox" id="topicSubredditFilter" onchange="toggleTopicSubredditInput()">
-                                🎯 Search specific subreddits only
-                            </label>
-                            <div id="topicSubredditInputDiv" style="display: none; margin-top: 10px;">
-                                <input
-                                    type="text"
-                                    id="topicSubreddits"
-                                    placeholder="e.g., AskReddit, science, technology"
-                                    class="url-input"
-                                />
-                                <p class="hint">Comma-separated list of subreddits</p>
-                            </div>
-                        </div>
                         <button class="analyze-btn" onclick="handleSearchByTopic()">
-                            🔍 Search Posts
+                            🔍 Search & Analyze
                         </button>
                     </div>
                 </div>

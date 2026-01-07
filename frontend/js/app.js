@@ -65,36 +65,38 @@ async function handleAnalyzeUrl() {
 }
 
 /**
- * Search by topic with research context
+ * Toggle search method input visibility
+ */
+function toggleSearchMethod() {
+    const selectedMethod = document.querySelector('input[name="searchMethod"]:checked').value;
+
+    // Hide all method-specific inputs
+    document.getElementById('subredditMethodInput').style.display = 'none';
+    document.getElementById('urlMethodInput').style.display = 'none';
+
+    // Show relevant input based on selection
+    if (selectedMethod === 'subreddits') {
+        document.getElementById('subredditMethodInput').style.display = 'block';
+    } else if (selectedMethod === 'urls') {
+        document.getElementById('urlMethodInput').style.display = 'block';
+    }
+}
+
+/**
+ * Search by topic with research context (redesigned)
  */
 async function handleSearchByTopic() {
-    const topic = document.getElementById('topicQuery').value.trim();
+    const researchQuestion = document.getElementById('researchQuestion').value.trim();
 
-    if (!topic) {
-        showError('Please enter a topic to search');
+    if (!researchQuestion) {
+        showError('Please enter what you are researching');
         return;
     }
 
+    const template = document.getElementById('analysisTemplate').value;
+    const searchMethod = document.querySelector('input[name="searchMethod"]:checked').value;
     const timeRange = document.getElementById('topicTimeRange').value;
     const limit = parseInt(document.getElementById('topicLimit').value);
-    const template = document.getElementById('analysisTemplate').value;
-    const researchQuestion = document.getElementById('researchQuestion').value.trim();
-
-    let subreddits = '';
-    if (document.getElementById('topicSubredditFilter').checked) {
-        subreddits = document.getElementById('topicSubreddits').value.trim();
-    }
-
-    // Save to recent searches
-    saveRecentSearch({
-        topic,
-        timeRange,
-        subreddits,
-        limit,
-        template,
-        researchQuestion,
-        timestamp: Date.now()
-    });
 
     // Store research context globally for later use
     window.currentResearchContext = {
@@ -102,13 +104,72 @@ async function handleSearchByTopic() {
         template
     };
 
+    // Handle different search methods
+    if (searchMethod === 'urls') {
+        // Direct URL analysis
+        const urlsText = document.getElementById('topicUrls').value.trim();
+        if (!urlsText) {
+            showError('Please enter at least one Reddit post URL');
+            return;
+        }
+
+        const urls = urlsText.split('\n').map(url => url.trim()).filter(url => url);
+        if (urls.length === 0) {
+            showError('Please enter valid Reddit post URLs');
+            return;
+        }
+
+        // Validate URLs
+        for (const url of urls) {
+            if (!url.includes('reddit.com/r/') || !url.includes('/comments/')) {
+                showError(`Invalid Reddit URL: ${url.substring(0, 50)}...`);
+                return;
+            }
+        }
+
+        // Save to recent searches
+        saveRecentSearch({
+            researchQuestion,
+            template,
+            method: 'urls',
+            urlCount: urls.length,
+            timestamp: Date.now()
+        });
+
+        // Analyze URLs directly
+        await analyzeMultiplePosts(urls);
+        return;
+    }
+
+    // For reddit/subreddit search methods
+    let subreddits = '';
+    if (searchMethod === 'subreddits') {
+        subreddits = document.getElementById('topicSubreddits').value.trim();
+        if (!subreddits) {
+            showError('Please enter subreddit names');
+            return;
+        }
+    }
+
+    // Save to recent searches
+    saveRecentSearch({
+        researchQuestion,
+        timeRange,
+        subreddits,
+        limit,
+        template,
+        method: searchMethod,
+        timestamp: Date.now()
+    });
+
     // Reset
     hideAll();
     topicSelectedPosts.clear();
     showStatus('Searching Reddit...', 50);
 
     try {
-        const result = await searchTopic(topic, timeRange, subreddits, limit, template, researchQuestion);
+        // Use research question as the search topic
+        const result = await searchTopic(researchQuestion, timeRange, subreddits, limit, template, researchQuestion);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
@@ -120,16 +181,14 @@ async function handleSearchByTopic() {
         hideAll();
         document.getElementById('topicResults').style.display = 'block';
 
-        let titleText = `Found ${result.afterFiltering} posts for "${topic}"`;
+        let titleText = `Found ${result.afterFiltering} posts`;
         if (template && template !== 'all') {
             titleText += ` (${template.replace('_', ' ')})`;
         }
         document.getElementById('topicResultsTitle').textContent = titleText;
 
         let summaryText = `Filtered ${result.afterFiltering} high-engagement posts from ${result.totalFound} total results`;
-        if (researchQuestion) {
-            summaryText += ` | Research: "${researchQuestion.substring(0, 80)}${researchQuestion.length > 80 ? '...' : ''}"`;
-        }
+        summaryText += ` | Research: "${researchQuestion.substring(0, 80)}${researchQuestion.length > 80 ? '...' : ''}"`;
         document.getElementById('topicResultsSummary').textContent = summaryText;
 
         displayPostCards(result.posts, 'topicPostsList', topicSelectedPosts, 'toggleTopicPost');
@@ -459,15 +518,21 @@ function loadRecentSearch(index) {
 
         if (search) {
             // Populate form fields
-            document.getElementById('topicQuery').value = search.topic || '';
+            document.getElementById('researchQuestion').value = search.researchQuestion || '';
             document.getElementById('topicTimeRange').value = search.timeRange || 'week';
             document.getElementById('topicLimit').value = search.limit || 15;
             document.getElementById('analysisTemplate').value = search.template || 'all';
-            document.getElementById('researchQuestion').value = search.researchQuestion || '';
 
+            // Restore search method
+            const method = search.method || 'reddit';
+            const radioButton = document.querySelector(`input[name="searchMethod"][value="${method}"]`);
+            if (radioButton) {
+                radioButton.checked = true;
+                toggleSearchMethod(); // Show appropriate inputs
+            }
+
+            // Restore method-specific inputs
             if (search.subreddits) {
-                document.getElementById('topicSubredditFilter').checked = true;
-                document.getElementById('topicSubredditInputDiv').style.display = 'block';
                 document.getElementById('topicSubreddits').value = search.subreddits;
             }
         }
@@ -490,9 +555,12 @@ function updateRecentSearchesDropdown() {
         dropdown.innerHTML = '<option value="">Recent Searches</option>';
 
         recents.forEach((search, index) => {
-            const label = search.topic.substring(0, 40) + (search.topic.length > 40 ? '...' : '');
+            const label = (search.researchQuestion || search.topic || '').substring(0, 40);
+            const truncated = label + ((search.researchQuestion || search.topic || '').length > 40 ? '...' : '');
             const templateTag = search.template && search.template !== 'all' ? ` [${search.template.replace('_', ' ')}]` : '';
-            dropdown.innerHTML += `<option value="${index}">${label}${templateTag}</option>`;
+            const methodTag = search.method === 'urls' ? ` (${search.urlCount} URLs)` :
+                             search.method === 'subreddits' ? ' (subreddits)' : '';
+            dropdown.innerHTML += `<option value="${index}">${truncated}${templateTag}${methodTag}</option>`;
         });
     } catch (error) {
         console.error('Error updating recent searches dropdown:', error);
