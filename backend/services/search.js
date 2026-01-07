@@ -195,7 +195,17 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       }
     }
 
-    console.log('Fetching from Reddit OAuth API with query:', params.q);
+    // Build full URL for debugging
+    const queryString = new URLSearchParams(params).toString();
+    const fullUrl = `${searchUrl}?${queryString}`;
+
+    console.log('\n=== REDDIT SEARCH DEBUG ===');
+    console.log('Full API URL:', fullUrl);
+    console.log('Query sent to Reddit:', params.q);
+    console.log('Time range:', timeRange);
+    console.log('Subreddits filter:', effectiveSubreddits || 'All of Reddit');
+    console.log('===========================\n');
+
     const response = await axios.get(searchUrl, {
       params,
       headers: {
@@ -211,16 +221,50 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     const data = response.data;
     const posts = data.data.children.map(child => child.data);
 
-    console.log(`Found ${posts.length} raw posts`);
+    console.log(`\n=== REDDIT RESPONSE ===`);
+    console.log(`Reddit returned ${posts.length} posts`);
+    if (posts.length > 0) {
+      console.log('Sample post titles (first 3):');
+      posts.slice(0, 3).forEach((post, i) => {
+        console.log(`  ${i+1}. r/${post.subreddit} - ${post.title.substring(0, 80)}... (${post.score} upvotes, ${post.num_comments} comments)`);
+      });
+    }
+    console.log('======================\n');
 
     // Filter and score posts
+    const MIN_SCORE = 20;
+    const MIN_COMMENTS = 10;
+    const MIN_UPVOTE_RATIO = 0.7;
+
+    // Track filter reasons for debugging
+    let filterStats = {
+      total: posts.length,
+      lowScore: 0,
+      lowComments: 0,
+      lowUpvoteRatio: 0,
+      isVideo: 0,
+      isStickied: 0,
+      passed: 0
+    };
+
     const scoredPosts = posts
       .filter(post => {
-        return post.score >= 20 &&
-               post.num_comments >= 10 &&
-               post.upvote_ratio >= 0.7 &&
+        // Track why posts are filtered
+        if (post.score < MIN_SCORE) filterStats.lowScore++;
+        if (post.num_comments < MIN_COMMENTS) filterStats.lowComments++;
+        if (post.upvote_ratio < MIN_UPVOTE_RATIO) filterStats.lowUpvoteRatio++;
+        if (post.is_video) filterStats.isVideo++;
+        if (post.stickied) filterStats.isStickied++;
+
+        const passes = post.score >= MIN_SCORE &&
+               post.num_comments >= MIN_COMMENTS &&
+               post.upvote_ratio >= MIN_UPVOTE_RATIO &&
                !post.is_video &&
                !post.stickied;
+
+        if (passes) filterStats.passed++;
+
+        return passes;
       })
       .map(post => {
         const engagementScore = post.score + (post.num_comments * 2);
@@ -274,7 +318,31 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       .sort((a, b) => b.engagementScore - a.engagementScore)
       .slice(0, limit);
 
-    console.log(`Found ${scoredPosts.length} high-engagement posts`);
+    console.log(`\n=== FILTERING RESULTS ===`);
+    console.log(`Passed filters: ${filterStats.passed} out of ${filterStats.total}`);
+    console.log(`Filter breakdown (posts can fail multiple criteria):`);
+    console.log(`  - Low score (<${MIN_SCORE}): ${filterStats.lowScore}`);
+    console.log(`  - Low comments (<${MIN_COMMENTS}): ${filterStats.lowComments}`);
+    console.log(`  - Low upvote ratio (<${MIN_UPVOTE_RATIO}): ${filterStats.lowUpvoteRatio}`);
+    console.log(`  - Is video: ${filterStats.isVideo}`);
+    console.log(`  - Is stickied: ${filterStats.isStickied}`);
+    console.log(`Final results after limit (${limit}): ${scoredPosts.length}`);
+
+    // Show examples of filtered out posts for debugging
+    if (filterStats.passed === 0 && posts.length > 0) {
+      console.log('\n⚠️  ALL POSTS FILTERED OUT - Examples of what was filtered:');
+      posts.slice(0, 3).forEach((post, i) => {
+        const reasons = [];
+        if (post.score < MIN_SCORE) reasons.push(`score=${post.score}`);
+        if (post.num_comments < MIN_COMMENTS) reasons.push(`comments=${post.num_comments}`);
+        if (post.upvote_ratio < MIN_UPVOTE_RATIO) reasons.push(`ratio=${post.upvote_ratio}`);
+        if (post.is_video) reasons.push('video');
+        if (post.stickied) reasons.push('stickied');
+        console.log(`  ${i+1}. r/${post.subreddit} - ${post.title.substring(0, 60)}...`);
+        console.log(`     Failed: ${reasons.join(', ')}`);
+      });
+    }
+    console.log('========================\n');
 
     return {
       success: true,
