@@ -195,8 +195,30 @@ async function handleSearchByTopic() {
     showStatus('Searching Reddit...', 50);
 
     try {
+        // Log search parameters for debugging
+        console.log('\n🔍 SEARCH PARAMETERS:');
+        console.log('Research Question:', researchQuestion);
+        console.log('Time Range:', timeRange);
+        console.log('Subreddits:', subreddits || 'All of Reddit');
+        console.log('Limit:', limit);
+        console.log('Template:', template);
+        console.log('Custom Keywords:', customKeywords || 'None');
+        console.log('Search Method:', searchMethod);
+        console.log('---');
+
         // Use research question as the search topic
         const result = await searchTopic(researchQuestion, timeRange, subreddits, limit, template, researchQuestion, customKeywords);
+
+        // Log search results for debugging
+        console.log('\n📊 SEARCH RESULTS:');
+        console.log('Success:', result.success);
+        console.log('Total found by Reddit:', result.totalFound);
+        console.log('After filtering:', result.afterFiltering);
+        console.log('Posts returned:', result.posts?.length || 0);
+        if (!result.success) {
+            console.error('Error:', result.error);
+        }
+        console.log('---\n');
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
