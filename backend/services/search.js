@@ -77,6 +77,55 @@ function enhanceQueryWithTemplate(topic, template) {
 }
 
 /**
+ * Get relevant subreddits for common topics
+ * @param {string} query - Search query
+ * @returns {string} Suggested subreddits (comma-separated) or empty string
+ */
+function suggestSubreddits(query) {
+  const queryLower = query.toLowerCase();
+
+  // Map common topics to relevant subreddits
+  const topicMap = {
+    'fire': 'financialindependence,fire,leanfire,fatfire',
+    'financial independence': 'financialindependence,fire,leanfire,personalfinance',
+    'notion': 'Notion,productivity,PKM',
+    'evernote': 'Evernote,productivity,PKM',
+    'obsidian': 'ObsidianMD,PKM,productivity',
+    'saas': 'SaaS,startups,entrepreneur,smallbusiness',
+    'startup': 'startups,entrepreneur,smallbusiness',
+    'productivity': 'productivity,selfimprovement,getdisciplined'
+  };
+
+  // Check if query matches or contains any known topic
+  for (const [topic, subreddits] of Object.entries(topicMap)) {
+    if (queryLower.includes(topic)) {
+      console.log(`Auto-suggesting subreddits for "${topic}": ${subreddits}`);
+      return subreddits;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Format query for better Reddit search relevance
+ * @param {string} query - User's search query
+ * @returns {string} Formatted query
+ */
+function formatSearchQuery(query) {
+  // If query has multiple words, wrap in quotes for phrase search
+  const words = query.trim().split(/\s+/);
+
+  if (words.length > 1) {
+    // Multi-word phrase - use quotes for exact phrase matching
+    return `"${query}"`;
+  }
+
+  // Single word - return as-is
+  return query;
+}
+
+/**
  * Search Reddit by topic across all or specific subreddits
  * @param {string} topic - Search query
  * @param {string} timeRange - Time filter (hour, day, week, month, year, all)
@@ -92,10 +141,23 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     // Get Reddit OAuth token first
     const accessToken = await getRedditAccessToken();
 
+    // Format query for better relevance
+    const formattedQuery = formatSearchQuery(topic);
+    console.log('Formatted query:', formattedQuery);
+
+    // Auto-suggest subreddits for known topics if none specified
+    let effectiveSubreddits = subreddits;
+    if (!effectiveSubreddits || !effectiveSubreddits.trim()) {
+      effectiveSubreddits = suggestSubreddits(topic);
+      if (effectiveSubreddits) {
+        console.log('Auto-detected topic, using suggested subreddits');
+      }
+    }
+
     // Use Reddit's OAuth API to avoid 403 errors
     let searchUrl = 'https://oauth.reddit.com/search';
     let params = {
-      q: topic,  // USE TOPIC DIRECTLY - NO MODIFICATIONS
+      q: formattedQuery,
       t: timeRange,
       sort: 'relevance',
       limit: 100, // Get more to filter by engagement
@@ -104,11 +166,11 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       raw_json: 1
     };
 
-    // If specific subreddits requested
-    if (subreddits && subreddits.trim()) {
-      const subredditList = subreddits.split(',').map(s => s.trim()).filter(s => s);
+    // Add subreddit filtering if we have them (user-specified or auto-suggested)
+    if (effectiveSubreddits && effectiveSubreddits.trim()) {
+      const subredditList = effectiveSubreddits.split(',').map(s => s.trim()).filter(s => s);
       if (subredditList.length > 0) {
-        params.q = `${topic} (subreddit:${subredditList.join(' OR subreddit:')})`;
+        params.q = `${formattedQuery} (subreddit:${subredditList.join(' OR subreddit:')})`;
       }
     }
 
@@ -335,5 +397,7 @@ module.exports = {
   searchRedditByTopic,
   searchSubredditTopPosts,
   enhanceQueryWithTemplate,
-  extractKeywords
+  extractKeywords,
+  suggestSubreddits,
+  formatSearchQuery
 };
