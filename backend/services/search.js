@@ -138,12 +138,29 @@ function formatSearchQuery(query) {
 async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit = 15, template = 'all', customKeywords = '') {
   console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit, 'Template:', template, 'Custom Keywords:', customKeywords);
 
+  // Initialize debug object to return to frontend
+  const debugInfo = {
+    originalQuery: topic,
+    timeRange,
+    template,
+    customKeywords: customKeywords || 'None',
+    userSpecifiedSubreddits: subreddits || 'None',
+    formattedQuery: '',
+    finalQuery: '',
+    autoSuggestedSubreddits: '',
+    effectiveSubreddits: '',
+    redditApiUrl: '',
+    samplePosts: [],
+    filterStats: {}
+  };
+
   try {
     // Get Reddit OAuth token first
     const accessToken = await getRedditAccessToken();
 
     // Format query for better relevance
     let formattedQuery = formatSearchQuery(topic);
+    debugInfo.formattedQuery = formattedQuery;
     console.log('Formatted query:', formattedQuery);
 
     // Add custom keywords if provided, otherwise use template-specific keyword
@@ -171,9 +188,11 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     if (!effectiveSubreddits || !effectiveSubreddits.trim()) {
       effectiveSubreddits = suggestSubreddits(topic);
       if (effectiveSubreddits) {
+        debugInfo.autoSuggestedSubreddits = effectiveSubreddits;
         console.log('Auto-detected topic, using suggested subreddits');
       }
     }
+    debugInfo.effectiveSubreddits = effectiveSubreddits || 'All of Reddit';
 
     // Use Reddit's OAuth API to avoid 403 errors
     let searchUrl = 'https://oauth.reddit.com/search';
@@ -199,6 +218,9 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     const queryString = new URLSearchParams(params).toString();
     const fullUrl = `${searchUrl}?${queryString}`;
 
+    debugInfo.finalQuery = params.q;
+    debugInfo.redditApiUrl = fullUrl;
+
     console.log('\n=== REDDIT SEARCH DEBUG ===');
     console.log('Full API URL:', fullUrl);
     console.log('Query sent to Reddit:', params.q);
@@ -220,6 +242,15 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
 
     const data = response.data;
     const posts = data.data.children.map(child => child.data);
+
+    // Capture sample posts for debug info
+    debugInfo.samplePosts = posts.slice(0, 3).map(post => ({
+      subreddit: post.subreddit,
+      title: post.title.substring(0, 80) + (post.title.length > 80 ? '...' : ''),
+      score: post.score,
+      comments: post.num_comments,
+      upvoteRatio: post.upvote_ratio
+    }));
 
     console.log(`\n=== REDDIT RESPONSE ===`);
     console.log(`Reddit returned ${posts.length} posts`);
@@ -318,6 +349,31 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       .sort((a, b) => b.engagementScore - a.engagementScore)
       .slice(0, limit);
 
+    // Capture filter stats for debug info
+    debugInfo.filterStats = {
+      ...filterStats,
+      minScore: MIN_SCORE,
+      minComments: MIN_COMMENTS,
+      minUpvoteRatio: MIN_UPVOTE_RATIO
+    };
+
+    // Add examples of filtered posts if all were filtered
+    if (filterStats.passed === 0 && posts.length > 0) {
+      debugInfo.filteredExamples = posts.slice(0, 3).map(post => {
+        const reasons = [];
+        if (post.score < MIN_SCORE) reasons.push(`score=${post.score}`);
+        if (post.num_comments < MIN_COMMENTS) reasons.push(`comments=${post.num_comments}`);
+        if (post.upvote_ratio < MIN_UPVOTE_RATIO) reasons.push(`ratio=${post.upvote_ratio}`);
+        if (post.is_video) reasons.push('video');
+        if (post.stickied) reasons.push('stickied');
+        return {
+          subreddit: post.subreddit,
+          title: post.title.substring(0, 60) + (post.title.length > 60 ? '...' : ''),
+          failedReasons: reasons
+        };
+      });
+    }
+
     console.log(`\n=== FILTERING RESULTS ===`);
     console.log(`Passed filters: ${filterStats.passed} out of ${filterStats.total}`);
     console.log(`Filter breakdown (posts can fail multiple criteria):`);
@@ -350,7 +406,8 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       timeRange,
       totalFound: posts.length,
       afterFiltering: scoredPosts.length,
-      posts: scoredPosts
+      posts: scoredPosts,
+      debug: debugInfo  // Include debug info in response
     };
 
   } catch (error) {
@@ -359,7 +416,8 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       success: false,
       error: error.message,
       message: 'Failed to search Reddit: ' + error.message,
-      posts: []
+      posts: [],
+      debug: debugInfo  // Include debug info even on error
     };
   }
 }
