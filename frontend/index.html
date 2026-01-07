@@ -79,14 +79,26 @@
                         <label for="analysisTemplate" class="template-label">
                             🎯 Analysis Focus
                         </label>
-                        <select id="analysisTemplate" class="select-input">
+                        <select id="analysisTemplate" class="select-input" onchange="toggleCustomKeywords()">
                             <option value="all">All Insights (General Analysis)</option>
                             <option value="pain_points">Pain Points Discovery</option>
                             <option value="competitive">Competitive Analysis</option>
                             <option value="features">Feature Requests & Needs</option>
                             <option value="market_gaps">Market Gaps & Opportunities</option>
+                            <option value="custom">Custom Keywords...</option>
                         </select>
                         <p class="hint">Template enhances search relevance and analysis focus</p>
+
+                        <!-- Custom Keywords Input (shown when "Custom" selected) -->
+                        <div id="customKeywordsInput" style="display: none; margin-top: 15px;">
+                            <input
+                                type="text"
+                                id="customKeywords"
+                                placeholder="e.g., memes, funny, controversial"
+                                class="url-input"
+                            />
+                            <p class="hint">Enter keywords to add to your search (e.g., "memes", "funny", "controversial")</p>
+                        </div>
                     </div>
 
                     <!-- Search Method Selection -->

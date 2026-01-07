@@ -83,6 +83,20 @@ function toggleSearchMethod() {
 }
 
 /**
+ * Toggle custom keywords input visibility
+ */
+function toggleCustomKeywords() {
+    const template = document.getElementById('analysisTemplate').value;
+    const customInput = document.getElementById('customKeywordsInput');
+
+    if (template === 'custom') {
+        customInput.style.display = 'block';
+    } else {
+        customInput.style.display = 'none';
+    }
+}
+
+/**
  * Search by topic with research context (redesigned)
  */
 async function handleSearchByTopic() {
@@ -98,10 +112,21 @@ async function handleSearchByTopic() {
     const timeRange = document.getElementById('topicTimeRange').value;
     const limit = parseInt(document.getElementById('topicLimit').value);
 
+    // Get custom keywords if template is "custom"
+    let customKeywords = '';
+    if (template === 'custom') {
+        customKeywords = document.getElementById('customKeywords').value.trim();
+        if (!customKeywords) {
+            showError('Please enter custom keywords for your search');
+            return;
+        }
+    }
+
     // Store research context globally for later use
     window.currentResearchContext = {
         researchQuestion,
-        template
+        template,
+        customKeywords
     };
 
     // Handle different search methods
@@ -131,6 +156,7 @@ async function handleSearchByTopic() {
         saveRecentSearch({
             researchQuestion,
             template,
+            customKeywords,
             method: 'urls',
             urlCount: urls.length,
             timestamp: Date.now()
@@ -158,6 +184,7 @@ async function handleSearchByTopic() {
         subreddits,
         limit,
         template,
+        customKeywords,
         method: searchMethod,
         timestamp: Date.now()
     });
@@ -169,7 +196,7 @@ async function handleSearchByTopic() {
 
     try {
         // Use research question as the search topic
-        const result = await searchTopic(researchQuestion, timeRange, subreddits, limit, template, researchQuestion);
+        const result = await searchTopic(researchQuestion, timeRange, subreddits, limit, template, researchQuestion, customKeywords);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
@@ -522,6 +549,12 @@ function loadRecentSearch(index) {
             document.getElementById('topicTimeRange').value = search.timeRange || 'week';
             document.getElementById('topicLimit').value = search.limit || 15;
             document.getElementById('analysisTemplate').value = search.template || 'all';
+
+            // Restore custom keywords if applicable
+            if (search.template === 'custom' && search.customKeywords) {
+                document.getElementById('customKeywords').value = search.customKeywords;
+                toggleCustomKeywords(); // Show custom keywords input
+            }
 
             // Restore search method
             const method = search.method || 'reddit';
