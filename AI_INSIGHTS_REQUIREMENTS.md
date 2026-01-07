@@ -39,11 +39,35 @@ This tool helps businesses extract actionable insights from Reddit for marketing
 
 ## 📋 RECENTLY COMPLETED
 
-### Phase 1: Research Context + Templates ✅ (COMPLETED)
+### Phase 1.1: UI Redesign - Single Input + Direct URL Analysis ✅ (COMPLETED)
+**Goal:** Fix confusing dual inputs and add direct URL analysis capability
+
+**What was built:**
+- ✅ **Single REQUIRED input** - "What are you researching?" serves as both question and search query
+- ✅ **Search method radio buttons** - Choose how to find posts:
+  - Search across Reddit (default)
+  - Search specific subreddits only
+  - I have specific URLs to analyze (NEW!)
+- ✅ **Direct URL analysis** - Paste multiple URLs directly, bypasses search
+- ✅ **Progressive disclosure** - Only show relevant inputs based on method selection
+- ✅ **Improved recent searches** - Shows method indicators (URL count, subreddit filter, etc.)
+
+**Technical changes:**
+- ✅ `frontend/index.html` - Redesigned UI with radio buttons, removed topic query input
+- ✅ `frontend/css/styles.css` - Added radio button styling, search method section
+- ✅ `frontend/js/app.js` - Handle 3 search methods, validate and analyze URLs directly
+
+**How it works:**
+1. User enters ONE input: research question or keywords (REQUIRED)
+2. Selects search method via radio buttons (default: across Reddit)
+3. If "URLs" selected: paste Reddit URLs, analyze directly with research context
+4. If "subreddits" selected: enter subreddit names
+5. Research question used as both search query AND AI analysis context
+
+### Phase 1.0: Research Context + Templates ✅ (COMPLETED)
 **Goal:** Make tool problem-first by adding research questions and analysis templates
 
 **What was built:**
-- ✅ Research question input (optional, at top of Search by Topic tab)
 - ✅ Analysis templates dropdown: All Insights, Pain Points, Competitive Analysis, Features, Market Gaps
 - ✅ Template-driven search enhancement (adds synonyms to queries while keeping quality filters)
 - ✅ Recent Searches dropdown (browser localStorage, silent feature)
@@ -51,27 +75,23 @@ This tool helps businesses extract actionable insights from Reddit for marketing
 - ✅ "Search by Topic" is now the default tab
 
 **Technical changes:**
-- ✅ `frontend/index.html` - UI layout with research input and templates
-- ✅ `frontend/css/styles.css` - Styles for new UI components
 - ✅ `backend/services/search.js` - Added `enhanceQueryWithTemplate()` function
 - ✅ `backend/routes/search.js` - Accept `template` and `researchQuestion` parameters
 - ✅ `backend/routes/analyze.js` - Pass research context to insights generation
-- ✅ `frontend/js/app.js` - Handle template selection, recent searches, and search context
 - ✅ `frontend/js/api.js` - Updated API calls to pass research context
 - ✅ `backend/services/insights.js` - Pass research context to AI prompt
 
 **How it works:**
-1. User enters research question (optional) and selects analysis template
-2. Template adds synonyms to search query (e.g., "pain_points" adds "problem OR issue OR frustration")
-3. Search finds more relevant posts using enhanced query
-4. Research context is passed to AI for focused analysis
-5. Recent searches saved to localStorage and shown in dropdown
+1. Template adds synonyms to search query (e.g., "pain_points" adds "problem OR issue OR frustration")
+2. Search finds more relevant posts using enhanced query
+3. Research context is passed to AI for focused analysis
+4. Recent searches saved to localStorage and shown in dropdown
 
 ---
 
 ## 📋 CURRENTLY BUILDING (In Progress)
 
-**Status:** Phase 1 completed - ready for next phase
+**Status:** Phase 1 completed (both 1.0 and 1.1) - ready for next phase
 
 ---
 
