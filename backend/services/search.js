@@ -3,55 +3,77 @@ const config = require('../config');
 const { getRedditAccessToken } = require('./reddit');
 
 /**
+ * Extract core keywords from a research question
+ * @param {string} query - User's research question or keywords
+ * @returns {string} Extracted keywords for search
+ */
+function extractKeywords(query) {
+  // If query is already short and keyword-like, return as-is
+  if (query.length < 30 && !query.includes('?')) {
+    return query;
+  }
+
+  // Remove common question words and filler
+  const fillerWords = [
+    'why', 'how', 'what', 'when', 'where', 'who', 'which',
+    'do', 'does', 'did', 'is', 'are', 'was', 'were',
+    'users', 'people', 'someone', 'anyone',
+    'the', 'a', 'an', 'and', 'or', 'but', 'for', 'to', 'of', 'in', 'on', 'at',
+    'prefer', 'like', 'use', 'choose', 'think', 'feel'
+  ];
+
+  // Split into words and filter
+  let keywords = query
+    .toLowerCase()
+    .replace(/[?!.,;]/g, '') // Remove punctuation
+    .split(' ')
+    .filter(word => !fillerWords.includes(word) && word.length > 2)
+    .join(' ');
+
+  // If we filtered too much, use original
+  if (keywords.split(' ').length < 2) {
+    // At least keep noun phrases - remove just the question start
+    keywords = query
+      .replace(/^(why|how|what|when|where|who)\s+(do|does|did|is|are|was|were)\s+/i, '')
+      .replace(/^(why|how|what|when|where|who)\s+/i, '')
+      .trim();
+  }
+
+  console.log(`Extracted keywords: "${keywords}" from "${query}"`);
+  return keywords;
+}
+
+/**
  * Enhance search query with template-specific synonyms and modifiers
  * @param {string} topic - Base search query
  * @param {string} template - Analysis template type
  * @returns {string} Enhanced query
  */
 function enhanceQueryWithTemplate(topic, template) {
-  const topicLower = topic.toLowerCase();
+  // First, extract keywords if this looks like a question
+  const keywords = extractKeywords(topic);
 
-  // For "All Insights", detect query intent and add smart enhancements
+  // For "All Insights" - NO MODIFICATION (back to basics that worked)
   if (!template || template === 'all') {
-    // Detect comparison queries (vs, versus, or, compared to, etc.)
-    if (topicLower.includes(' vs ') ||
-        topicLower.includes(' versus ') ||
-        topicLower.includes(' or ') ||
-        topicLower.includes(' compared ') ||
-        topicLower.includes(' alternative')) {
-      console.log('Detected comparison query, enhancing with comparison terms');
-      return `${topic} (compare OR comparison OR review)`;
-    }
-
-    // Detect question queries (why, how, what, etc.)
-    if (topicLower.startsWith('why ') ||
-        topicLower.startsWith('how ') ||
-        topicLower.startsWith('what ') ||
-        topicLower.includes('why do') ||
-        topicLower.includes('how to')) {
-      console.log('Detected question query, enhancing with discussion terms');
-      return `${topic} (discussion OR experience OR opinion)`;
-    }
-
-    // For general queries, no enhancement
-    return topic;
+    return keywords;
   }
 
-  // Template-specific enhancements (simplified for better Reddit search compatibility)
+  // For templates - add MINIMAL, OPTIONAL modifiers
+  // These are gentle hints, not required terms
   const modifiers = {
-    'pain_points': '(problem OR issue OR frustration)',
-    'competitive': '(vs OR compare OR alternative OR review)',
-    'features': '(feature OR wish OR request)',
-    'market_gaps': '(missing OR lacking OR need)'
+    'pain_points': '(problem OR issue)',
+    'competitive': '(vs OR compare)',
+    'features': '(feature OR request)',
+    'market_gaps': '(missing OR gap)'
   };
 
   const modifier = modifiers[template];
   if (modifier) {
-    console.log(`Template "${template}" enhancing query with: ${modifier}`);
-    return `${topic} ${modifier}`;
+    console.log(`Template "${template}" enhancing with: ${modifier}`);
+    return `${keywords} ${modifier}`;
   }
 
-  return topic;
+  return keywords;
 }
 
 /**
@@ -316,5 +338,6 @@ async function searchSubredditTopPosts(subreddit, timeRange = 'week', limit = 15
 module.exports = {
   searchRedditByTopic,
   searchSubredditTopPosts,
-  enhanceQueryWithTemplate
+  enhanceQueryWithTemplate,
+  extractKeywords
 };
