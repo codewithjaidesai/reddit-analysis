@@ -108,21 +108,14 @@ function suggestSubreddits(query) {
 }
 
 /**
- * Format query for better Reddit search relevance
+ * Format query for Reddit search
  * @param {string} query - User's search query
- * @returns {string} Formatted query
+ * @returns {string} Cleaned query (no modifications, let Reddit's algorithm handle it)
  */
 function formatSearchQuery(query) {
-  // If query has multiple words, wrap in quotes for phrase search
-  const words = query.trim().split(/\s+/);
-
-  if (words.length > 1) {
-    // Multi-word phrase - use quotes for exact phrase matching
-    return `"${query}"`;
-  }
-
-  // Single word - return as-is
-  return query;
+  // Just clean up extra whitespace and return as-is
+  // Let Reddit's search algorithm do the work - it's smart enough to handle multi-word queries
+  return query.trim().replace(/\s+/g, ' ');
 }
 
 /**
@@ -183,15 +176,15 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       }
     }
 
-    // Auto-suggest subreddits for known topics if none specified
-    let effectiveSubreddits = subreddits;
-    if (!effectiveSubreddits || !effectiveSubreddits.trim()) {
-      effectiveSubreddits = suggestSubreddits(topic);
-      if (effectiveSubreddits) {
-        debugInfo.autoSuggestedSubreddits = effectiveSubreddits;
-        console.log('Auto-detected topic, using suggested subreddits');
-      }
+    // Auto-suggest subreddits for known topics (for debug info only, not used in query)
+    const autoSuggestedSubreddits = suggestSubreddits(topic);
+    if (autoSuggestedSubreddits) {
+      debugInfo.autoSuggestedSubreddits = autoSuggestedSubreddits;
+      console.log('Auto-detected topic, would have suggested subreddits:', autoSuggestedSubreddits, '(not applied - searching all of Reddit)');
     }
+
+    // Only use subreddit filtering if user manually specified subreddits
+    let effectiveSubreddits = subreddits && subreddits.trim() ? subreddits : '';
     debugInfo.effectiveSubreddits = effectiveSubreddits || 'All of Reddit';
 
     // Use Reddit's OAuth API to avoid 403 errors
@@ -206,11 +199,13 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       raw_json: 1
     };
 
-    // Add subreddit filtering if we have them (user-specified or auto-suggested)
-    if (effectiveSubreddits && effectiveSubreddits.trim()) {
+    // ONLY add subreddit filtering if user manually specified subreddits
+    // Do NOT restrict based on auto-suggestions - let Reddit's algorithm find relevant content
+    if (effectiveSubreddits) {
       const subredditList = effectiveSubreddits.split(',').map(s => s.trim()).filter(s => s);
       if (subredditList.length > 0) {
         params.q = `${formattedQuery} (subreddit:${subredditList.join(' OR subreddit:')})`;
+        console.log('User specified subreddits - restricting search to:', effectiveSubreddits);
       }
     }
 
