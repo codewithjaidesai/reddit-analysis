@@ -619,6 +619,12 @@ main {
     font-style: italic;
 }
 
+.required-tag {
+    font-size: 0.9rem;
+    color: #f56565;
+    font-weight: bold;
+}
+
 .research-input {
     width: 100%;
     padding: 12px;
@@ -643,6 +649,80 @@ main {
     border-radius: 12px;
     margin-bottom: 20px;
     border: 2px solid #f6ad55;
+}
+
+/* Search Method Section */
+.search-method-section {
+    background: #f0fff4;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 2px solid #48bb78;
+}
+
+.method-label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    font-size: 1rem;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.radio-option:hover {
+    border-color: var(--primary);
+    background: #f7fafc;
+}
+
+.radio-option input[type="radio"] {
+    margin-right: 10px;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+}
+
+.radio-option input[type="radio"]:checked + .radio-label {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.radio-label {
+    font-size: 1rem;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.url-textarea {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    resize: vertical;
+    transition: all 0.3s;
+}
+
+.url-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 /* Footer */
