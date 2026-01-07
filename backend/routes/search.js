@@ -8,7 +8,7 @@ const { searchRedditByTopic, searchSubredditTopPosts } = require('../services/se
  */
 router.post('/topic', async (req, res) => {
   try {
-    const { topic, timeRange, subreddits, limit, template, researchQuestion } = req.body;
+    const { topic, timeRange, subreddits, limit, template, researchQuestion, customKeywords } = req.body;
 
     if (!topic) {
       return res.status(400).json({
@@ -17,14 +17,15 @@ router.post('/topic', async (req, res) => {
       });
     }
 
-    console.log('Topic search:', topic, 'Template:', template, 'Research question:', researchQuestion ? 'provided' : 'none');
+    console.log('Topic search:', topic, 'Template:', template, 'Custom keywords:', customKeywords, 'Research question:', researchQuestion ? 'provided' : 'none');
 
     const result = await searchRedditByTopic(
       topic,
       timeRange || 'week',
       subreddits || '',
       limit || 15,
-      template || 'all'
+      template || 'all',
+      customKeywords || ''
     );
 
     // Add research context to result if provided

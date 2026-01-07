@@ -56,14 +56,15 @@ async function fullAnalysis(url, researchQuestion = null, template = null) {
 /**
  * Search Reddit by topic with optional research context
  */
-async function searchTopic(topic, timeRange, subreddits, limit, template = 'all', researchQuestion = null) {
+async function searchTopic(topic, timeRange, subreddits, limit, template = 'all', researchQuestion = null, customKeywords = '') {
     return await callAPI('/api/search/topic', {
         topic,
         timeRange,
         subreddits,
         limit,
         template,
-        researchQuestion
+        researchQuestion,
+        customKeywords
     });
 }
 
