@@ -350,41 +350,67 @@ Now analyze this content following the framework above:
 7. **Provide business implications** organized by function (Phase 4)
 8. **End with strategic summary**
 
-CRITICAL REQUIREMENTS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ CRITICAL REQUIREMENTS - FOLLOW EXACTLY OR OUTPUT WILL BE REJECTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-VISUAL FORMATTING (MANDATORY):
-✓ ALL quantitative data MUST be in tables with percentages
+❌ FORBIDDEN:
+- NO paragraphs longer than 2 sentences
+- NO raw counts without percentages
+- NO generic insights without evidence
+- NO missing executive summary
+- NO prose instead of tables for quantitative data
+- NO vague recommendations like "consider improving"
+
+✅ MANDATORY STRUCTURE:
+
+1. EXECUTIVE SUMMARY (MUST BE FIRST - 3 ONE-SENTENCE ITEMS):
+   ⚡ EXECUTIVE SUMMARY (30 seconds)
+   **Biggest Finding:** [ONE sentence only]
+   **Key Opportunity:** [ONE sentence only]
+   **Immediate Action:** [ONE sentence only]
+
+2. QUANTITATIVE PATTERNS (TABLES ONLY):
+   📊 QUANTITATIVE PATTERNS
+   - Use tables: Category | Count | % | Business Insight
+   - Group intelligently (e.g., "Fried: 65%" not "spring rolls: 5, fries: 8")
+   - Follow each table with max 2-sentence "Key Finding"
+
+3. QUALITATIVE INSIGHTS (BULLET FORMAT):
+   💡 QUALITATIVE INSIGHTS
+   - Max 2 sentences per Finding
+   - Include Evidence (quote + comment number)
+   - Include Business Value (1 sentence)
+
+4. DERIVED INSIGHTS (CHAIN FORMAT):
+   🔗 DERIVED INSIGHTS & IMPLICATIONS
+   - Observable Pattern → Immediate Effect → Secondary Effect
+   - Business Probability + reasoning
+   - Strategic Action (specific, not generic)
+
+5. BUSINESS IMPLICATIONS (ACTIONABLE CHECKLIST):
+   🎯 BUSINESS IMPLICATIONS
+   - ✅ [Specific action] NOT ✅ [Generic advice]
+   - Group by: Marketing, Product, SEO/Content
+
+6. STRATEGIC SUMMARY (2-3 SENTENCES MAX):
+   📌 STRATEGIC SUMMARY
+   - Maximum 3 sentences total
+
+STRICT LIMITS:
+- Paragraph: 2 sentences max
+- Executive items: 1 sentence each
+- Key findings: 1-2 sentences
+- Business value: 1 sentence
+- Strategic summary: 2-3 sentences total
+
+QUALITY CHECKS:
+✓ Count patterns systematically (don't estimate)
+✓ Only extract patterns that EXIST in comments
+✓ Every insight has evidence
+✓ Every recommendation is specific and actionable
 ✓ Use icons: ⚡ 📊 💡 🔗 ✅ ⚠️
-✓ Maximum 2 sentences per paragraph
-✓ Bold all **numbers** and **key findings**
-✓ Use • bullets for all lists
-✓ Use ─── separators between major sections
-
-QUANTITATIVE ANALYSIS (MANDATORY):
-✓ Don't just count—GROUP INTELLIGENTLY
-✓ Show percentages and distributions
-✓ Find higher-level patterns (group up)
-✓ Break into subcategories when revealing (group down)
-✓ Example: Don't list "spring rolls: 5, fries: 8" → Instead group as "Fried: 65%, Steamed: 23%"
-
-DERIVED INSIGHTS SECTION (MANDATORY):
-✓ Must include "🔗 DERIVED INSIGHTS & IMPLICATIONS" section
-✓ At least 2-3 insight chains
-✓ Show Observable Pattern → Immediate Effect → Secondary Effect → Strategic Action
-✓ Include business probability/confidence level
-✓ Connect dots that aren't explicitly stated in data
-
-EXECUTIVE SUMMARY (MANDATORY):
-✓ Must start with "⚡ EXECUTIVE SUMMARY (30 seconds)"
-✓ Include: Biggest Finding + Key Opportunity + Immediate Action
-✓ Each must be ONE sentence only
-
-CONTENT QUALITY:
-✓ Be adaptive—only extract patterns that actually exist in THIS content
-✓ Actually count occurrences—don't estimate
-✓ Every insight must have evidence + business value
-✓ Make every recommendation specific and actionable
-✓ Skip sections only if genuinely no relevant data exists
+✓ Use separators: ───
 `;
 
   return prompt;
