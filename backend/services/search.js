@@ -92,14 +92,10 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     // Get Reddit OAuth token first
     const accessToken = await getRedditAccessToken();
 
-    // Enhance query with template
-    const enhancedQuery = enhanceQueryWithTemplate(topic, template);
-    console.log('Enhanced query:', enhancedQuery);
-
     // Use Reddit's OAuth API to avoid 403 errors
     let searchUrl = 'https://oauth.reddit.com/search';
     let params = {
-      q: enhancedQuery,
+      q: topic,  // USE TOPIC DIRECTLY - NO MODIFICATIONS
       t: timeRange,
       sort: 'relevance',
       limit: 100, // Get more to filter by engagement
@@ -112,11 +108,11 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     if (subreddits && subreddits.trim()) {
       const subredditList = subreddits.split(',').map(s => s.trim()).filter(s => s);
       if (subredditList.length > 0) {
-        params.q = `${enhancedQuery} (subreddit:${subredditList.join(' OR subreddit:')})`;
+        params.q = `${topic} (subreddit:${subredditList.join(' OR subreddit:')})`;
       }
     }
 
-    console.log('Fetching from Reddit OAuth API...');
+    console.log('Fetching from Reddit OAuth API with query:', params.q);
     const response = await axios.get(searchUrl, {
       params,
       headers: {
