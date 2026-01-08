@@ -40,378 +40,48 @@ Focus your analysis on patterns and insights relevant to this specific area.
 `;
   }
 
-  const prompt = `═══════════════════════════════════════════════════════════════════════════
-REDDIT CONTENT INTELLIGENCE ANALYSIS
-═══════════════════════════════════════════════════════════════════════════
+  const prompt = `Analyze this Reddit thread. Find what's genuinely interesting and say it clearly.
+${researchContext ? `\n**RESEARCH FOCUS:** ${researchQuestion}\nPrioritize insights that answer this question.\n` : ''}
+NO FIXED FORMAT. The content dictates the output. Some threads reveal product preferences. Some expose tensions. Some are people venting. Report what's actually there.
 
-You are a strategic content analyst helping businesses extract actionable insights from Reddit discussions. Your analysis will be used for marketing strategy, SEO planning, product development, and competitive intelligence.
+RULES:
+- One sentence beats three. Short and sharp wins.
+- Only include what the data earns—skip empty sections
+- Cite evidence: quotes, vote counts, patterns
+- Skip anything obvious or generic
 
-Your job: Understand the content deeply, ask the right questions, and extract insights that drive business decisions.
-${researchContext}
+ANGLES TO CONSIDER (use what fits, skip what doesn't):
+- What the thread is really about (often not the literal question)
+- Concrete recommendations with vote validation
+- Agreement vs. genuine disagreement
+- What's NOT being said
+- Surprising voting patterns
+- Who would find this useful and why
 
-═══════════════════════════════════════════════════════════════════════════
-ANALYSIS FRAMEWORK
-═══════════════════════════════════════════════════════════════════════════
+FORMAT:
+• Start with 1-2 sentence summary of the thread's core value
+• Middle: whatever the data reveals (bullets, tables, lists—your call)
+• End with the single most actionable takeaway
 
-## PHASE 1: DEEP UNDERSTANDING
+---
 
-Read all the content carefully. Before extracting anything, understand:
-- What is this discussion REALLY about? (Often different from the surface topic)
-- What problem, need, desire, or pain point is being addressed?
-- What's the emotional and practical context?
-- Who is participating and why do they care?
+**r/${post.subreddit || 'unknown'}** | ${post.score} upvotes | ${post.num_comments} comments
 
-## PHASE 2: GENERATE KEY QUESTIONS
+**${post.title}**
 
-Based on what you've read, identify 4-6 critical questions that would provide business value. These should be specific to THIS content, not generic. Ask yourself:
+${post.selftext || '[Link/image post]'}
 
-- What would a marketer want to know about this audience?
-- What product opportunities or gaps are revealed?
-- What content/SEO opportunities exist?
-- What language, messaging, or positioning insights emerge?
-- What quantitative patterns matter for business decisions?
+---
 
-Examples of good questions (adapt to YOUR content):
-- "What specific pain points do users mention most frequently?"
-- "Which solutions/tools are recommended and why?"
-- "What objections or concerns appear repeatedly?"
-- "What language patterns indicate purchase intent or dissatisfaction?"
-- "What emerging trends or shifts in behavior are visible?"
+**TOP COMMENTS** (${comments.length} high-value, sorted by score)
 
-## PHASE 3: EXTRACT INSIGHTS (QUALITATIVE + QUANTITATIVE)
-
-Answer your questions with evidence-backed insights. You MUST extract both types:
-
-### 3A. QUANTITATIVE ANALYSIS (Required First)
-
-Before diving into qualitative insights, read through ALL comments and identify what's countable. Let the content show you what patterns exist—don't start with predetermined categories.
-
-**YOUR PROCESS:**
-
-1. **Read systematically** - Go through every comment with a tally mindset
-2. **Notice repetition** - What topics, problems, groups, or behaviors appear multiple times?
-3. **Count deliberately** - Actually tally occurrences as you go (don't estimate)
-4. **Group intelligently** - Related concepts go together (e.g., "depression" + "burnout" + "overwhelmed" = mental health theme)
-5. **Ask "so what?"** - For each pattern, explain what it reveals about business opportunity
-
-**WHAT MAKES A PATTERN VALUABLE:**
-
-Extract patterns that reveal:
-- Market demand or pain points (frequency indicates opportunity size)
-- Distinct audience segments (who are the people in this discussion?)
-- Preferences or consensus (what do people agree on?)
-- Behavioral signals (what do actions/language reveal?)
-- Business relevance (pricing, competition, unmet needs, trust)
-
-**THINK CREATIVELY:** Every thread has unique countable patterns. Your job is to discover what they are for THIS content, not fit the content into predetermined boxes.
-
-Past analyses have found patterns like: problem frequency, demographic segments, brand mentions, engagement correlations, professional perspectives, conversion signals—but YOUR analysis might reveal completely different patterns depending on the content.
-
-Only count patterns appearing 2+ times. Always tie numbers to business interpretation.
-
-### 3B. QUALITATIVE INSIGHTS
-
-After quantitative analysis, extract deeper qualitative insights:
-
-- Motivations, emotions, mental models
-- Pain points and desired outcomes
-- Objections, concerns, hesitations
-- Language patterns and framing
-- Unspoken needs or tensions
-- Community norms and values
-- Psychological or behavioral depth
-
-Format each insight as:
-**[Insight Title]**
-[1-3 sentences explaining the insight]
-- Evidence: [quote/paraphrase/pattern + source]
-- Business value: [why this matters]
-
-## PHASE 4: BUSINESS IMPLICATIONS
-
-Organize actionable implications by function:
-
-**FOR MARKETING & MESSAGING**
-- Positioning angles and value propositions
-- Language and terminology to use (or avoid)
-- Audience segments and targeting opportunities
-- Channel and format recommendations
-- Campaign or content ideas
-
-**FOR PRODUCT & DEVELOPMENT**
-- Feature requests or gaps identified
-- User needs and pain points to solve
-- Competitive insights and alternatives mentioned
-- User experience expectations
-- Integration or partnership opportunities
-
-**FOR SEO & CONTENT STRATEGY**
-- High-value topics and questions to target
-- Keywords and phrases used naturally by audience
-- Content formats that resonate
-- Information gaps to fill
-- Search intent patterns
-
-═══════════════════════════════════════════════════════════════════════════
-QUALITY STANDARDS
-═══════════════════════════════════════════════════════════════════════════
-
-✓ ACTIONABLE: Every insight should suggest a concrete action or decision
-✓ EVIDENCE-BASED: Tie insights to specific quotes, patterns, or data
-✓ NON-OBVIOUS: Prioritize insights that aren't immediately visible
-✓ BUSINESS-FOCUSED: Always connect findings to business value
-✓ ADAPTIVE: Let the content guide your analysis—not a rigid template
-✓ QUANTITATIVE + QUALITATIVE: Use both to paint a complete picture
-✓ SPECIFIC: Names, numbers, examples over vague generalizations
-✓ CONCISE: Every sentence must earn its place
-
-✗ Avoid mechanical counting without context
-✗ Avoid generic insights that could apply to any thread
-✗ Avoid hedging language ("might", "could", "possibly")
-✗ Avoid filler sections—if there's nothing valuable, skip it
-✗ Avoid ignoring quantitative patterns when they reveal opportunities
-
-═══════════════════════════════════════════════════════════════════════════
-VISUAL FORMATTING REQUIREMENTS (MANDATORY)
-═══════════════════════════════════════════════════════════════════════════
-
-✓ ALL quantitative data MUST use tables with percentages
-✓ Maximum 2 sentences per paragraph
-✓ Use • bullets for all lists
-✓ Bold all **numbers** and **key findings**
-✓ Add visual icons: 📊 (data), 💡 (insight), 🔗 (derived), ✅ (action), ⚠️ (warning)
-✓ Use visual separators (───) between major sections
-✓ Keep paragraphs short and scannable
-
-═══════════════════════════════════════════════════════════════════════════
-OUTPUT FORMAT
-═══════════════════════════════════════════════════════════════════════════
-
-# ⚡ EXECUTIVE SUMMARY (30 seconds)
-
-**Biggest Finding:** [One sentence - the most important discovery]
-
-**Key Opportunity:** [One sentence - biggest business opportunity]
-
-**Immediate Action:** [One specific thing to do right now]
-
-───
-
-# 📊 QUANTITATIVE PATTERNS
-
-## [Pattern Category Name]
-
-Use tables for all quantitative data. Group intelligently, show percentages.
-
-**IMPORTANT:** Don't just count raw occurrences. Group up (find higher-level categories) and group down (break into meaningful subcategories).
-
-**Example - If analyzing starters mentioned:**
-
-BAD (just counting):
-- Spring rolls: 5
-- Fries: 8
-- Salad: 3
-
-GOOD (intelligent grouping):
-
-| Preparation Method | Count | % of Total | Business Insight |
-|-------------------|-------|------------|------------------|
-| Fried | 14 | 65% | Dominant preference for indulgent options |
-| Steamed | 5 | 23% | Secondary interest in lighter prep |
-| Fresh | 3 | 14% | Health-conscious segment exists but small |
-
-| Health Profile | Count | % of Total | Business Insight |
-|----------------|-------|------------|------------------|
-| Indulgent | 16 | 73% | Primary audience seeks comfort food |
-| Healthy | 6 | 27% | Quarter of market wants healthier options |
-
-**Key Finding:** [1-2 sentences summarizing the table's business implications]
-
-## [Next Pattern Category]
-...
-
-**Quantitative Summary:** [What all these numbers collectively reveal about business opportunities]
-
-───
-
-# 💡 QUALITATIVE INSIGHTS
-
-## [Theme/Category from content]
-
-**[Insight Title]**
-- **Finding:** [1-2 sentences max]
-- **Evidence:** "[Quote or pattern]" (Comment #X)
-- **Business Value:** [Why this matters - 1 sentence]
-
-**[Next Insight]**
-...
-
-## [Next Theme]
-...
-
-───
-
-# 🔗 DERIVED INSIGHTS & IMPLICATIONS
-
-This section connects dots and reveals cascading effects. Not just what data says, but what it IMPLIES.
-
-## [Insight Chain Title]
-
-**Observable Pattern:**
-[What the data directly shows - 1-2 sentences]
-
-**Derived Implications:**
-1. **Immediate Effect** → [What this directly causes]
-2. **Secondary Effect** → [What the immediate effect causes]
-3. **Tertiary Effect** → [Cascading impact if applicable]
-
-**Business Probability:** [High/Medium/Low confidence + why]
-
-**Strategic Action:** [Specific recommendation based on this chain]
-
-## [Next Insight Chain]
-...
-
-───
-
-# 🎯 BUSINESS IMPLICATIONS
-
-## For Marketing & Messaging
-✅ [Specific actionable item]
-✅ [Specific actionable item]
-✅ [Specific actionable item]
-
-## For Product & Development
-✅ [Specific actionable item]
-✅ [Specific actionable item]
-
-## For SEO & Content Strategy
-✅ [Specific actionable item]
-✅ [Specific actionable item]
-
-───
-
-# 📌 STRATEGIC SUMMARY
-
-[2-3 sentences: If a busy executive reads only this, what's the single most valuable insight and what should they do?]
-
-═══════════════════════════════════════════════════════════════════════════
-POST DATA
-═══════════════════════════════════════════════════════════════════════════
-
-TITLE: ${post.title}
-
-METADATA:
-• Posted by: u/${post.author}
-• Subreddit: r/${post.subreddit || 'unknown'}
-• Post Score: ${post.score} upvotes
-• Total Comments: ${post.num_comments}
-
-EXTRACTION STATISTICS:
-• Total Comments Processed: ${stats.total}
-• High-Value Comments Extracted: ${stats.extracted} (${stats.percentageKept}% kept)
-• Average Comment Score: ${stats.averageScore}
-• Extraction Quality: ${stats.percentageKept}% retention indicates ${stats.percentageKept > 50 ? 'diverse quality' : 'highly selective filtering'}
-
-POST BODY:
-${post.selftext || '[No body text - link or image post]'}
-
-═══════════════════════════════════════════════════════════════════════════
-HIGH-VALUE COMMENTS (${comments.length} comments - ANALYZE ALL)
-═══════════════════════════════════════════════════════════════════════════
-
-${comments.map((comment, index) => `
-────────────────────────────────────────────────────────────────────────────
-COMMENT #${index + 1}
-────────────────────────────────────────────────────────────────────────────
-Author: u/${comment.author}
-Score: ${comment.score} upvotes${comment.awards > 0 ? ` | Awards: ${comment.awards}` : ''}
-Engagement Rank: #${index + 1} of ${comments.length}
-
-${comment.body}
+${comments.map((c, i) => `**#${i + 1}** (${c.score} pts) u/${c.author}
+${c.body}
 `).join('\n')}
 
-═══════════════════════════════════════════════════════════════════════════
-BEGIN ANALYSIS
-═══════════════════════════════════════════════════════════════════════════
+---
 
-Now analyze this content following the framework above:
-
-1. **Read and understand** the content deeply (Phase 1)
-2. **Generate 4-6 key questions** specific to THIS content (Phase 2)
-3. **START WITH EXECUTIVE SUMMARY** - Write the 30-second summary FIRST
-4. **QUANTITATIVE ANALYSIS with intelligent grouping** (Phase 3A)
-   - Count patterns AND group them intelligently
-   - Show percentages and distributions
-   - Group UP (higher-level categories) and DOWN (meaningful subcategories)
-   - Use TABLES for all quantitative data
-5. **Extract qualitative insights** with evidence (Phase 3B)
-6. **Create DERIVED INSIGHTS** - Connect dots, show cascading effects, make predictions
-7. **Provide business implications** organized by function (Phase 4)
-8. **End with strategic summary**
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ CRITICAL REQUIREMENTS - FOLLOW EXACTLY OR OUTPUT WILL BE REJECTED
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-❌ FORBIDDEN:
-- NO paragraphs longer than 2 sentences
-- NO raw counts without percentages
-- NO generic insights without evidence
-- NO missing executive summary
-- NO prose instead of tables for quantitative data
-- NO vague recommendations like "consider improving"
-
-✅ MANDATORY STRUCTURE:
-
-1. EXECUTIVE SUMMARY (MUST BE FIRST - 3 ONE-SENTENCE ITEMS):
-   ⚡ EXECUTIVE SUMMARY (30 seconds)
-   **Biggest Finding:** [ONE sentence only]
-   **Key Opportunity:** [ONE sentence only]
-   **Immediate Action:** [ONE sentence only]
-
-2. QUANTITATIVE PATTERNS (TABLES ONLY):
-   📊 QUANTITATIVE PATTERNS
-   - Use tables: Category | Count | % | Business Insight
-   - Group intelligently (e.g., "Fried: 65%" not "spring rolls: 5, fries: 8")
-   - Follow each table with max 2-sentence "Key Finding"
-
-3. QUALITATIVE INSIGHTS (BULLET FORMAT):
-   💡 QUALITATIVE INSIGHTS
-   - Max 2 sentences per Finding
-   - Include Evidence (quote + comment number)
-   - Include Business Value (1 sentence)
-
-4. DERIVED INSIGHTS (CHAIN FORMAT):
-   🔗 DERIVED INSIGHTS & IMPLICATIONS
-   - Observable Pattern → Immediate Effect → Secondary Effect
-   - Business Probability + reasoning
-   - Strategic Action (specific, not generic)
-
-5. BUSINESS IMPLICATIONS (ACTIONABLE CHECKLIST):
-   🎯 BUSINESS IMPLICATIONS
-   - ✅ [Specific action] NOT ✅ [Generic advice]
-   - Group by: Marketing, Product, SEO/Content
-
-6. STRATEGIC SUMMARY (2-3 SENTENCES MAX):
-   📌 STRATEGIC SUMMARY
-   - Maximum 3 sentences total
-
-STRICT LIMITS:
-- Paragraph: 2 sentences max
-- Executive items: 1 sentence each
-- Key findings: 1-2 sentences
-- Business value: 1 sentence
-- Strategic summary: 2-3 sentences total
-
-QUALITY CHECKS:
-✓ Count patterns systematically (don't estimate)
-✓ Only extract patterns that EXIST in comments
-✓ Every insight has evidence
-✓ Every recommendation is specific and actionable
-✓ Use icons: ⚡ 📊 💡 🔗 ✅ ⚠️
-✓ Use separators: ───
-`;
+Analyze:`;
 
   return prompt;
 }
