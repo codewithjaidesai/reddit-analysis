@@ -11,6 +11,8 @@ let currentSubredditResults = [];
  */
 async function handleAnalyzeUrl() {
     const url = document.getElementById('redditUrl').value.trim();
+    const role = document.getElementById('urlUserRole').value.trim();
+    const goal = document.getElementById('urlUserGoal').value.trim();
 
     if (!url) {
         showError('Please enter a Reddit URL');
@@ -28,9 +30,9 @@ async function handleAnalyzeUrl() {
     showStatus('Extracting Reddit data...', 20);
 
     try {
-        // Call the full analysis endpoint
+        // Call the full analysis endpoint with role/goal
         showStatus('Analyzing comments...', 40);
-        const result = await fullAnalysis(url);
+        const result = await fullAnalysis(url, role, goal);
 
         if (!result.success) {
             throw new Error(result.error || 'Analysis failed');
@@ -408,6 +410,11 @@ async function analyzeSubredditSelectedPosts() {
         showError('Please select at least one post');
         return;
     }
+
+    // Set research context from subreddit tab
+    const role = document.getElementById('subredditUserRole').value.trim();
+    const goal = document.getElementById('subredditUserGoal').value.trim();
+    window.currentResearchContext = { role, goal };
 
     const selectedUrls = currentSubredditResults
         .filter(post => subredditSelectedPosts.has(post.id))

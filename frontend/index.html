@@ -43,14 +43,41 @@
                             placeholder="Paste Reddit post URL here..."
                             class="url-input"
                         />
-                        <button id="analyzeBtn" class="analyze-btn" onclick="handleAnalyzeUrl()">
-                            <span class="btn-text">Analyze</span>
-                            <span class="btn-loader" style="display: none;">
-                                <span class="spinner"></span>
-                            </span>
-                        </button>
                     </div>
                     <p class="hint">Example: https://www.reddit.com/r/AskReddit/comments/...</p>
+
+                    <!-- Role & Goal Section for URL Tab -->
+                    <div class="role-goal-section" style="margin-top: 15px;">
+                        <div class="role-input-group">
+                            <label for="urlUserRole" class="context-label">
+                                👤 Your Role
+                            </label>
+                            <input
+                                type="text"
+                                id="urlUserRole"
+                                placeholder="e.g., Product Manager, Marketer, Founder"
+                                class="url-input"
+                            />
+                        </div>
+                        <div class="goal-input-group">
+                            <label for="urlUserGoal" class="context-label">
+                                🎯 Your Goal
+                            </label>
+                            <input
+                                type="text"
+                                id="urlUserGoal"
+                                placeholder="e.g., find pain points, validate idea, generate content angles"
+                                class="url-input"
+                            />
+                        </div>
+                    </div>
+
+                    <button id="analyzeBtn" class="analyze-btn" onclick="handleAnalyzeUrl()" style="margin-top: 15px;">
+                        <span class="btn-text">Analyze</span>
+                        <span class="btn-loader" style="display: none;">
+                            <span class="spinner"></span>
+                        </span>
+                    </button>
                 </div>
             </div>
 
@@ -206,6 +233,33 @@
                                 class="url-input"
                             />
                         </div>
+
+                        <!-- Role & Goal Section for Subreddit Tab -->
+                        <div class="role-goal-section">
+                            <div class="role-input-group">
+                                <label for="subredditUserRole" class="context-label">
+                                    👤 Your Role
+                                </label>
+                                <input
+                                    type="text"
+                                    id="subredditUserRole"
+                                    placeholder="e.g., Product Manager, Marketer, Founder"
+                                    class="url-input"
+                                />
+                            </div>
+                            <div class="goal-input-group">
+                                <label for="subredditUserGoal" class="context-label">
+                                    🎯 Your Goal
+                                </label>
+                                <input
+                                    type="text"
+                                    id="subredditUserGoal"
+                                    placeholder="e.g., find pain points, validate idea, generate content angles"
+                                    class="url-input"
+                                />
+                            </div>
+                        </div>
+
                         <div class="filter-row">
                             <div class="filter-group">
                                 <label>Time Range:</label>
