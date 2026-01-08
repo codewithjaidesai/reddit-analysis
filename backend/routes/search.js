@@ -4,11 +4,11 @@ const { searchRedditByTopic, searchSubredditTopPosts } = require('../services/se
 
 /**
  * POST /api/search/topic
- * Search Reddit by topic/keywords with optional research context
+ * Search Reddit by topic/keywords with optional role/goal context
  */
 router.post('/topic', async (req, res) => {
   try {
-    const { topic, timeRange, subreddits, limit, template, researchQuestion, customKeywords } = req.body;
+    const { topic, timeRange, subreddits, limit, role, goal } = req.body;
 
     if (!topic) {
       return res.status(400).json({
@@ -17,21 +17,19 @@ router.post('/topic', async (req, res) => {
       });
     }
 
-    console.log('Topic search:', topic, 'Template:', template, 'Custom keywords:', customKeywords, 'Research question:', researchQuestion ? 'provided' : 'none');
+    console.log('Topic search:', topic, 'Role:', role || 'not specified', 'Goal:', goal || 'not specified');
 
     const result = await searchRedditByTopic(
       topic,
       timeRange || 'week',
       subreddits || '',
-      limit || 15,
-      template || 'all',
-      customKeywords || ''
+      limit || 15
     );
 
-    // Add research context to result if provided
-    if (result.success && researchQuestion) {
-      result.researchQuestion = researchQuestion;
-      result.template = template || 'all';
+    // Add role/goal context to result if provided
+    if (result.success) {
+      if (role) result.role = role;
+      if (goal) result.goal = goal;
     }
 
     res.json(result);

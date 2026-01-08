@@ -32,39 +32,38 @@ async function extractRedditData(url) {
 }
 
 /**
- * Generate AI insights from extracted data with optional research context
+ * Generate AI insights from extracted data with role/goal context
  */
-async function generateInsights(contentData, researchQuestion = null, template = null) {
+async function generateInsights(contentData, role = null, goal = null) {
     return await callAPI(API_CONFIG.endpoints.insights, {
         contentData,
-        researchQuestion,
-        template
+        role,
+        goal
     });
 }
 
 /**
  * Full analysis (extract + insights)
  */
-async function fullAnalysis(url, researchQuestion = null, template = null) {
+async function fullAnalysis(url, role = null, goal = null) {
     return await callAPI(API_CONFIG.endpoints.full, {
         url,
-        researchQuestion,
-        template
+        role,
+        goal
     });
 }
 
 /**
- * Search Reddit by topic with optional research context
+ * Search Reddit by topic with role/goal context
  */
-async function searchTopic(topic, timeRange, subreddits, limit, template = 'all', researchQuestion = null, customKeywords = '') {
+async function searchTopic(topic, timeRange, subreddits, limit, role = null, goal = null) {
     return await callAPI('/api/search/topic', {
         topic,
         timeRange,
         subreddits,
         limit,
-        template,
-        researchQuestion,
-        customKeywords
+        role,
+        goal
     });
 }
 
