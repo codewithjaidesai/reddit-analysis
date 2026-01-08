@@ -124,19 +124,15 @@ function formatSearchQuery(query) {
  * @param {string} timeRange - Time filter (hour, day, week, month, year, all)
  * @param {string} subreddits - Comma-separated subreddit list (optional)
  * @param {number} limit - Number of results (default: 15)
- * @param {string} template - Analysis template for query enhancement (optional)
- * @param {string} customKeywords - Custom keywords for search enhancement (optional)
  * @returns {Promise<object>} Search results
  */
-async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit = 15, template = 'all', customKeywords = '') {
-  console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit, 'Template:', template, 'Custom Keywords:', customKeywords);
+async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit = 15) {
+  console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit);
 
   // Initialize debug object to return to frontend
   const debugInfo = {
     originalQuery: topic,
     timeRange,
-    template,
-    customKeywords: customKeywords || 'None',
     userSpecifiedSubreddits: subreddits || 'None',
     formattedQuery: '',
     finalQuery: '',
@@ -155,26 +151,6 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     let formattedQuery = formatSearchQuery(topic);
     debugInfo.formattedQuery = formattedQuery;
     console.log('Formatted query:', formattedQuery);
-
-    // Add custom keywords if provided, otherwise use template-specific keyword
-    if (customKeywords && customKeywords.trim()) {
-      formattedQuery = `${formattedQuery} ${customKeywords.trim()}`;
-      console.log('Custom keywords applied, enhanced query:', formattedQuery);
-    } else if (template && template !== 'all') {
-      // Add template-specific keyword if not "all" (Option A: Simple keyword addition)
-      const templateKeywords = {
-        'pain_points': 'problem',
-        'competitive': 'compare',
-        'features': 'feature',
-        'market_gaps': 'gap'
-      };
-
-      const keyword = templateKeywords[template];
-      if (keyword) {
-        formattedQuery = `${formattedQuery} ${keyword}`;
-        console.log(`Template "${template}" applied, enhanced query:`, formattedQuery);
-      }
-    }
 
     // Auto-suggest subreddits for known topics (for debug info only, not used in query)
     const autoSuggestedSubreddits = suggestSubreddits(topic);

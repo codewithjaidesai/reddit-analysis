@@ -642,13 +642,38 @@ main {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Template Section */
-.template-section {
+/* Role & Goal Section */
+.role-goal-section {
     background: #fff9f0;
     padding: 20px;
     border-radius: 12px;
     margin-bottom: 20px;
     border: 2px solid #f6ad55;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.role-input-group,
+.goal-input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.role-input-group input,
+.goal-input-group input {
+    padding: 12px;
+    font-size: 1rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.role-input-group input:focus,
+.goal-input-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 /* Search Method Section */

@@ -83,21 +83,7 @@ function toggleSearchMethod() {
 }
 
 /**
- * Toggle custom keywords input visibility
- */
-function toggleCustomKeywords() {
-    const template = document.getElementById('analysisTemplate').value;
-    const customInput = document.getElementById('customKeywordsInput');
-
-    if (template === 'custom') {
-        customInput.style.display = 'block';
-    } else {
-        customInput.style.display = 'none';
-    }
-}
-
-/**
- * Search by topic with research context (redesigned)
+ * Search by topic with role/goal context (redesigned)
  */
 async function handleSearchByTopic() {
     const researchQuestion = document.getElementById('researchQuestion').value.trim();
@@ -107,26 +93,17 @@ async function handleSearchByTopic() {
         return;
     }
 
-    const template = document.getElementById('analysisTemplate').value;
+    const role = document.getElementById('userRole').value.trim();
+    const goal = document.getElementById('userGoal').value.trim();
     const searchMethod = document.querySelector('input[name="searchMethod"]:checked').value;
     const timeRange = document.getElementById('topicTimeRange').value;
     const limit = parseInt(document.getElementById('topicLimit').value);
 
-    // Get custom keywords if template is "custom"
-    let customKeywords = '';
-    if (template === 'custom') {
-        customKeywords = document.getElementById('customKeywords').value.trim();
-        if (!customKeywords) {
-            showError('Please enter custom keywords for your search');
-            return;
-        }
-    }
-
     // Store research context globally for later use
     window.currentResearchContext = {
         researchQuestion,
-        template,
-        customKeywords
+        role,
+        goal
     };
 
     // Handle different search methods
@@ -155,8 +132,8 @@ async function handleSearchByTopic() {
         // Save to recent searches
         saveRecentSearch({
             researchQuestion,
-            template,
-            customKeywords,
+            role,
+            goal,
             method: 'urls',
             urlCount: urls.length,
             timestamp: Date.now()
@@ -183,8 +160,8 @@ async function handleSearchByTopic() {
         timeRange,
         subreddits,
         limit,
-        template,
-        customKeywords,
+        role,
+        goal,
         method: searchMethod,
         timestamp: Date.now()
     });
@@ -201,13 +178,13 @@ async function handleSearchByTopic() {
         console.log('Time Range:', timeRange);
         console.log('Subreddits:', subreddits || 'All of Reddit');
         console.log('Limit:', limit);
-        console.log('Template:', template);
-        console.log('Custom Keywords:', customKeywords || 'None');
+        console.log('Role:', role || 'Not specified');
+        console.log('Goal:', goal || 'Not specified');
         console.log('Search Method:', searchMethod);
         console.log('---');
 
         // Use research question as the search topic
-        const result = await searchTopic(researchQuestion, timeRange, subreddits, limit, template, researchQuestion, customKeywords);
+        const result = await searchTopic(researchQuestion, timeRange, subreddits, limit, role, goal);
 
         // Log search results for debugging
         console.log('\n📊 SEARCH RESULTS:');
@@ -228,8 +205,8 @@ async function handleSearchByTopic() {
             console.log('Formatted Query (after phrase matching):', result.debug.formattedQuery);
             console.log('Final Query (sent to Reddit):', result.debug.finalQuery);
             console.log('');
-            console.log('Template:', result.debug.template);
-            console.log('Custom Keywords:', result.debug.customKeywords);
+            console.log('Role:', result.debug.role || 'Not specified');
+            console.log('Goal:', result.debug.goal || 'Not specified');
             console.log('');
             console.log('User Specified Subreddits:', result.debug.userSpecifiedSubreddits);
             console.log('Auto-Suggested Subreddits:', result.debug.autoSuggestedSubreddits || 'None');
@@ -285,13 +262,16 @@ async function handleSearchByTopic() {
         document.getElementById('topicResults').style.display = 'block';
 
         let titleText = `Found ${result.afterFiltering} posts`;
-        if (template && template !== 'all') {
-            titleText += ` (${template.replace('_', ' ')})`;
+        if (role) {
+            titleText += ` for ${role}`;
         }
         document.getElementById('topicResultsTitle').textContent = titleText;
 
         let summaryText = `Filtered ${result.afterFiltering} high-engagement posts from ${result.totalFound} total results`;
         summaryText += ` | Research: "${researchQuestion.substring(0, 80)}${researchQuestion.length > 80 ? '...' : ''}"`;
+        if (goal) {
+            summaryText += ` | Goal: ${goal.substring(0, 50)}${goal.length > 50 ? '...' : ''}`;
+        }
         document.getElementById('topicResultsSummary').textContent = summaryText;
 
         displayPostCards(result.posts, 'topicPostsList', topicSelectedPosts, 'toggleTopicPost');
@@ -445,8 +425,8 @@ async function analyzeMultiplePosts(urls) {
 
     // Get research context if available
     const researchContext = window.currentResearchContext || {};
-    const researchQuestion = researchContext.researchQuestion || null;
-    const template = researchContext.template || null;
+    const role = researchContext.role || null;
+    const goal = researchContext.goal || null;
 
     const results = [];
 
@@ -457,7 +437,7 @@ async function analyzeMultiplePosts(urls) {
         showStatus(`Analyzing post ${i + 1} of ${urls.length}...`, progress);
 
         try {
-            const result = await fullAnalysis(url, researchQuestion, template);
+            const result = await fullAnalysis(url, role, goal);
             results.push({
                 url,
                 success: result.success,
@@ -624,13 +604,8 @@ function loadRecentSearch(index) {
             document.getElementById('researchQuestion').value = search.researchQuestion || '';
             document.getElementById('topicTimeRange').value = search.timeRange || 'week';
             document.getElementById('topicLimit').value = search.limit || 15;
-            document.getElementById('analysisTemplate').value = search.template || 'all';
-
-            // Restore custom keywords if applicable
-            if (search.template === 'custom' && search.customKeywords) {
-                document.getElementById('customKeywords').value = search.customKeywords;
-                toggleCustomKeywords(); // Show custom keywords input
-            }
+            document.getElementById('userRole').value = search.role || '';
+            document.getElementById('userGoal').value = search.goal || '';
 
             // Restore search method
             const method = search.method || 'reddit';
@@ -666,10 +641,10 @@ function updateRecentSearchesDropdown() {
         recents.forEach((search, index) => {
             const label = (search.researchQuestion || search.topic || '').substring(0, 40);
             const truncated = label + ((search.researchQuestion || search.topic || '').length > 40 ? '...' : '');
-            const templateTag = search.template && search.template !== 'all' ? ` [${search.template.replace('_', ' ')}]` : '';
+            const roleTag = search.role ? ` [${search.role}]` : '';
             const methodTag = search.method === 'urls' ? ` (${search.urlCount} URLs)` :
                              search.method === 'subreddits' ? ' (subreddits)' : '';
-            dropdown.innerHTML += `<option value="${index}">${truncated}${templateTag}${methodTag}</option>`;
+            dropdown.innerHTML += `<option value="${index}">${truncated}${roleTag}${methodTag}</option>`;
         });
     } catch (error) {
         console.error('Error updating recent searches dropdown:', error);
