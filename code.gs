@@ -3451,158 +3451,49 @@ function formatForClaudeAnalysis(extractedData) {
   const comments = extractedData.valuableComments;
   const stats = extractedData.extractionStats;
 
-  // Evidence-based insight extraction prompt
-  const prompt = `═══════════════════════════════════════════════════════════════════════════
-REDDIT INSIGHT EXTRACTION
-═══════════════════════════════════════════════════════════════════════════
+  // Flexible, content-adaptive analysis prompt
+  const prompt = `Analyze this Reddit thread. Find what's genuinely interesting and say it clearly.
 
-You are analyzing Reddit data to extract valuable, evidence-based insights. Your output will be read by busy professionals—every sentence must earn its place.
+NO FIXED FORMAT. The content dictates the output. Some threads reveal product preferences. Some expose tensions. Some are people venting. Report what's actually there.
 
-## INPUT
-- Post: title, body, subreddit, score, comment count
-- High-value comments with scores
+RULES:
+- One sentence beats three. Short and sharp wins.
+- Only include what the data earns—skip empty sections
+- Cite evidence: quotes, vote counts, patterns
+- Skip anything obvious or generic
 
-## OUTPUT STRUCTURE
+ANGLES TO CONSIDER (use what fits, skip what doesn't):
+- What the thread is really about (often not the literal question)
+- Concrete recommendations with vote validation
+- Agreement vs. genuine disagreement
+- What's NOT being said
+- Surprising voting patterns
+- Who would find this useful and why
 
-### 1. SNAPSHOT
-One paragraph. What is this thread really about? (Often different from the literal question.) What emotional need is the community addressing?
+FORMAT:
+• Start with 1-2 sentence summary of the thread's core value
+• Middle: whatever the data reveals (bullets, tables, lists—your call)
+• End with the single most actionable takeaway
 
-### 2. QUANTITATIVE EXTRACTION
+---
 
-**Engagement Metrics**
-| Metric | Value |
-|--------|-------|
-| Post score | X |
-| Comments | X total → X high-value |
-| Top comment score | X (X% of post score) |
-| Score dropoff pattern | describe |
+**r/${post.subreddit || 'unknown'}** | ${post.score} upvotes | ${post.num_comments} comments
 
-**Topic/Category Mentions**
-Count every distinct topic, item, or theme mentioned across comments. Format:
-- [Category]: X mentions
+**${post.title}**
 
-**Platform/Brand/Tool Mentions**
-List every product, platform, app, book, or brand mentioned (unprompted endorsements signal community trust):
-- [Name]: X mentions
+${post.selftext ? post.selftext : '[Link/image post]'}
 
-**People/Experts Referenced**
-Authors, influencers, or figures cited as authorities.
+---
 
-### 3. INSIGHTS (Tiered)
+**TOP COMMENTS** (${comments.length} high-value, sorted by score)
 
-**Level 1 — Direct Observations**
-What the comments explicitly say. Patterns visible on first read.
-- [Insight] → Evidence: "[quote or paraphrase]" (Comment #X)
+${comments.map((c, i) => `**#${i + 1}** (${c.score} pts) u/${c.author}
+${c.body}
+`).join('\n')}
 
-**Level 2 — Cross-Comment Patterns**
-Connections across multiple L1 insights. What emerges when you combine observations?
-- [Insight] → Based on: [which L1 insights combine to reveal this]
+---
 
-**Level 3 — Behavioral/Psychological Depth**
-Non-obvious insights about motivation, identity, hidden tensions, or unspoken needs. What would a behavioral economist or qualitative researcher notice?
-- [Insight] → Evidence: [pattern or quotes that reveal this]
-
-### 4. TENSIONS & PARADOXES
-What contradictions exist between:
-- The subreddit's stated identity vs. actual discussion?
-- What people say they want vs. how they behave?
-- What's defended/justified vs. what's stated freely?
-
-Note what's conspicuously ABSENT from the conversation.
-
-### 5. EXTERNAL CONNECTIONS
-Connect this thread's patterns to broader context YOU know:
-- Relevant market trends, statistics, or research
-- Adjacent communities or movements this connects to
-- Timing context (cultural moments, news, seasons) if relevant
-- How this compares to typical discourse on this topic
-
-This is where you add value beyond the raw data.
-
-### 6. WHO BENEFITS
-| Audience | Actionable Insight |
-|----------|-------------------|
-| [Specific role] | [What they should do with this] |
-
-Be specific: "PM at a habit-tracking app" not "product managers"
-
-### 7. STRATEGIC TAKEAWAY
-2-3 sentences. The single most valuable synthesis. If someone reads nothing else, what should they know?
-
-═══════════════════════════════════════════════════════════════════════════
-ANALYSIS PRINCIPLES
-═══════════════════════════════════════════════════════════════════════════
-
-ALWAYS:
-- Tie insights to evidence (quote, paraphrase, or pattern)
-- Count things that can be counted
-- Notice language patterns (metaphors, justifications, defensive framing)
-- The top-voted comment reveals emotional center of gravity
-- Treat subreddit name as stated identity; compare to behavior
-- Connect to external data/trends when you can add context
-- Adapt your category counts to match the actual topic (hobbies → hobby types; investing → asset classes; parenting → age groups; etc.)
-
-QUALITY OVER LENGTH:
-- Delete any sentence that doesn't surprise or inform
-- Short sections are fine if the data doesn't support more
-- No filler phrases or hedging language
-- If a tier has no insights, say "None identified" and move on
-
-READABILITY:
-- Use tables for structured data
-- Bold key phrases within insights
-- Keep insights to 1-2 sentences each
-- White space is your friend
-
-═══════════════════════════════════════════════════════════════════════════
-POST DATA
-═══════════════════════════════════════════════════════════════════════════
-
-TITLE: ${post.title}
-
-METADATA:
-• Posted by: u/${post.author}
-• Subreddit: r/${post.subreddit || 'unknown'}
-• Post Score: ${post.score} upvotes
-• Total Comments: ${post.num_comments}
-
-EXTRACTION STATISTICS:
-• Total Comments Processed: ${stats.total}
-• High-Value Comments Extracted: ${stats.extracted} (${stats.percentageKept}% kept)
-• Average Comment Score: ${stats.averageScore}
-• Extraction Quality: ${stats.percentageKept}% retention indicates ${stats.percentageKept > 50 ? 'diverse quality' : 'highly selective filtering'}
-
-POST BODY:
-${post.selftext ? post.selftext : '[No body text - link or image post]'}
-
-═══════════════════════════════════════════════════════════════════════════
-HIGH-VALUE COMMENTS (${comments.length} comments - ANALYZE ALL)
-═══════════════════════════════════════════════════════════════════════════
-
-${comments.map((comment, index) => {
-  return `
-────────────────────────────────────────────────────────────────────────────
-COMMENT #${index + 1}
-────────────────────────────────────────────────────────────────────────────
-Author: u/${comment.author}
-Score: ${comment.score} upvotes${comment.awards > 0 ? ` | Awards: ${comment.awards}` : ''}
-Engagement Rank: #${index + 1} of ${comments.length}
-
-${comment.body}
-`;
-}).join('\n')}
-
-═══════════════════════════════════════════════════════════════════════════
-BEGIN ANALYSIS
-═══════════════════════════════════════════════════════════════════════════
-
-Now provide your structured analysis following the OUTPUT STRUCTURE format above. Remember:
-- Every sentence must earn its place
-- Tie all insights to evidence
-- Count what can be counted
-- Focus on non-obvious patterns
-- Be specific and actionable
-`;
+Analyze:`;
 
   return prompt;
 }
