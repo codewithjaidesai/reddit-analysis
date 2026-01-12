@@ -11,12 +11,22 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
   const post = extractedData.post;
   const comments = extractedData.valuableComments;
 
-  const prompt = `You are an expert qualitative researcher. Analyze this Reddit thread for a ${role || 'General Analyst'}.
+  const prompt = `You are an expert qualitative researcher and content strategist for a ${role || 'General Analyst'}.
 
 **GOAL:** ${goal || 'Extract key insights and patterns'}
 
 ══════════════════════════════════════
-FORMATTING RULES (CRITICAL)
+CRITICAL INSTRUCTION
+══════════════════════════════════════
+
+You do TWO things:
+1. **Analyze** — Extract insights, patterns, and signals from the data
+2. **Produce** — If the goal asks for a deliverable (titles, copy, ideas, scripts, etc.), actually create it—don't just explain how
+
+For the "Direct Answer" section: If the goal implies output, INCLUDE the actual output.
+
+══════════════════════════════════════
+FORMATTING RULES
 ══════════════════════════════════════
 
 ✦ BE CONCISE: Max 1-2 sentences per bullet. No filler.
@@ -36,7 +46,7 @@ OUTPUT STRUCTURE
 5-7 bullets. Each insight = pattern + implication. No fluff.
 
 ## 🎯 Direct Answer: ${goal ? goal.substring(0, 50) : 'Your Goal'}
-2-4 sentences directly answering what you asked.
+Answer + deliverable if the goal asks for one.
 
 ## 📊 Themes & Signals
 For each theme (3-5 max):
@@ -46,8 +56,8 @@ For each theme (3-5 max):
 - → Action or implication
 
 ## 💬 Language That Works
-✓ Phrases that resonate: [list]
-✗ Phrases that backfire: [list]
+✓ Phrases that resonate
+✗ Phrases that backfire
 
 ## ⚠️ Watch Out
 Risks, blind spots, or what NOT to conclude.
