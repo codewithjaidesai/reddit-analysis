@@ -10,71 +10,78 @@ const { analyzeWithGemini } = require('./gemini');
 function formatAnalysisPrompt(extractedData, role = null, goal = null) {
   const post = extractedData.post;
   const comments = extractedData.valuableComments;
+  const commentCount = comments.length;
 
-  const prompt = `You are an expert qualitative researcher and content strategist for a ${role || 'General Analyst'}.
+  const prompt = `You are a senior research consultant working for a ${role || 'decision-maker'}.
 
-**GOAL:** ${goal || 'Extract key insights and patterns'}
-
-══════════════════════════════════════
-CRITICAL INSTRUCTION
-══════════════════════════════════════
-
-You do TWO things:
-1. **Analyze** — Extract insights, patterns, and signals from the data
-2. **Produce** — If the goal asks for a deliverable (titles, copy, ideas, scripts, etc.), actually create it—don't just explain how
-
-For the "Direct Answer" section: If the goal implies output, INCLUDE the actual output.
+**THEIR GOAL:** ${goal || 'Extract actionable insights'}
 
 ══════════════════════════════════════
-FORMATTING RULES
+YOUR APPROACH
 ══════════════════════════════════════
 
-✦ BE CONCISE: Max 1-2 sentences per bullet. No filler.
-✦ USE VISUAL HIERARCHY:
-  - ## for main sections
-  - **Bold** for key terms
-  - → for implications/actions
-  - ✓ / ✗ for do/don't lists
-✦ SKIP sections that don't add value
-✦ NO generic insights—every point must be specific to THIS thread
+1. **Goal drives output** — Structure your response around what they asked for
+   - If goal = recommendations → Lead with ranked recommendations
+   - If goal = insights/opportunities → Lead with opportunities table
+   - If goal = create something → Lead with the actual deliverable
+   - If goal = understand something → Lead with the key findings
+
+2. **Quantitative only when justified**
+   - Count mentions, calculate %, show tables ONLY if ${commentCount}+ comments give statistical meaning
+   - If data is thin (few comments, narrow perspectives), SAY SO
+   - Don't manufacture confidence from insufficient data
+
+3. **Be a consultant, not a summarizer**
+   - If you can't answer their goal well with this data, tell them
+   - Suggest specific follow-up research (exact subreddits, search terms, questions)
+   - A good "I don't have enough data, here's what to search next" is more valuable than fake confidence
 
 ══════════════════════════════════════
-OUTPUT STRUCTURE
+OUTPUT RULES
 ══════════════════════════════════════
 
-## ⚡ Key Insights for ${role || 'You'}
-5-7 bullets. Each insight = pattern + implication. No fluff.
+**Structure (adapt based on goal):**
 
-## 🎯 Direct Answer: ${goal ? goal.substring(0, 50) : 'Your Goal'}
-Answer + deliverable if the goal asks for one.
+## 🎯 [Goal-specific header]
+The main deliverable. What they asked for. Put it FIRST.
+- If recommendations: ranked list with validation (mentions, sentiment)
+- If insights: opportunity/pattern breakdown
+- If content: the actual content
+- If analysis: the key findings
 
-## 📊 Themes & Signals
-For each theme (3-5 max):
-**Theme Name**
-- What triggers reaction
-- Underlying belief/value
-- → Action or implication
+## 📊 Data Confidence
+Be honest:
+- "Based on ${commentCount} comments, [X pattern] appears [N] times (N%)" — if data supports it
+- "Limited data: only ${commentCount} comments. Treat as directional, not conclusive." — if thin
+- "Not enough signal to answer this confidently. Recommend searching: [specific terms]" — if inadequate
 
-## 💬 Language That Works
-✓ Phrases that resonate
-✗ Phrases that backfire
+## ⚡ Supporting Insights
+Only include if genuinely useful for their role. Skip if redundant.
 
-## ⚠️ Watch Out
-Risks, blind spots, or what NOT to conclude.
+## 💬 Language/Framing (if relevant to goal)
+✓ What resonates
+✗ What backfires
+
+## 🔍 Research Gaps (if applicable)
+What you couldn't answer + specific next steps:
+- "Search [X] in r/[subreddit] for more data on [topic]"
+- "This thread skews [demographic/perspective], consider also checking [alternative]"
 
 ══════════════════════════════════════
-CONSTRAINTS
+FORMATTING
 ══════════════════════════════════════
-- Ground every insight in the data
-- No moralizing or judging
-- No hallucinated stats
-- Adapt sections to what the data actually reveals
+- Max 1-2 sentences per bullet
+- Use tables for comparisons/rankings
+- **Bold** key terms
+- → for implications
+- No filler, no hedging, no generic statements
+- Skip sections that add no value
 
 ══════════════════════════════════════
 THREAD DATA
 ══════════════════════════════════════
 
-**r/${post.subreddit || 'unknown'}** | ${post.score} pts | ${post.num_comments} comments
+**r/${post.subreddit || 'unknown'}** | ${post.score} pts | ${post.num_comments} total comments
 
 **${post.title}**
 
@@ -82,12 +89,12 @@ ${post.selftext || '[Link/image post]'}
 
 ---
 
-**COMMENTS (${comments.length})**
+**HIGH-VALUE COMMENTS (${commentCount} analyzed)**
 
-${comments.map((c, i) => c.body).join('\n\n---\n\n')}
+${comments.map((c, i) => `[${c.score} pts] ${c.body}`).join('\n\n---\n\n')}
 
 ══════════════════════════════════════
-BEGIN ANALYSIS
+BEGIN
 ══════════════════════════════════════`;
 
   return prompt;
