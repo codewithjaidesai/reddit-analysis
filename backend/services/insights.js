@@ -12,90 +12,40 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
   const comments = extractedData.valuableComments;
   const commentCount = comments.length;
 
-  const prompt = `You are a senior research consultant working for a ${role || 'decision-maker'}.
+  const prompt = `ROLE: ${role || 'Analyst'}
+GOAL: ${goal || 'Extract insights'}
+DATA: ${commentCount} comments from r/${post.subreddit || 'unknown'}
 
-**THEIR GOAL:** ${goal || 'Extract actionable insights'}
+THREAD: "${post.title}"
+${post.selftext ? post.selftext.substring(0, 300) + '...' : ''}
 
-══════════════════════════════════════
-YOUR APPROACH
-══════════════════════════════════════
+COMMENTS:
+${comments.slice(0, 25).map((c) => `[${c.score} pts] ${c.body.substring(0, 300)}`).join('\n---\n')}
 
-1. **Goal drives output** — Structure your response around what they asked for
-   - If goal = recommendations → Lead with ranked recommendations
-   - If goal = insights/opportunities → Lead with opportunities table
-   - If goal = create something → Lead with the actual deliverable
-   - If goal = understand something → Lead with the key findings
+===
 
-2. **Quantitative only when justified**
-   - Count mentions, calculate %, show tables ONLY if ${commentCount}+ comments give statistical meaning
-   - If data is thin (few comments, narrow perspectives), SAY SO
-   - Don't manufacture confidence from insufficient data
+INSTRUCTIONS:
+1. Answer their GOAL directly. If they want recommendations, give recommendations. If they want content ideas, give content ideas. If they want insights, give insights.
+2. Be SHORT. Max 2 sentences per bullet.
+3. NO TABLES. Use bullet points only.
+4. If ${commentCount} < 15 comments, warn that data is limited and suggest specific follow-up searches.
+5. Include mention counts only if pattern appears 3+ times.
 
-3. **Be a consultant, not a summarizer**
-   - If you can't answer their goal well with this data, tell them
-   - Suggest specific follow-up research (exact subreddits, search terms, questions)
-   - A good "I don't have enough data, here's what to search next" is more valuable than fake confidence
+OUTPUT FORMAT:
 
-══════════════════════════════════════
-OUTPUT RULES
-══════════════════════════════════════
+## 🎯 ${goal || 'Key Findings'}
+[3-7 bullets directly answering their goal]
 
-**Structure (adapt based on goal):**
+## 📊 Confidence
+[1 sentence: is this enough data?]
 
-## 🎯 [Goal-specific header]
-The main deliverable. What they asked for. Put it FIRST.
-- If recommendations: ranked list with validation (mentions, sentiment)
-- If insights: opportunity/pattern breakdown
-- If content: the actual content
-- If analysis: the key findings
+## ⚡ Patterns
+[3-5 bullets if useful, skip if redundant]
 
-## 📊 Data Confidence
-Be honest:
-- "Based on ${commentCount} comments, [X pattern] appears [N] times (N%)" — if data supports it
-- "Limited data: only ${commentCount} comments. Treat as directional, not conclusive." — if thin
-- "Not enough signal to answer this confidently. Recommend searching: [specific terms]" — if inadequate
+## 🔍 Go Deeper
+[Only if data is thin: specific subreddits/searches to try]
 
-## ⚡ Supporting Insights
-Only include if genuinely useful for their role. Skip if redundant.
-
-## 💬 Language/Framing (if relevant to goal)
-✓ What resonates
-✗ What backfires
-
-## 🔍 Research Gaps (if applicable)
-What you couldn't answer + specific next steps:
-- "Search [X] in r/[subreddit] for more data on [topic]"
-- "This thread skews [demographic/perspective], consider also checking [alternative]"
-
-══════════════════════════════════════
-FORMATTING
-══════════════════════════════════════
-- Max 1-2 sentences per bullet
-- Use tables for comparisons/rankings
-- **Bold** key terms
-- → for implications
-- No filler, no hedging, no generic statements
-- Skip sections that add no value
-
-══════════════════════════════════════
-THREAD DATA
-══════════════════════════════════════
-
-**r/${post.subreddit || 'unknown'}** | ${post.score} pts | ${post.num_comments} total comments
-
-**${post.title}**
-
-${post.selftext || '[Link/image post]'}
-
----
-
-**HIGH-VALUE COMMENTS (${commentCount} analyzed)**
-
-${comments.map((c, i) => `[${c.score} pts] ${c.body}`).join('\n\n---\n\n')}
-
-══════════════════════════════════════
-BEGIN
-══════════════════════════════════════`;
+Keep it tight. No fluff.`;
 
   return prompt;
 }
