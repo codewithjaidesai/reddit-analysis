@@ -15,6 +15,7 @@ const API_CONFIG = {
     endpoints: {
         extract: '/api/analyze/extract',
         insights: '/api/analyze/insights',
-        full: '/api/analyze/full'
+        full: '/api/analyze/full',
+        combined: '/api/analyze/combined'
     }
 };

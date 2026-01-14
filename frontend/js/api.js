@@ -77,3 +77,14 @@ async function searchSubreddit(subreddit, timeRange, limit) {
         limit
     });
 }
+
+/**
+ * Combined analysis of multiple posts (one AI call)
+ */
+async function combinedAnalysis(urls, role = null, goal = null) {
+    return await callAPI(API_CONFIG.endpoints.combined, {
+        urls,
+        role,
+        goal
+    });
+}

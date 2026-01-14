@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { extractRedditData } = require('../services/reddit');
-const { generateAIInsights } = require('../services/insights');
+const { generateAIInsights, generateCombinedInsights } = require('../services/insights');
 
 /**
  * POST /api/analyze/extract
@@ -122,6 +122,76 @@ router.post('/full', async (req, res) => {
 
   } catch (error) {
     console.error('Full analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/analyze/combined
+ * Extract data from multiple URLs and generate ONE combined analysis
+ */
+router.post('/combined', async (req, res) => {
+  try {
+    const { urls, role, goal } = req.body;
+
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'URLs array is required'
+      });
+    }
+
+    console.log(`Combined analysis for ${urls.length} posts`);
+    if (role) console.log('User role:', role);
+    if (goal) console.log('User goal:', goal);
+
+    // Step 1: Extract data from all URLs in parallel
+    const extractPromises = urls.map(url => extractRedditData(url));
+    const extractResults = await Promise.all(extractPromises);
+
+    // Separate successful and failed extractions
+    const postsData = [];
+    const posts = [];
+    const failures = [];
+
+    extractResults.forEach((result, idx) => {
+      if (result.success) {
+        postsData.push(result.data);
+        posts.push({
+          url: urls[idx],
+          extractedData: result.data
+        });
+      } else {
+        failures.push({
+          url: urls[idx],
+          error: result.error || 'Extraction failed'
+        });
+      }
+    });
+
+    if (postsData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'All extractions failed',
+        failures
+      });
+    }
+
+    // Step 2: Generate combined analysis
+    const combinedInsights = await generateCombinedInsights(postsData, role, goal);
+
+    res.json({
+      success: true,
+      combinedAnalysis: combinedInsights,
+      posts,
+      failures: failures.length > 0 ? failures : undefined
+    });
+
+  } catch (error) {
+    console.error('Combined analysis error:', error);
     res.status(500).json({
       success: false,
       error: error.message
