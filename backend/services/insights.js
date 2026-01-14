@@ -111,7 +111,106 @@ async function generateAIInsights(contentData, role = null, goal = null) {
   }
 }
 
+/**
+ * Format combined analysis prompt for multiple posts
+ * @param {array} postsData - Array of extracted data from multiple posts
+ * @param {string} role - User's role
+ * @param {string} goal - User's goal
+ * @returns {string} Formatted prompt
+ */
+function formatCombinedAnalysisPrompt(postsData, role = null, goal = null) {
+  const totalComments = postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
+  const subreddits = [...new Set(postsData.map(p => p.post?.subreddit).filter(Boolean))];
+  const postCount = postsData.length;
+
+  // Build posts summary with truncated comments
+  const postsContent = postsData.map((data, idx) => {
+    const post = data.post;
+    const comments = data.valuableComments || [];
+    return `
+POST ${idx + 1}: "${post.title}"
+r/${post.subreddit} • ${post.score} upvotes • ${comments.length} comments
+${comments.slice(0, 15).map(c => `[${c.score}] ${c.body.substring(0, 250)}`).join('\n')}`;
+  }).join('\n---\n');
+
+  const prompt = `ROLE: ${role || 'Analyst'}
+GOAL: ${goal || 'Extract insights'}
+DATA: ${postCount} posts, ${totalComments} total comments from ${subreddits.join(', ')}
+
+${postsContent}
+
+===
+
+INSTRUCTIONS:
+1. Synthesize insights ACROSS all ${postCount} posts. Look for patterns that appear in multiple posts.
+2. Answer their GOAL directly.
+3. Be SHORT. Max 2 sentences per bullet.
+4. NO TABLES. Use bullet points only.
+5. Show cross-post validation (e.g., "mentioned in 3/5 posts").
+
+OUTPUT FORMAT:
+
+## 🎯 ${goal || 'Key Findings'}
+[3-7 bullets directly answering their goal, with cross-post counts where relevant]
+
+## 📊 Patterns Across Posts
+[3-5 bullets showing what appeared in multiple posts]
+
+## ⚡ What Each Post Contributed
+${postsData.map((d, i) => `- Post ${i + 1}: [one unique insight from this post]`).join('\n')}
+
+## 🔍 Confidence
+[1-2 sentences: ${totalComments} comments across ${postCount} posts - is this enough?]
+
+Keep it tight. No fluff.`;
+
+  return prompt;
+}
+
+/**
+ * Generate combined AI insights from multiple posts
+ * @param {array} postsData - Array of extracted data from multiple posts
+ * @param {string} role - User's role
+ * @param {string} goal - User's goal
+ * @returns {Promise<object>} AI analysis result
+ */
+async function generateCombinedInsights(postsData, role = null, goal = null) {
+  console.log('Generating combined AI insights for multiple posts');
+  console.log('Posts data:', {
+    postCount: postsData.length,
+    totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0),
+    role: role || 'not specified',
+    goal: goal || 'not specified'
+  });
+
+  try {
+    const prompt = formatCombinedAnalysisPrompt(postsData, role, goal);
+    console.log('Combined prompt length:', prompt.length, 'characters');
+
+    const aiResult = await analyzeWithGemini(prompt);
+
+    if (!aiResult.success) {
+      throw new Error(`Gemini API failed: ${aiResult.error || 'Unknown error'}`);
+    }
+
+    return {
+      mode: 'combined_analysis',
+      model: aiResult.model,
+      postCount: postsData.length,
+      totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0),
+      subreddits: [...new Set(postsData.map(p => p.post?.subreddit).filter(Boolean))],
+      aiAnalysis: aiResult.analysis
+    };
+
+  } catch (error) {
+    console.error('Combined insights generation error:', error.message);
+    throw new Error('Combined AI analysis failed: ' + error.message);
+  }
+}
+
 module.exports = {
   formatAnalysisPrompt,
-  generateAIInsights
+  generateAIInsights,
+  formatCombinedAnalysisPrompt,
+  generateCombinedInsights
 };

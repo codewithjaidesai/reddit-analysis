@@ -424,157 +424,295 @@ async function analyzeSubredditSelectedPosts() {
 }
 
 /**
- * Analyze multiple posts with research context
+ * Analyze multiple posts with combined analysis (single AI call)
  */
 async function analyzeMultiplePosts(urls) {
     hideAll();
-    showStatus(`Analyzing ${urls.length} posts...`, 0);
+    showStatus(`Extracting data from ${urls.length} posts...`, 20);
 
     // Get research context if available
     const researchContext = window.currentResearchContext || {};
     const role = researchContext.role || null;
     const goal = researchContext.goal || null;
 
-    const results = [];
+    try {
+        showStatus(`Generating combined analysis...`, 60);
+        const result = await combinedAnalysis(urls, role, goal);
 
-    for (let i = 0; i < urls.length; i++) {
-        const url = urls[i];
-        const progress = ((i + 1) / urls.length) * 100;
-
-        showStatus(`Analyzing post ${i + 1} of ${urls.length}...`, progress);
-
-        try {
-            const result = await fullAnalysis(url, role, goal);
-            results.push({
-                url,
-                success: result.success,
-                data: result
-            });
-        } catch (error) {
-            results.push({
-                url,
-                success: false,
-                error: error.message
-            });
+        if (!result.success) {
+            throw new Error(result.error || 'Combined analysis failed');
         }
-    }
 
-    // Display multi-post results
-    displayMultiPostResults(results);
+        showStatus(`Analysis complete!`, 100);
+        displayCombinedResults(result, role, goal);
+    } catch (error) {
+        showError(error.message);
+    }
 }
 
 /**
- * Display multi-post results
+ * Display combined analysis results
  */
-// Store multi-post results globally for export
-window.multiPostResults = [];
+// Store combined results globally for export
+window.combinedResultsData = null;
 
-function displayMultiPostResults(results) {
+function displayCombinedResults(result, role, goal) {
     hideAll();
     document.getElementById('resultsSection').style.display = 'block';
     document.getElementById('multiPostResults').style.display = 'block';
 
-    // Store results globally
-    window.multiPostResults = results;
+    // Store results globally for export functions
+    window.combinedResultsData = result;
 
-    const html = results.map((result, index) => {
-        if (!result.success) {
-            return `
-                <div class="result-card" style="background: #fff5f5; border-color: #f56565;">
-                    <h3 style="color: #f56565;">Post ${index + 1} - Failed</h3>
-                    <p>${result.error || 'Analysis failed'}</p>
-                </div>
-            `;
-        }
+    const { combinedAnalysis, posts, failures } = result;
+    const totalComments = combinedAnalysis.totalComments || 0;
+    const subreddits = combinedAnalysis.subreddits || [];
 
-        const data = result.data;
-        let content = `<div class="result-card">`;
+    let html = '';
 
-        content += `<h3 style="color: var(--primary); margin-bottom: 20px;">Post ${index + 1}</h3>`;
-
-        if (data.extractedData) {
-            const post = data.extractedData.post;
-            const stats = data.extractedData.extractionStats;
-
-            content += `
-                <div class="data-summary">
-                    <h4>${escapeHtml(post.title)}</h4>
-                    <div class="meta">
-                        <span>r/${post.subreddit}</span> •
-                        <span>${formatNumber(post.score)} upvotes</span> •
-                        <span>${stats.extracted} high-value comments</span>
+    // Combined Analysis Card
+    html += `
+        <div class="result-card">
+            <div class="card-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="margin: 0; color: var(--primary);">🔄 Combined Analysis</h2>
+                        <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">
+                            ${posts.length} posts • ${totalComments} comments • ${subreddits.map(s => 'r/' + s).join(', ')}
+                        </p>
                     </div>
-                    <div style="margin-top: 15px; display: flex; gap: 10px;">
-                        <button onclick="exportMultiPostPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-                            📄 Export PDF
+                </div>
+            </div>
+            <div class="ai-analysis-content">
+                ${formatMarkdown(combinedAnalysis.aiAnalysis)}
+            </div>
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
+                <button onclick="exportCombinedSummaryPDF()" style="background: #ed8936; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    📄 Export Summary PDF
+                </button>
+                <button onclick="copyCombinedSummary()" style="background: #9f7aea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    📋 Copy Summary
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Source Posts Section
+    html += `
+        <div class="result-card" style="margin-top: 20px;">
+            <h3 style="color: #2d3748; margin-bottom: 15px;">📖 Source Posts (Raw Data)</h3>
+            <div class="source-posts-list">
+    `;
+
+    posts.forEach((post, index) => {
+        const data = post.extractedData;
+        const postInfo = data.post;
+        const stats = data.extractionStats;
+
+        html += `
+            <div class="source-post-item" style="padding: 15px; background: #f7fafc; border-radius: 8px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-weight: 600; color: #2d3748; cursor: pointer;" onclick="togglePostDetails(${index})">
+                            ► Post ${index + 1}: "${escapeHtml(postInfo.title.substring(0, 60))}${postInfo.title.length > 60 ? '...' : ''}"
+                        </div>
+                        <div style="font-size: 13px; color: #718096; margin-top: 4px;">
+                            r/${postInfo.subreddit} • ${stats.extracted} comments • ${formatNumber(postInfo.score)} upvotes
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="exportSourcePostPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                            📄 PDF
                         </button>
-                        <button onclick="copyMultiPostForAI(${index})" style="background: #9f7aea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                        <button onclick="copySourcePostForAI(${index})" style="background: #9f7aea; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
                             📋 Copy for AI
                         </button>
-                        <button onclick="copyMultiPostAsText(${index})" style="background: #48bb78; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                        <button onclick="copySourcePostAsText(${index})" style="background: #48bb78; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
                             📝 Copy Text
                         </button>
                     </div>
                 </div>
-            `;
-        }
-
-        if (data.insights && data.insights.aiAnalysis) {
-            content += `
-                <div style="margin-top: 20px; padding: 20px; background: white; border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0;">
-                        <h3 style="margin: 0; color: #2d3748;">🤖 AI-Powered Insights</h3>
-                        <button onclick="exportMultiPostInsightsPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-                            📄 Export PDF
-                        </button>
+                <div id="post-details-${index}" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                    <div style="max-height: 300px; overflow-y: auto; font-size: 13px;">
+                        ${data.valuableComments.slice(0, 10).map(c => `
+                            <div style="padding: 8px; background: white; border-radius: 4px; margin-bottom: 8px;">
+                                <span style="color: #718096;">[${c.score} pts]</span> ${escapeHtml(c.body.substring(0, 200))}${c.body.length > 200 ? '...' : ''}
+                            </div>
+                        `).join('')}
+                        ${data.valuableComments.length > 10 ? `<p style="color: #718096; text-align: center;">... and ${data.valuableComments.length - 10} more comments</p>` : ''}
                     </div>
-                    ${formatMarkdown(data.insights.aiAnalysis)}
+                </div>
+            </div>
+        `;
+    });
+
+    // Show failures if any
+    if (failures && failures.length > 0) {
+        failures.forEach(failure => {
+            html += `
+                <div style="padding: 10px 15px; background: #fff5f5; border-radius: 8px; margin-bottom: 10px; color: #c53030; font-size: 13px;">
+                    ⚠️ Failed: ${escapeHtml(failure.url)} - ${failure.error}
                 </div>
             `;
-        }
+        });
+    }
 
-        content += `</div>`;
-        return content;
-    }).join('');
+    html += `
+            </div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
+                <button onclick="downloadAllRawData()" style="background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    📦 Download All Raw Data
+                </button>
+                <button onclick="copyAllForAI()" style="background: #9f7aea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                    📋 Copy All for AI
+                </button>
+            </div>
+        </div>
+    `;
 
     document.getElementById('multiPostResults').innerHTML = html;
 }
 
-// Export functions for multi-post results
-function exportMultiPostPDF(index) {
-    if (window.multiPostResults[index] && window.multiPostResults[index].data.extractedData) {
-        window.currentExtractedData = window.multiPostResults[index].data.extractedData;
+// Toggle post details visibility
+function togglePostDetails(index) {
+    const details = document.getElementById(`post-details-${index}`);
+    const isVisible = details.style.display !== 'none';
+    details.style.display = isVisible ? 'none' : 'block';
+
+    // Update arrow indicator
+    const parent = details.parentElement;
+    const header = parent.querySelector('div[onclick]');
+    if (header) {
+        header.innerHTML = header.innerHTML.replace(isVisible ? '▼' : '►', isVisible ? '►' : '▼');
+    }
+}
+
+// Export functions for combined results
+
+// Export combined summary as PDF
+function exportCombinedSummaryPDF() {
+    if (!window.combinedResultsData) return;
+
+    const { combinedAnalysis, posts } = window.combinedResultsData;
+
+    // Create a temporary data structure for PDF export
+    window.currentAIInsights = combinedAnalysis.aiAnalysis;
+    window.currentExtractedData = {
+        post: {
+            title: `Combined Analysis: ${posts.length} posts`,
+            subreddit: combinedAnalysis.subreddits.join(', '),
+            score: posts.reduce((sum, p) => sum + (p.extractedData.post.score || 0), 0)
+        },
+        extractionStats: {
+            extracted: combinedAnalysis.totalComments
+        }
+    };
+
+    exportInsightsPDF();
+}
+
+// Copy combined summary to clipboard
+function copyCombinedSummary() {
+    if (!window.combinedResultsData) return;
+
+    const { combinedAnalysis } = window.combinedResultsData;
+    navigator.clipboard.writeText(combinedAnalysis.aiAnalysis).then(() => {
+        alert('Combined summary copied to clipboard!');
+    });
+}
+
+// Export individual source post as PDF
+function exportSourcePostPDF(index) {
+    if (!window.combinedResultsData) return;
+
+    const post = window.combinedResultsData.posts[index];
+    if (post && post.extractedData) {
+        window.currentExtractedData = post.extractedData;
         exportToPDF();
     }
 }
 
-function copyMultiPostForAI(index) {
-    if (window.multiPostResults[index] && window.multiPostResults[index].data.extractedData) {
-        window.currentExtractedData = window.multiPostResults[index].data.extractedData;
+// Copy individual source post for AI
+function copySourcePostForAI(index) {
+    if (!window.combinedResultsData) return;
+
+    const post = window.combinedResultsData.posts[index];
+    if (post && post.extractedData) {
+        window.currentExtractedData = post.extractedData;
         copyToClipboard();
     }
 }
 
-function copyMultiPostAsText(index) {
-    if (window.multiPostResults[index] && window.multiPostResults[index].data.extractedData) {
-        window.currentExtractedData = window.multiPostResults[index].data.extractedData;
+// Copy individual source post as text
+function copySourcePostAsText(index) {
+    if (!window.combinedResultsData) return;
+
+    const post = window.combinedResultsData.posts[index];
+    if (post && post.extractedData) {
+        window.currentExtractedData = post.extractedData;
         copyAsText();
     }
 }
 
-function exportMultiPostInsightsPDF(index) {
-    if (window.multiPostResults[index]) {
-        const result = window.multiPostResults[index];
-        // Set the current insights and extracted data for export
-        if (result.data.insights && result.data.insights.aiAnalysis) {
-            window.currentAIInsights = result.data.insights.aiAnalysis;
-            if (result.data.extractedData) {
-                window.currentExtractedData = result.data.extractedData;
-            }
-            exportInsightsPDF();
-        } else {
-            alert('No insights available for this post');
+// Download all raw data as JSON
+function downloadAllRawData() {
+    if (!window.combinedResultsData) return;
+
+    const { posts } = window.combinedResultsData;
+
+    const allData = posts.map(p => ({
+        url: p.url,
+        post: p.extractedData.post,
+        comments: p.extractedData.valuableComments,
+        stats: p.extractedData.extractionStats
+    }));
+
+    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reddit-analysis-${posts.length}-posts.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Copy all posts' raw data for AI
+function copyAllForAI() {
+    if (!window.combinedResultsData) return;
+
+    const { posts } = window.combinedResultsData;
+
+    let text = '';
+    posts.forEach((p, idx) => {
+        const post = p.extractedData.post;
+        const comments = p.extractedData.valuableComments;
+
+        text += `\n${'='.repeat(50)}\n`;
+        text += `POST ${idx + 1}: ${post.title}\n`;
+        text += `r/${post.subreddit} | ${post.score} upvotes\n`;
+        text += `${'='.repeat(50)}\n\n`;
+
+        if (post.selftext) {
+            text += `${post.selftext}\n\n`;
         }
+
+        text += `--- COMMENTS (${comments.length}) ---\n\n`;
+        comments.forEach(c => {
+            text += `[${c.score} pts] ${c.body}\n\n`;
+        });
+    });
+
+    navigator.clipboard.writeText(text).then(() => {
+        alert(`All ${posts.length} posts copied to clipboard!`);
+    });
+}
+
+// Legacy function - keep for backwards compatibility
+function exportMultiPostInsightsPDF(index) {
+    if (window.combinedResultsData) {
+        exportSourcePostPDF(index);
     }
 }
 
