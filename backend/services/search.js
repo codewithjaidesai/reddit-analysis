@@ -238,9 +238,18 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     const MIN_COMMENTS = 10;
     const MIN_UPVOTE_RATIO = 0.7;
 
+    // Extract keywords from search query for relevance filtering
+    const searchKeywords = topic.toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .split(/\s+/)
+      .filter(word => word.length > 2 && !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was', 'one', 'our', 'out', 'has', 'have', 'been', 'will', 'more', 'when', 'who', 'what', 'how', 'why', 'which', 'their', 'there', 'this', 'that', 'with', 'from', 'they', 'would', 'could', 'should', 'about', 'into', 'than', 'then', 'some', 'these', 'those', 'your', 'just', 'also', 'only', 'other', 'over', 'such', 'any', 'most', 'very', 'does', 'best', 'good'].includes(word));
+
+    console.log('Relevance filter keywords:', searchKeywords);
+
     // Track filter reasons for debugging
     let filterStats = {
       total: posts.length,
+      notRelevant: 0,
       lowScore: 0,
       lowComments: 0,
       lowUpvoteRatio: 0,
@@ -249,8 +258,29 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       passed: 0
     };
 
+    // Helper function to check if post contains any search keyword
+    const isRelevant = (post) => {
+      const titleLower = post.title.toLowerCase();
+      const selftextLower = (post.selftext || '').toLowerCase();
+      const subredditLower = post.subreddit.toLowerCase();
+
+      // Check if any keyword appears in title, selftext, or subreddit name
+      return searchKeywords.some(keyword =>
+        titleLower.includes(keyword) ||
+        selftextLower.includes(keyword) ||
+        subredditLower.includes(keyword)
+      );
+    };
+
     const scoredPosts = posts
       .filter(post => {
+        // First check relevance - post must contain at least one search keyword
+        const relevant = searchKeywords.length === 0 || isRelevant(post);
+        if (!relevant) {
+          filterStats.notRelevant++;
+          return false;
+        }
+
         // Track why posts are filtered
         if (post.score < MIN_SCORE) filterStats.lowScore++;
         if (post.num_comments < MIN_COMMENTS) filterStats.lowComments++;
@@ -347,7 +377,8 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
 
     console.log(`\n=== FILTERING RESULTS ===`);
     console.log(`Passed filters: ${filterStats.passed} out of ${filterStats.total}`);
-    console.log(`Filter breakdown (posts can fail multiple criteria):`);
+    console.log(`Filter breakdown:`);
+    console.log(`  - Not relevant (missing keywords): ${filterStats.notRelevant}`);
     console.log(`  - Low score (<${MIN_SCORE}): ${filterStats.lowScore}`);
     console.log(`  - Low comments (<${MIN_COMMENTS}): ${filterStats.lowComments}`);
     console.log(`  - Low upvote ratio (<${MIN_UPVOTE_RATIO}): ${filterStats.lowUpvoteRatio}`);
