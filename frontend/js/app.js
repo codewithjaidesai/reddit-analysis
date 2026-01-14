@@ -264,8 +264,8 @@ async function handleSearchByTopic() {
         document.getElementById('topicResults').style.display = 'block';
 
         let titleText = `Found ${result.afterFiltering} posts`;
-        if (role) {
-            titleText += ` for ${role}`;
+        if (researchQuestion) {
+            titleText += ` for "${researchQuestion.substring(0, 50)}${researchQuestion.length > 50 ? '...' : ''}"`;
         }
         document.getElementById('topicResultsTitle').textContent = titleText;
 
@@ -306,11 +306,14 @@ function toggleTopicPost(postId) {
  */
 function updateTopicSelectedCount() {
     const count = topicSelectedPosts.size;
-    document.getElementById('topicSelectedCount').textContent =
-        `${count} post${count !== 1 ? 's' : ''} selected`;
+    const countText = `${count} post${count !== 1 ? 's' : ''} selected`;
 
-    document.getElementById('topicSelectedActions').style.display =
-        count > 0 ? 'block' : 'none';
+    document.getElementById('topicSelectedCount').textContent = countText;
+    document.getElementById('topicSelectedCountBottom').textContent = countText;
+
+    const showActions = count > 0 ? 'block' : 'none';
+    document.getElementById('topicSelectedActions').style.display = showActions;
+    document.getElementById('topicSelectedActionsBottom').style.display = showActions;
 }
 
 /**
@@ -395,11 +398,14 @@ function toggleSubredditPost(postId) {
  */
 function updateSubredditSelectedCount() {
     const count = subredditSelectedPosts.size;
-    document.getElementById('subredditSelectedCount').textContent =
-        `${count} post${count !== 1 ? 's' : ''} selected`;
+    const countText = `${count} post${count !== 1 ? 's' : ''} selected`;
 
-    document.getElementById('subredditSelectedActions').style.display =
-        count > 0 ? 'block' : 'none';
+    document.getElementById('subredditSelectedCount').textContent = countText;
+    document.getElementById('subredditSelectedCountBottom').textContent = countText;
+
+    const showActions = count > 0 ? 'block' : 'none';
+    document.getElementById('subredditSelectedActions').style.display = showActions;
+    document.getElementById('subredditSelectedActionsBottom').style.display = showActions;
 }
 
 /**
@@ -429,6 +435,9 @@ async function analyzeSubredditSelectedPosts() {
 async function analyzeMultiplePosts(urls) {
     hideAll();
     showStatus(`Extracting data from ${urls.length} posts...`, 20);
+
+    // Auto-scroll to status section
+    document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     // Get research context if available
     const researchContext = window.currentResearchContext || {};
