@@ -112,7 +112,7 @@ async function generateAIInsights(contentData, role = null, goal = null) {
 }
 
 /**
- * Format combined analysis prompt for multiple posts
+ * Format combined analysis prompt for multiple posts - returns structured JSON
  * @param {array} postsData - Array of extracted data from multiple posts
  * @param {string} role - User's role
  * @param {string} goal - User's goal
@@ -123,46 +123,58 @@ function formatCombinedAnalysisPrompt(postsData, role = null, goal = null) {
   const subreddits = [...new Set(postsData.map(p => p.post?.subreddit).filter(Boolean))];
   const postCount = postsData.length;
 
-  // Build posts summary with truncated comments
+  // Build posts summary with subreddit attribution for quotes
   const postsContent = postsData.map((data, idx) => {
     const post = data.post;
     const comments = data.valuableComments || [];
     return `
 POST ${idx + 1}: "${post.title}"
 r/${post.subreddit} • ${post.score} upvotes • ${comments.length} comments
-${comments.slice(0, 15).map(c => `[${c.score}] ${c.body.substring(0, 250)}`).join('\n')}`;
+${comments.slice(0, 12).map(c => `[r/${post.subreddit}, ${c.score} pts] ${c.body.substring(0, 300)}`).join('\n')}`;
   }).join('\n---\n');
 
-  const prompt = `ROLE: ${role || 'Analyst'}
-GOAL: ${goal || 'Extract insights'}
-DATA: ${postCount} posts, ${totalComments} total comments from ${subreddits.join(', ')}
+  const prompt = `You are analyzing Reddit comments for a ${role || 'researcher'}.
+Their GOAL: "${goal || 'Extract insights'}"
+
+DATA: ${postCount} posts, ${totalComments} comments from: ${subreddits.map(s => 'r/' + s).join(', ')}
 
 ${postsContent}
 
 ===
 
-INSTRUCTIONS:
-1. Synthesize insights ACROSS all ${postCount} posts. Look for patterns that appear in multiple posts.
-2. Answer their GOAL directly.
-3. Be SHORT. Max 2 sentences per bullet.
-4. NO TABLES. Use bullet points only.
-5. Show cross-post validation (e.g., "mentioned in 3/5 posts").
+Return ONLY valid JSON (no markdown, no backticks). Structure:
 
-OUTPUT FORMAT:
+{
+  "executiveSummary": "2-3 sentence summary tailored to their goal as a ${role || 'researcher'}. What should they know?",
+  "topQuotes": [
+    {
+      "type": "INSIGHT or WARNING or TIP or COMPLAINT",
+      "quote": "Exact quote from comments (max 200 chars)",
+      "subreddit": "SubredditName"
+    }
+  ],
+  "keyInsights": [
+    {
+      "title": "Short title (3-5 words)",
+      "description": "1-2 sentence insight directly relevant to their goal",
+      "sentiment": "positive or negative or neutral"
+    }
+  ],
+  "forYourGoal": [
+    "Bullet point directly answering: ${goal || 'key findings'}"
+  ],
+  "confidence": {
+    "level": "high or medium or low",
+    "reason": "Brief explanation based on data volume/quality"
+  }
+}
 
-## 🎯 ${goal || 'Key Findings'}
-[3-7 bullets directly answering their goal, with cross-post counts where relevant]
-
-## 📊 Patterns Across Posts
-[3-5 bullets showing what appeared in multiple posts]
-
-## ⚡ What Each Post Contributed
-${postsData.map((d, i) => `- Post ${i + 1}: [one unique insight from this post]`).join('\n')}
-
-## 🔍 Confidence
-[1-2 sentences: ${totalComments} comments across ${postCount} posts - is this enough?]
-
-Keep it tight. No fluff.`;
+RULES:
+1. topQuotes: Pick 4-6 most impactful REAL quotes from the comments. Include subreddit name.
+2. keyInsights: 3-5 insights. Title should be catchy. Focus on what matters for their GOAL.
+3. forYourGoal: 3-5 bullets that DIRECTLY answer what the ${role || 'user'} asked for: "${goal || 'insights'}"
+4. Keep it concise. No fluff.
+5. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
 }
@@ -193,13 +205,37 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
       throw new Error(`Gemini API failed: ${aiResult.error || 'Unknown error'}`);
     }
 
+    // Try to parse JSON response
+    let structuredAnalysis = null;
+    try {
+      // Clean up response - remove any markdown code blocks if present
+      let cleanedResponse = aiResult.analysis.trim();
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.slice(7);
+      }
+      if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.slice(3);
+      }
+      if (cleanedResponse.endsWith('```')) {
+        cleanedResponse = cleanedResponse.slice(0, -3);
+      }
+      cleanedResponse = cleanedResponse.trim();
+
+      structuredAnalysis = JSON.parse(cleanedResponse);
+      console.log('Successfully parsed structured JSON response');
+    } catch (parseError) {
+      console.log('Failed to parse JSON, falling back to markdown:', parseError.message);
+      // Keep structuredAnalysis as null, frontend will use markdown fallback
+    }
+
     return {
       mode: 'combined_analysis',
       model: aiResult.model,
       postCount: postsData.length,
       totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0),
       subreddits: [...new Set(postsData.map(p => p.post?.subreddit).filter(Boolean))],
-      aiAnalysis: aiResult.analysis
+      structured: structuredAnalysis,
+      aiAnalysis: aiResult.analysis // Keep raw response as fallback
     };
 
   } catch (error) {
