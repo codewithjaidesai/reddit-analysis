@@ -140,7 +140,7 @@ function displayInsights(analysisText) {
 }
 
 /**
- * Display post cards for search results
+ * Display post cards for search results (grid layout)
  */
 function displayPostCards(posts, containerId, selectedSet, toggleFunction) {
     const container = document.getElementById(containerId);
@@ -150,33 +150,36 @@ function displayPostCards(posts, containerId, selectedSet, toggleFunction) {
         return;
     }
 
-    const html = posts.map(post => {
+    const html = `<div class="post-cards-grid">${posts.map(post => {
         const isSelected = selectedSet.has(post.id);
         const badge = getEngagementBadge(post.engagementTier);
 
         return `
-            <div class="post-card ${isSelected ? 'selected' : ''}"
+            <div class="post-card-grid ${isSelected ? 'selected' : ''}"
                  id="post-${post.id}"
                  onclick="${toggleFunction}('${post.id}')">
-                <div style="display: flex; align-items: flex-start;">
+                <div class="post-card-header">
+                    <div class="post-card-badges">
+                        <span class="badge-subreddit">r/${post.subreddit}</span>
+                        ${badge || ''}
+                    </div>
                     <input type="checkbox"
                            id="check-${post.id}"
                            ${isSelected ? 'checked' : ''}
                            onclick="event.stopPropagation(); ${toggleFunction}('${post.id}')">
-                    <div style="flex: 1;">
-                        <div class="post-title">${escapeHtml(post.title)}</div>
-                        ${badge ? `<div style="margin: 8px 0;">${badge}</div>` : ''}
-                        <div class="post-meta">
-                            <span>r/${post.subreddit}</span>
-                            <span>${formatNumber(post.score)} ⬆️</span>
-                            <span>${formatNumber(post.num_comments)} 💬</span>
-                            <span>${post.ageText}</span>
-                        </div>
-                    </div>
+                </div>
+                <a href="${post.url}" target="_blank" class="post-card-title" onclick="event.stopPropagation();">
+                    ${escapeHtml(post.title)}
+                </a>
+                <div class="post-card-footer">
+                    <span class="post-card-hint">Click to select</span>
+                    <a href="${post.url}" target="_blank" class="post-card-link" onclick="event.stopPropagation();">
+                        View source ↗
+                    </a>
                 </div>
             </div>
         `;
-    }).join('');
+    }).join('')}</div>`;
 
     container.innerHTML = html;
 }
