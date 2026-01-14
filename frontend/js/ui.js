@@ -168,9 +168,9 @@ function displayPostCards(posts, containerId, selectedSet, toggleFunction) {
                            ${isSelected ? 'checked' : ''}
                            onclick="event.stopPropagation(); ${toggleFunction}('${post.id}')">
                 </div>
-                <a href="${post.url}" target="_blank" class="post-card-title" onclick="event.stopPropagation();">
+                <span class="post-card-title">
                     ${escapeHtml(post.title)}
-                </a>
+                </span>
                 <div class="post-card-footer">
                     <span class="post-card-hint">Click to select</span>
                     <a href="${post.url}" target="_blank" class="post-card-link" onclick="event.stopPropagation();">
