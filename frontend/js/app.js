@@ -1065,28 +1065,237 @@ function copySourcePostAsText(index) {
     }
 }
 
-// Download all raw data as JSON
+// Download all raw data as formatted PDF
 function downloadAllRawData() {
     if (!window.combinedResultsData) return;
 
     const { posts } = window.combinedResultsData;
+    const researchContext = window.currentResearchContext || {};
 
-    const allData = posts.map(p => ({
-        url: p.url,
-        post: p.extractedData.post,
-        comments: p.extractedData.valuableComments,
-        stats: p.extractedData.extractionStats
-    }));
+    // Create a new window for PDF export
+    const printWindow = window.open('', '', 'width=900,height=700');
 
-    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reddit-analysis-${posts.length}-posts.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    let postsHtml = '';
+
+    posts.forEach((p, idx) => {
+        const post = p.extractedData.post;
+        const comments = p.extractedData.valuableComments;
+        const stats = p.extractedData.extractionStats;
+
+        postsHtml += `
+            <div class="post-section">
+                <h2>Post ${idx + 1}: ${escapeHtml(post.title)}</h2>
+                <div class="post-meta">
+                    <span><strong>Subreddit:</strong> r/${escapeHtml(post.subreddit)}</span>
+                    <span><strong>Author:</strong> u/${escapeHtml(post.author)}</span>
+                    <span><strong>Score:</strong> ${formatNumber(post.score)} upvotes</span>
+                    <span><strong>Comments:</strong> ${formatNumber(post.num_comments)}</span>
+                </div>
+                ${post.permalink ? `<p class="post-link"><strong>Source:</strong> <a href="https://reddit.com${post.permalink}" target="_blank">https://reddit.com${post.permalink}</a></p>` : ''}
+
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <div class="stat-value">${stats.total}</div>
+                        <div class="stat-label">Total Comments</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${stats.extracted}</div>
+                        <div class="stat-label">Extracted</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${stats.percentageKept}%</div>
+                        <div class="stat-label">Retention</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">${stats.averageScore}</div>
+                        <div class="stat-label">Avg Score</div>
+                    </div>
+                </div>
+
+                ${post.selftext ? `<div class="post-body"><strong>Post Body:</strong><br>${escapeHtml(post.selftext)}</div>` : ''}
+
+                <h3>High-Value Comments (${comments.length})</h3>
+                <div class="comments-list">
+                    ${comments.map((c, i) => `
+                        <div class="comment">
+                            <div class="comment-header">
+                                #${i + 1} • u/${escapeHtml(c.author)} • ${c.score} upvotes${c.awards > 0 ? ` • ${c.awards} awards` : ''}
+                            </div>
+                            <div class="comment-body">${escapeHtml(c.body)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    });
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Reddit Comments Export - ${posts.length} Posts</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    max-width: 900px;
+                    margin: 0 auto;
+                    padding: 30px;
+                    color: #2d3748;
+                    background: white;
+                }
+                h1 {
+                    color: #1a202c;
+                    border-bottom: 3px solid #667eea;
+                    padding-bottom: 15px;
+                    margin-bottom: 10px;
+                    font-size: 24px;
+                }
+                h2 {
+                    color: #2d3748;
+                    font-size: 18px;
+                    margin-top: 0;
+                    margin-bottom: 10px;
+                }
+                h3 {
+                    color: #4a5568;
+                    font-size: 16px;
+                    margin-top: 20px;
+                    margin-bottom: 10px;
+                    border-left: 3px solid #667eea;
+                    padding-left: 10px;
+                }
+                .header-meta {
+                    background: #f7fafc;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 20px 0 30px 0;
+                    font-size: 14px;
+                    color: #4a5568;
+                }
+                .header-meta strong { color: #2d3748; }
+                .post-section {
+                    background: #f7fafc;
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 30px;
+                    page-break-inside: avoid;
+                    border: 1px solid #e2e8f0;
+                }
+                .post-meta {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                    font-size: 13px;
+                    color: #718096;
+                    margin-bottom: 10px;
+                }
+                .post-link {
+                    font-size: 13px;
+                    margin: 10px 0;
+                }
+                .post-link a {
+                    color: #667eea;
+                    text-decoration: none;
+                }
+                .stats-row {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 10px;
+                    margin: 15px 0;
+                }
+                .stat-box {
+                    background: white;
+                    padding: 10px;
+                    border-radius: 6px;
+                    text-align: center;
+                    border: 1px solid #e2e8f0;
+                }
+                .stat-value {
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #667eea;
+                }
+                .stat-label {
+                    font-size: 11px;
+                    color: #718096;
+                }
+                .post-body {
+                    background: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 15px 0;
+                    font-size: 14px;
+                    white-space: pre-wrap;
+                    border: 1px solid #e2e8f0;
+                }
+                .comment {
+                    background: white;
+                    border-left: 3px solid #667eea;
+                    padding: 12px 15px;
+                    margin: 10px 0;
+                    border-radius: 0 6px 6px 0;
+                    page-break-inside: avoid;
+                }
+                .comment-header {
+                    font-size: 12px;
+                    color: #667eea;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                }
+                .comment-body {
+                    font-size: 13px;
+                    line-height: 1.6;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                }
+                .footer {
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e2e8f0;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #a0aec0;
+                }
+                @media print {
+                    body { margin: 0; padding: 20px; }
+                    .no-print { display: none !important; }
+                    .post-section { page-break-inside: avoid; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>📄 Reddit Comments Export</h1>
+
+            <div class="header-meta">
+                <strong>Total Posts:</strong> ${posts.length}<br>
+                <strong>Total Comments:</strong> ${posts.reduce((sum, p) => sum + p.extractedData.valuableComments.length, 0)}<br>
+                ${researchContext.researchQuestion ? `<strong>Research Topic:</strong> ${escapeHtml(researchContext.researchQuestion)}<br>` : ''}
+                <strong>Generated:</strong> ${new Date().toLocaleString()}<br>
+                <strong>Tool:</strong> Reddit Analyzer v2.0
+            </div>
+
+            ${postsHtml}
+
+            <div class="footer">
+                Reddit Analyzer v2.0 • Raw Data Export<br>
+                Exported: ${new Date().toISOString()}
+            </div>
+
+            <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
+                <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    🖨️ Print / Save as PDF
+                </button>
+                <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    ✕ Close
+                </button>
+            </div>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
 }
 
 // Copy all posts' raw data for AI
