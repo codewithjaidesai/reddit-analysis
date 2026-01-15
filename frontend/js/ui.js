@@ -30,12 +30,64 @@ function switchTab(tabName) {
 }
 
 /**
- * Toggle topic subreddit filter input
+ * Toggle topic subreddit filter input (legacy)
  */
 function toggleTopicSubredditInput() {
     const checkbox = document.getElementById('topicSubredditFilter');
     const div = document.getElementById('topicSubredditInputDiv');
-    div.style.display = checkbox.checked ? 'block' : 'none';
+    if (checkbox && div) {
+        div.style.display = checkbox.checked ? 'block' : 'none';
+    }
+}
+
+/**
+ * Toggle search method dropdown (new)
+ */
+function toggleSearchMethodDropdown() {
+    const dropdown = document.getElementById('searchMethodDropdown');
+    const subredditInput = document.getElementById('subredditMethodInput');
+    const urlInput = document.getElementById('urlMethodInput');
+
+    if (!dropdown) return;
+
+    const value = dropdown.value;
+
+    // Hide all conditional inputs first
+    if (subredditInput) subredditInput.style.display = 'none';
+    if (urlInput) urlInput.style.display = 'none';
+
+    // Show the relevant input
+    if (value === 'subreddits' && subredditInput) {
+        subredditInput.style.display = 'block';
+    } else if (value === 'urls' && urlInput) {
+        urlInput.style.display = 'block';
+    }
+}
+
+/**
+ * Toggle search method radio buttons (legacy compatibility)
+ */
+function toggleSearchMethod() {
+    const radioButtons = document.querySelectorAll('input[name="searchMethod"]');
+    let selectedValue = 'reddit';
+
+    radioButtons.forEach(radio => {
+        if (radio.checked) {
+            selectedValue = radio.value;
+        }
+    });
+
+    const subredditInput = document.getElementById('subredditMethodInput');
+    const urlInput = document.getElementById('urlMethodInput');
+
+    if (subredditInput) subredditInput.style.display = 'none';
+    if (urlInput) urlInput.style.display = 'none';
+
+    if (selectedValue === 'subreddits' && subredditInput) {
+        subredditInput.style.display = 'block';
+    } else if (selectedValue === 'urls' && urlInput) {
+        urlInput.style.display = 'block';
+    }
 }
 
 /**

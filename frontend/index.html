@@ -129,73 +129,7 @@
                         <p class="hint">Use keywords for best results (e.g., "weight training shoes budget" not full sentences)</p>
                     </div>
 
-                    <!-- Search Filters Row -->
-                    <div class="search-filters-row">
-                        <div class="filter-group">
-                            <label>⏱️ TIME RANGE</label>
-                            <select id="topicTimeRange" class="select-input">
-                                <option value="day">Past 24 Hours</option>
-                                <option value="week" selected>Past Week</option>
-                                <option value="month">Past Month</option>
-                                <option value="year">Past Year</option>
-                                <option value="all">All Time</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label>📊 MAX RESULTS</label>
-                            <select id="topicLimit" class="select-input">
-                                <option value="10">10 posts</option>
-                                <option value="15" selected>15 posts</option>
-                                <option value="25">25 posts</option>
-                                <option value="50">50 posts</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Search Method Selection -->
-                    <div class="search-method-section">
-                        <label class="method-label">
-                            🔍 How do you want to find posts?
-                        </label>
-                        <div class="radio-group">
-                            <label class="radio-option">
-                                <input type="radio" name="searchMethod" value="reddit" checked onchange="toggleSearchMethod()">
-                                <span class="radio-label">Search across Reddit</span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="searchMethod" value="subreddits" onchange="toggleSearchMethod()">
-                                <span class="radio-label">Search specific subreddits only</span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="searchMethod" value="urls" onchange="toggleSearchMethod()">
-                                <span class="radio-label">I have specific URLs to analyze</span>
-                            </label>
-                        </div>
-
-                        <!-- Subreddit Input (shown when subreddits radio selected) -->
-                        <div id="subredditMethodInput" style="display: none; margin-top: 15px;">
-                            <input
-                                type="text"
-                                id="topicSubreddits"
-                                placeholder="e.g., AskReddit, productivity, Notion"
-                                class="url-input"
-                            />
-                            <p class="hint">Comma-separated list of subreddits</p>
-                        </div>
-
-                        <!-- URL Input (shown when URLs radio selected) -->
-                        <div id="urlMethodInput" style="display: none; margin-top: 15px;">
-                            <textarea
-                                id="topicUrls"
-                                placeholder="Paste Reddit post URLs here (one per line)..."
-                                class="url-textarea"
-                                rows="4"
-                            ></textarea>
-                            <p class="hint">Enter one or more Reddit post URLs, separated by new lines</p>
-                        </div>
-                    </div>
-
-                    <!-- Research Goal Section -->
+                    <!-- Research Goal Section (PROMINENT - right after research input) -->
                     <div class="research-goal-section">
                         <h3 class="section-label">🎯 Research Goal</h3>
 
@@ -249,6 +183,59 @@
                     <input type="hidden" id="userRole" />
                     <input type="hidden" id="userGoal" />
 
+                    <!-- Advanced Options (subtle, at the bottom) -->
+                    <div class="advanced-options">
+                        <div class="advanced-options-row">
+                            <div class="option-group">
+                                <label>Search in</label>
+                                <select id="searchMethodDropdown" class="subtle-select" onchange="toggleSearchMethodDropdown()">
+                                    <option value="reddit" selected>All of Reddit</option>
+                                    <option value="subreddits">Specific subreddits</option>
+                                    <option value="urls">Specific URLs</option>
+                                </select>
+                            </div>
+                            <div class="option-group">
+                                <label>Time</label>
+                                <select id="topicTimeRange" class="subtle-select">
+                                    <option value="day">24 hours</option>
+                                    <option value="week">Week</option>
+                                    <option value="month">Month</option>
+                                    <option value="year" selected>Year</option>
+                                    <option value="all">All time</option>
+                                </select>
+                            </div>
+                            <div class="option-group">
+                                <label>Results</label>
+                                <select id="topicLimit" class="subtle-select">
+                                    <option value="10">10</option>
+                                    <option value="15" selected>15</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Subreddit Input (shown when subreddits selected) -->
+                        <div id="subredditMethodInput" class="conditional-input" style="display: none;">
+                            <input
+                                type="text"
+                                id="topicSubreddits"
+                                placeholder="Enter subreddits (comma-separated): AskReddit, productivity, Notion"
+                                class="subtle-text-input"
+                            />
+                        </div>
+
+                        <!-- URL Input (shown when URLs selected) -->
+                        <div id="urlMethodInput" class="conditional-input" style="display: none;">
+                            <textarea
+                                id="topicUrls"
+                                placeholder="Paste Reddit post URLs (one per line)..."
+                                class="subtle-textarea"
+                                rows="3"
+                            ></textarea>
+                        </div>
+                    </div>
+
                     <button class="analyze-btn start-research-btn" onclick="handleSearchByTopic()">
                         🔍 Start Research
                     </button>
@@ -285,37 +272,20 @@
                 <div class="input-section">
                     <h2>Analyze Subreddit Top Posts</h2>
                     <div class="input-group">
+                        <label for="subredditName" class="context-label">
+                            📊 Which subreddit?
+                        </label>
                         <input
                             type="text"
                             id="subredditName"
-                            placeholder="Enter subreddit name (without r/)..."
-                            class="url-input"
+                            placeholder="e.g., productivity, startups, fitness"
+                            class="research-input"
+                            style="font-size: 1rem;"
                         />
+                        <p class="hint">Enter subreddit name without r/</p>
                     </div>
 
-                    <!-- Search Filters Row -->
-                    <div class="search-filters-row">
-                        <div class="filter-group">
-                            <label>⏱️ TIME RANGE</label>
-                            <select id="subredditTimeRange" class="select-input">
-                                <option value="day">Past 24 Hours</option>
-                                <option value="week" selected>Past Week</option>
-                                <option value="month">Past Month</option>
-                                <option value="year">Past Year</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label>📊 MAX RESULTS</label>
-                            <select id="subredditLimit" class="select-input">
-                                <option value="10">10 posts</option>
-                                <option value="15" selected>15 posts</option>
-                                <option value="25">25 posts</option>
-                                <option value="50">50 posts</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Research Goal Section -->
+                    <!-- Research Goal Section (PROMINENT) -->
                     <div class="research-goal-section">
                         <h3 class="section-label">🎯 Research Goal</h3>
 
@@ -368,6 +338,30 @@
                     <!-- Hidden fields to store role/goal values -->
                     <input type="hidden" id="subredditUserRole" />
                     <input type="hidden" id="subredditUserGoal" />
+
+                    <!-- Advanced Options (subtle) -->
+                    <div class="advanced-options">
+                        <div class="advanced-options-row">
+                            <div class="option-group">
+                                <label>Time</label>
+                                <select id="subredditTimeRange" class="subtle-select">
+                                    <option value="day">24 hours</option>
+                                    <option value="week">Week</option>
+                                    <option value="month">Month</option>
+                                    <option value="year" selected>Year</option>
+                                </select>
+                            </div>
+                            <div class="option-group">
+                                <label>Results</label>
+                                <select id="subredditLimit" class="subtle-select">
+                                    <option value="10">10</option>
+                                    <option value="15" selected>15</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
                     <button class="analyze-btn start-research-btn" onclick="handleSearchSubreddit()">
                         🔍 Start Research
