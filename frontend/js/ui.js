@@ -710,3 +710,166 @@ Now please provide your comprehensive analysis following the framework above.
 
     return output;
 }
+
+/**
+ * ============================================
+ * PERSONA & OUTCOME SELECTION
+ * ============================================
+ */
+
+// Persona outcomes mapping
+const personaOutcomes = {
+    product_manager: {
+        role: 'Product Manager',
+        outcomes: [
+            { id: 'pain_points', label: 'Identify Pain Points & Complaints' },
+            { id: 'competitor', label: 'Analyze Competitor Weaknesses' },
+            { id: 'validate', label: 'Validate a New Feature Idea' },
+            { id: 'unmet_needs', label: 'Discover Unmet Needs' }
+        ]
+    },
+    marketer: {
+        role: 'Marketer / Copywriter',
+        outcomes: [
+            { id: 'voice', label: "Extract 'Voice of Customer' Lingo" },
+            { id: 'objections', label: 'Identify Buying Objections' },
+            { id: 'viral', label: 'Find Viral Marketing Angles' },
+            { id: 'sentiment', label: 'Analyze Sentiment Drivers' }
+        ]
+    },
+    content_creator: {
+        role: 'Content Creator',
+        outcomes: [
+            { id: 'content_gaps', label: 'Find Content Gaps & Questions' },
+            { id: 'polarizing', label: 'Identify Polarizing Topics' },
+            { id: 'faq', label: 'Gather Q&A for FAQ Video' },
+            { id: 'trends', label: 'Spot Emerging Trends' }
+        ]
+    },
+    custom: {
+        role: 'Custom',
+        outcomes: null // Will show custom inputs
+    }
+};
+
+// Track current selections per tab
+const tabSelections = {
+    topic: { persona: null, outcome: null },
+    url: { persona: null, outcome: null },
+    subreddit: { persona: null, outcome: null }
+};
+
+/**
+ * Select a persona card
+ */
+function selectPersona(tabId, personaId) {
+    // Update selection state
+    tabSelections[tabId].persona = personaId;
+    tabSelections[tabId].outcome = null;
+
+    // Update UI - remove selected from all cards in this tab
+    const container = document.getElementById(`${tabId}PersonaCards`);
+    container.querySelectorAll('.persona-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+
+    // Add selected to clicked card
+    const selectedCard = container.querySelector(`[data-persona="${personaId}"]`);
+    if (selectedCard) {
+        selectedCard.classList.add('selected');
+    }
+
+    // Show outcome selection
+    const outcomeSection = document.getElementById(`${tabId}OutcomeSelection`);
+    const outcomeOptions = document.getElementById(`${tabId}OutcomeOptions`);
+    const outcomeLabel = document.getElementById(`${tabId}OutcomeLabel`);
+
+    if (personaId === 'custom') {
+        // Show custom inputs
+        outcomeLabel.textContent = 'DEFINE YOUR RESEARCH';
+        outcomeOptions.innerHTML = `
+            <div class="custom-inputs">
+                <div class="custom-input-group">
+                    <label>Custom Role</label>
+                    <input type="text" id="${tabId}CustomRole" placeholder="e.g., UX Researcher, Founder, Investor" onchange="updateCustomSelection('${tabId}')">
+                </div>
+                <div class="custom-input-group">
+                    <label>Specific Goal</label>
+                    <input type="text" id="${tabId}CustomGoal" placeholder="e.g., Find usability issues, Validate market size" onchange="updateCustomSelection('${tabId}')">
+                </div>
+            </div>
+        `;
+        outcomeSection.style.display = 'block';
+
+        // Clear hidden fields
+        updateHiddenFields(tabId, 'Custom', '');
+    } else {
+        // Show predefined outcomes
+        const persona = personaOutcomes[personaId];
+        outcomeLabel.textContent = `SELECT SPECIFIC OUTCOME FOR ${persona.role.toUpperCase()}`;
+
+        outcomeOptions.innerHTML = persona.outcomes.map((outcome, index) => `
+            <div class="outcome-option" onclick="selectOutcome('${tabId}', '${personaId}', '${outcome.id}', '${outcome.label}')">
+                <input type="radio" name="${tabId}Outcome" id="${tabId}_${outcome.id}" ${index === 0 ? 'checked' : ''}>
+                <span>${outcome.label}</span>
+            </div>
+        `).join('');
+
+        outcomeSection.style.display = 'block';
+
+        // Auto-select first outcome
+        selectOutcome(tabId, personaId, persona.outcomes[0].id, persona.outcomes[0].label);
+    }
+}
+
+/**
+ * Select an outcome option
+ */
+function selectOutcome(tabId, personaId, outcomeId, outcomeLabel) {
+    tabSelections[tabId].outcome = outcomeId;
+
+    // Update UI
+    const outcomeOptions = document.getElementById(`${tabId}OutcomeOptions`);
+    outcomeOptions.querySelectorAll('.outcome-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+
+    // Find and select the clicked option
+    const radioBtn = document.getElementById(`${tabId}_${outcomeId}`);
+    if (radioBtn) {
+        radioBtn.checked = true;
+        radioBtn.closest('.outcome-option').classList.add('selected');
+    }
+
+    // Update hidden fields
+    const persona = personaOutcomes[personaId];
+    updateHiddenFields(tabId, persona.role, outcomeLabel);
+}
+
+/**
+ * Update custom selection fields
+ */
+function updateCustomSelection(tabId) {
+    const customRole = document.getElementById(`${tabId}CustomRole`).value.trim() || 'Researcher';
+    const customGoal = document.getElementById(`${tabId}CustomGoal`).value.trim() || 'Extract insights';
+
+    updateHiddenFields(tabId, customRole, customGoal);
+}
+
+/**
+ * Update hidden role/goal fields based on tab
+ */
+function updateHiddenFields(tabId, role, goal) {
+    // Map tab IDs to their hidden field IDs
+    const fieldMapping = {
+        topic: { role: 'userRole', goal: 'userGoal' },
+        url: { role: 'urlUserRole', goal: 'urlUserGoal' },
+        subreddit: { role: 'subredditUserRole', goal: 'subredditUserGoal' }
+    };
+
+    const fields = fieldMapping[tabId];
+    if (fields) {
+        document.getElementById(fields.role).value = role;
+        document.getElementById(fields.goal).value = goal;
+    }
+}
