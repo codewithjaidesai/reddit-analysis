@@ -476,32 +476,127 @@ function displayCombinedResults(result, role, goal) {
     const { combinedAnalysis, posts, failures } = result;
     const totalComments = combinedAnalysis.totalComments || 0;
     const subreddits = combinedAnalysis.subreddits || [];
+    const structured = combinedAnalysis.structured;
 
     let html = '';
 
-    // Combined Analysis Card
+    // Header section
     html += `
-        <div class="result-card">
-            <div class="card-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h2 style="margin: 0; color: var(--primary);">🔄 Combined Analysis</h2>
-                        <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">
-                            ${posts.length} posts • ${totalComments} comments • ${subreddits.map(s => 'r/' + s).join(', ')}
-                        </p>
+        <div class="analysis-header">
+            <div class="analysis-header-content">
+                <h1 class="analysis-title">Insight Analysis</h1>
+                <span class="analysis-badge">Based on ${posts.length} selected sources</span>
+            </div>
+            <div class="analysis-meta">
+                <span>Topic: <strong>${window.currentResearchContext?.topic || 'Reddit Analysis'}</strong></span>
+                <span>Goal: <strong>${goal || 'Extract insights'}</strong></span>
+            </div>
+            <div class="analysis-actions">
+                <button onclick="downloadAllRawData()" class="btn-export">📄 Export All Comments (PDF)</button>
+                <button onclick="exportCombinedSummaryPDF()" class="btn-export btn-primary">📊 Export Insights (PDF)</button>
+            </div>
+        </div>
+    `;
+
+    // Check if we have structured data
+    if (structured) {
+        // TOP QUOTES SECTION
+        if (structured.topQuotes && structured.topQuotes.length > 0) {
+            html += `
+                <div class="analysis-section">
+                    <h2 class="section-title">💬 Top Matches</h2>
+                    <p class="section-subtitle">Direct results for your request</p>
+                    <div class="quotes-grid">
+                        ${structured.topQuotes.map(q => `
+                            <div class="quote-card quote-${(q.type || 'insight').toLowerCase()}">
+                                <span class="quote-type-badge">${q.type || 'INSIGHT'}</span>
+                                <div class="quote-icon">❝</div>
+                                <p class="quote-text">"${escapeHtml(q.quote)}"</p>
+                                <p class="quote-source">— Reddit User (${q.subreddit || 'Unknown'})</p>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
+            `;
+        }
+
+        // EXECUTIVE SUMMARY
+        if (structured.executiveSummary) {
+            html += `
+                <div class="analysis-section">
+                    <h2 class="section-title">📋 Executive Summary</h2>
+                    <div class="summary-card">
+                        <p>${escapeHtml(structured.executiveSummary)}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // FOR YOUR GOAL SECTION
+        if (structured.forYourGoal && structured.forYourGoal.length > 0) {
+            html += `
+                <div class="analysis-section">
+                    <h2 class="section-title">🎯 For Your Goal: "${goal || 'Insights'}"</h2>
+                    <div class="goal-answers">
+                        ${structured.forYourGoal.map(item => `
+                            <div class="goal-item">
+                                <span class="goal-bullet">→</span>
+                                <span>${escapeHtml(item)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // KEY INSIGHTS
+        if (structured.keyInsights && structured.keyInsights.length > 0) {
+            html += `
+                <div class="analysis-section">
+                    <h2 class="section-title">💡 Key Insights</h2>
+                    <div class="insights-grid">
+                        ${structured.keyInsights.map(insight => `
+                            <div class="insight-card">
+                                <div class="insight-header">
+                                    <h3 class="insight-title">${escapeHtml(insight.title)}</h3>
+                                    <span class="sentiment-badge sentiment-${insight.sentiment || 'neutral'}">${insight.sentiment || 'neutral'}</span>
+                                </div>
+                                <p class="insight-description">${escapeHtml(insight.description)}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // CONFIDENCE
+        if (structured.confidence) {
+            html += `
+                <div class="analysis-section">
+                    <h2 class="section-title">📊 Confidence</h2>
+                    <div class="confidence-card confidence-${structured.confidence.level || 'medium'}">
+                        <span class="confidence-level">${(structured.confidence.level || 'medium').toUpperCase()}</span>
+                        <span class="confidence-reason">${escapeHtml(structured.confidence.reason || '')}</span>
+                    </div>
+                </div>
+            `;
+        }
+    } else {
+        // FALLBACK: Use markdown rendering
+        html += `
+            <div class="result-card">
+                <div class="ai-analysis-content">
+                    ${formatMarkdown(combinedAnalysis.aiAnalysis)}
+                </div>
             </div>
-            <div class="ai-analysis-content">
-                ${formatMarkdown(combinedAnalysis.aiAnalysis)}
-            </div>
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
-                <button onclick="exportCombinedSummaryPDF()" style="background: #ed8936; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
-                    📄 Export Summary PDF
-                </button>
-                <button onclick="copyCombinedSummary()" style="background: #9f7aea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
-                    📋 Copy Summary
-                </button>
+        `;
+    }
+
+    // Export buttons section
+    html += `
+        <div class="analysis-section" style="margin-top: 20px;">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button onclick="copyCombinedSummary()" class="btn-secondary">📋 Copy Summary</button>
             </div>
         </div>
     `;

@@ -868,6 +868,576 @@ footer a {
     text-decoration: underline;
 }
 
+/* ============================================
+   STRUCTURED ANALYSIS UI COMPONENTS
+   ============================================ */
+
+/* Analysis Header */
+.analysis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--border);
+}
+
+.analysis-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.analysis-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.analysis-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: 8px;
+}
+
+.analysis-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.analysis-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Button styles for actions */
+.btn-export {
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-export.primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-export.primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: white;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* Section Headers */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 28px 0 16px 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.section-header:first-of-type {
+    margin-top: 0;
+}
+
+/* Analysis Sections */
+.analysis-section {
+    margin-bottom: 28px;
+}
+
+.analysis-header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    margin-top: -8px;
+}
+
+/* ============================================
+   QUOTES GRID
+   ============================================ */
+
+.quotes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.quote-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid var(--primary);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+}
+
+.quote-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Quote type colors */
+.quote-card.quote-insight {
+    border-left-color: #667eea;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, white 100%);
+}
+
+.quote-card.quote-warning {
+    border-left-color: #f6ad55;
+    background: linear-gradient(135deg, rgba(246, 173, 85, 0.08) 0%, white 100%);
+}
+
+.quote-card.quote-tip {
+    border-left-color: #48bb78;
+    background: linear-gradient(135deg, rgba(72, 187, 120, 0.08) 0%, white 100%);
+}
+
+.quote-card.quote-complaint {
+    border-left-color: #f56565;
+    background: linear-gradient(135deg, rgba(245, 101, 101, 0.08) 0%, white 100%);
+}
+
+.quote-type-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+.quote-icon {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 2rem;
+    opacity: 0.15;
+    color: var(--primary);
+}
+
+.quote-insight .quote-type-badge {
+    background: rgba(102, 126, 234, 0.15);
+    color: #5a67d8;
+}
+
+.quote-warning .quote-type-badge {
+    background: rgba(246, 173, 85, 0.2);
+    color: #c05621;
+}
+
+.quote-tip .quote-type-badge {
+    background: rgba(72, 187, 120, 0.2);
+    color: #276749;
+}
+
+.quote-complaint .quote-type-badge {
+    background: rgba(245, 101, 101, 0.2);
+    color: #c53030;
+}
+
+.quote-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    font-style: italic;
+    margin-bottom: 12px;
+}
+
+.quote-source {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ============================================
+   SUMMARY CARD (Executive Summary)
+   ============================================ */
+
+.summary-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+
+.summary-card h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.summary-card p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    margin: 0;
+}
+
+/* ============================================
+   GOAL ANSWERS SECTION
+   ============================================ */
+
+.goal-answers {
+    background: #f0f4ff;
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.goal-answers h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.goal-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.15);
+}
+
+.goal-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.goal-bullet {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.goal-item p {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+/* ============================================
+   KEY INSIGHTS GRID
+   ============================================ */
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.insight-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.insight-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.insight-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.insight-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.sentiment-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.sentiment-badge.positive {
+    background: rgba(72, 187, 120, 0.15);
+    color: #276749;
+}
+
+.sentiment-badge.negative {
+    background: rgba(245, 101, 101, 0.15);
+    color: #c53030;
+}
+
+.sentiment-badge.neutral {
+    background: rgba(113, 128, 150, 0.15);
+    color: #4a5568;
+}
+
+.insight-card p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ============================================
+   CONFIDENCE CARD
+   ============================================ */
+
+.confidence-card {
+    background: #f7fafc;
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+}
+
+.confidence-level {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.confidence-level.high {
+    color: #276749;
+}
+
+.confidence-level.medium {
+    color: #c05621;
+}
+
+.confidence-level.low {
+    color: #c53030;
+}
+
+.confidence-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.confidence-level.high .confidence-indicator {
+    background: #48bb78;
+}
+
+.confidence-level.medium .confidence-indicator {
+    background: #f6ad55;
+}
+
+.confidence-level.low .confidence-indicator {
+    background: #f56565;
+}
+
+.confidence-reason {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin: 0;
+    padding-left: 16px;
+    border-left: 2px solid var(--border);
+}
+
+/* ============================================
+   SOURCE POSTS SECTION
+   ============================================ */
+
+.source-posts-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 2px solid var(--border);
+}
+
+.source-posts-section h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.source-post-item {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+}
+
+.source-post-item:hover {
+    border-color: var(--primary);
+}
+
+.source-post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.source-post-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.source-post-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.source-post-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.source-post-actions button {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* ============================================
+   FALLBACK MARKDOWN STYLING
+   ============================================ */
+
+.markdown-fallback {
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+}
+
+.markdown-fallback h2 {
+    color: var(--primary);
+    font-size: 1.3rem;
+    margin: 24px 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+}
+
+.markdown-fallback h2:first-child {
+    margin-top: 0;
+}
+
+.markdown-fallback p {
+    line-height: 1.7;
+    margin: 12px 0;
+}
+
+.markdown-fallback ul {
+    margin: 12px 0 12px 24px;
+}
+
+.markdown-fallback li {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
 /* Responsive */
 @media (max-width: 768px) {
     header h1 {
@@ -901,5 +1471,46 @@ footer a {
     .selected-summary {
         flex-direction: column;
         gap: 15px;
+    }
+
+    /* Structured Analysis Responsive */
+    .analysis-header {
+        flex-direction: column;
+    }
+
+    .analysis-actions {
+        width: 100%;
+    }
+
+    .analysis-actions button {
+        flex: 1;
+    }
+
+    .quotes-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .confidence-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .confidence-reason {
+        border-left: none;
+        padding-left: 0;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+    }
+
+    .summary-card {
+        padding: 20px;
+    }
+
+    .summary-card p {
+        font-size: 1rem;
     }
 }
