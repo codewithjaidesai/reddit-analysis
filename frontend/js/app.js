@@ -698,21 +698,269 @@ function exportCombinedSummaryPDF() {
     if (!window.combinedResultsData) return;
 
     const { combinedAnalysis, posts } = window.combinedResultsData;
+    const structured = combinedAnalysis.structured;
+    const researchContext = window.currentResearchContext || {};
 
-    // Create a temporary data structure for PDF export
-    window.currentAIInsights = combinedAnalysis.aiAnalysis;
-    window.currentExtractedData = {
-        post: {
-            title: `Combined Analysis: ${posts.length} posts`,
-            subreddit: combinedAnalysis.subreddits.join(', '),
-            score: posts.reduce((sum, p) => sum + (p.extractedData.post.score || 0), 0)
-        },
-        extractionStats: {
-            extracted: combinedAnalysis.totalComments
+    // Create a new window for PDF export
+    const printWindow = window.open('', '', 'width=900,height=700');
+
+    let insightsHtml = '';
+
+    if (structured) {
+        // Format structured data as readable HTML
+
+        // Executive Summary
+        if (structured.executiveSummary) {
+            insightsHtml += `
+                <div class="section executive-summary">
+                    <h2>📋 Executive Summary</h2>
+                    <p class="summary-text">${escapeHtml(structured.executiveSummary)}</p>
+                </div>
+            `;
         }
-    };
 
-    exportInsightsPDF();
+        // Top Quotes
+        if (structured.topQuotes && structured.topQuotes.length > 0) {
+            insightsHtml += `
+                <div class="section">
+                    <h2>💬 Key Quotes from Reddit Users</h2>
+                    <div class="quotes-list">
+                        ${structured.topQuotes.map(q => `
+                            <div class="quote-item quote-${(q.type || 'insight').toLowerCase()}">
+                                <span class="quote-badge">${q.type || 'INSIGHT'}</span>
+                                <blockquote>"${escapeHtml(q.quote)}"</blockquote>
+                                <cite>— Reddit User (${q.subreddit || 'Unknown'})</cite>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // For Your Goal
+        if (structured.forYourGoal && structured.forYourGoal.length > 0) {
+            insightsHtml += `
+                <div class="section goal-section">
+                    <h2>🎯 For Your Goal: "${escapeHtml(researchContext.goal || 'Insights')}"</h2>
+                    <ul class="goal-list">
+                        ${structured.forYourGoal.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Key Insights
+        if (structured.keyInsights && structured.keyInsights.length > 0) {
+            insightsHtml += `
+                <div class="section">
+                    <h2>💡 Key Insights</h2>
+                    <div class="insights-list">
+                        ${structured.keyInsights.map(insight => `
+                            <div class="insight-item">
+                                <h3>${escapeHtml(insight.title)} <span class="sentiment ${insight.sentiment || 'neutral'}">${insight.sentiment || 'neutral'}</span></h3>
+                                <p>${escapeHtml(insight.description)}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Confidence
+        if (structured.confidence) {
+            insightsHtml += `
+                <div class="section confidence-section">
+                    <h2>📊 Analysis Confidence</h2>
+                    <p><strong>Level:</strong> <span class="confidence-badge ${structured.confidence.level || 'medium'}">${(structured.confidence.level || 'medium').toUpperCase()}</span></p>
+                    <p><strong>Reason:</strong> ${escapeHtml(structured.confidence.reason || 'Based on available data')}</p>
+                </div>
+            `;
+        }
+    } else {
+        // Fallback to raw text
+        insightsHtml = `<div class="section"><div class="raw-content">${formatMarkdown(combinedAnalysis.aiAnalysis)}</div></div>`;
+    }
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>AI Insights - Combined Analysis</title>
+            <style>
+                body {
+                    font-family: 'Georgia', 'Times New Roman', serif;
+                    line-height: 1.7;
+                    max-width: 850px;
+                    margin: 0 auto;
+                    padding: 30px;
+                    color: #2d3748;
+                    background: white;
+                }
+                h1 {
+                    color: #1a202c;
+                    border-bottom: 3px solid #667eea;
+                    padding-bottom: 15px;
+                    margin-bottom: 10px;
+                    font-size: 26px;
+                }
+                h2 {
+                    color: #2d3748;
+                    margin-top: 30px;
+                    margin-bottom: 15px;
+                    font-size: 20px;
+                    border-left: 4px solid #667eea;
+                    padding-left: 12px;
+                }
+                h3 {
+                    color: #4a5568;
+                    font-size: 16px;
+                    margin-bottom: 8px;
+                }
+                .header-meta {
+                    background: #f7fafc;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 20px 0 30px 0;
+                    font-size: 14px;
+                    color: #4a5568;
+                }
+                .header-meta strong { color: #2d3748; }
+                .section {
+                    margin-bottom: 30px;
+                    page-break-inside: avoid;
+                }
+                .executive-summary {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 25px;
+                    border-radius: 12px;
+                    margin: 20px 0;
+                }
+                .executive-summary h2 {
+                    color: white;
+                    border-left-color: white;
+                    margin-top: 0;
+                }
+                .executive-summary .summary-text {
+                    font-size: 16px;
+                    line-height: 1.8;
+                }
+                .quote-item {
+                    border-left: 4px solid #667eea;
+                    padding: 15px;
+                    margin: 15px 0;
+                    background: #f7fafc;
+                    page-break-inside: avoid;
+                }
+                .quote-item.quote-warning { border-left-color: #f6ad55; background: #fffaf0; }
+                .quote-item.quote-tip { border-left-color: #48bb78; background: #f0fff4; }
+                .quote-item.quote-complaint { border-left-color: #f56565; background: #fff5f5; }
+                .quote-badge {
+                    display: inline-block;
+                    padding: 3px 8px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    background: #667eea;
+                    color: white;
+                    margin-bottom: 10px;
+                }
+                .quote-item.quote-warning .quote-badge { background: #dd6b20; }
+                .quote-item.quote-tip .quote-badge { background: #38a169; }
+                .quote-item.quote-complaint .quote-badge { background: #e53e3e; }
+                blockquote {
+                    font-style: italic;
+                    margin: 10px 0;
+                    font-size: 15px;
+                    line-height: 1.6;
+                }
+                cite {
+                    font-size: 13px;
+                    color: #718096;
+                }
+                .goal-section {
+                    background: #f0f4ff;
+                    padding: 20px;
+                    border-radius: 12px;
+                    border: 2px solid #667eea;
+                }
+                .goal-section h2 {
+                    margin-top: 0;
+                    color: #667eea;
+                }
+                .goal-list li {
+                    margin: 12px 0;
+                    font-size: 15px;
+                }
+                .insight-item {
+                    background: #f7fafc;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 12px 0;
+                    border: 1px solid #e2e8f0;
+                }
+                .sentiment {
+                    font-size: 12px;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    margin-left: 8px;
+                }
+                .sentiment.positive { background: #c6f6d5; color: #276749; }
+                .sentiment.negative { background: #fed7d7; color: #c53030; }
+                .sentiment.neutral { background: #e2e8f0; color: #4a5568; }
+                .confidence-badge {
+                    padding: 4px 12px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }
+                .confidence-badge.high { background: #c6f6d5; color: #276749; }
+                .confidence-badge.medium { background: #feebc8; color: #c05621; }
+                .confidence-badge.low { background: #fed7d7; color: #c53030; }
+                .footer {
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e2e8f0;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #a0aec0;
+                }
+                @media print {
+                    body { margin: 0; padding: 20px; }
+                    .no-print { display: none !important; }
+                    .executive-summary { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>🤖 AI-Powered Content Intelligence</h1>
+
+            <div class="header-meta">
+                <strong>Analysis of:</strong> Combined Analysis: ${posts.length} posts<br>
+                <strong>Generated:</strong> ${new Date().toLocaleString()}<br>
+                <strong>Tool:</strong> Reddit Analyzer v2.0
+            </div>
+
+            ${insightsHtml}
+
+            <div class="footer">
+                Reddit Analyzer v2.0 • AI-Powered Business Intelligence<br>
+                Exported: ${new Date().toISOString()}
+            </div>
+
+            <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
+                <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    🖨️ Print / Save as PDF
+                </button>
+                <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    ✕ Close
+                </button>
+            </div>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
 }
 
 // Copy combined summary to clipboard
@@ -720,7 +968,66 @@ function copyCombinedSummary() {
     if (!window.combinedResultsData) return;
 
     const { combinedAnalysis } = window.combinedResultsData;
-    navigator.clipboard.writeText(combinedAnalysis.aiAnalysis).then(() => {
+    const structured = combinedAnalysis.structured;
+    const researchContext = window.currentResearchContext || {};
+
+    let text = '';
+
+    if (structured) {
+        // Format structured data as readable text
+        text += '═══════════════════════════════════════════════════════════════\n';
+        text += 'AI ANALYSIS SUMMARY\n';
+        text += '═══════════════════════════════════════════════════════════════\n\n';
+
+        if (structured.executiveSummary) {
+            text += '📋 EXECUTIVE SUMMARY\n';
+            text += '─────────────────────\n';
+            text += structured.executiveSummary + '\n\n';
+        }
+
+        if (structured.topQuotes && structured.topQuotes.length > 0) {
+            text += '💬 KEY QUOTES\n';
+            text += '─────────────────────\n';
+            structured.topQuotes.forEach((q, i) => {
+                text += `[${q.type || 'INSIGHT'}] "${q.quote}"\n`;
+                text += `   — Reddit User (${q.subreddit || 'Unknown'})\n\n`;
+            });
+        }
+
+        if (structured.forYourGoal && structured.forYourGoal.length > 0) {
+            text += `🎯 FOR YOUR GOAL: "${researchContext.goal || 'Insights'}"\n`;
+            text += '─────────────────────\n';
+            structured.forYourGoal.forEach((item, i) => {
+                text += `• ${item}\n`;
+            });
+            text += '\n';
+        }
+
+        if (structured.keyInsights && structured.keyInsights.length > 0) {
+            text += '💡 KEY INSIGHTS\n';
+            text += '─────────────────────\n';
+            structured.keyInsights.forEach((insight, i) => {
+                text += `${i + 1}. ${insight.title} [${insight.sentiment || 'neutral'}]\n`;
+                text += `   ${insight.description}\n\n`;
+            });
+        }
+
+        if (structured.confidence) {
+            text += '📊 CONFIDENCE\n';
+            text += '─────────────────────\n';
+            text += `Level: ${(structured.confidence.level || 'medium').toUpperCase()}\n`;
+            text += `Reason: ${structured.confidence.reason || 'Based on available data'}\n\n`;
+        }
+
+        text += '═══════════════════════════════════════════════════════════════\n';
+        text += `Generated: ${new Date().toLocaleString()}\n`;
+        text += 'Tool: Reddit Analyzer v2.0\n';
+    } else {
+        // Fallback to raw text
+        text = combinedAnalysis.aiAnalysis;
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
         alert('Combined summary copied to clipboard!');
     });
 }
