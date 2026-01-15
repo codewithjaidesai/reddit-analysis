@@ -46,34 +46,62 @@
                     </div>
                     <p class="hint">Example: https://www.reddit.com/r/AskReddit/comments/...</p>
 
-                    <!-- Role & Goal Section for URL Tab -->
-                    <div class="role-goal-section" style="margin-top: 15px;">
-                        <div class="role-input-group">
-                            <label for="urlUserRole" class="context-label">
-                                👤 Your Role
-                            </label>
-                            <input
-                                type="text"
-                                id="urlUserRole"
-                                placeholder="e.g., Product Manager, Marketer, Founder"
-                                class="url-input"
-                            />
-                        </div>
-                        <div class="goal-input-group">
-                            <label for="urlUserGoal" class="context-label">
-                                🎯 Your Goal
-                            </label>
-                            <input
-                                type="text"
-                                id="urlUserGoal"
-                                placeholder="e.g., find pain points, validate idea, generate content angles"
-                                class="url-input"
-                            />
+                    <!-- Research Goal Section -->
+                    <div class="research-goal-section">
+                        <h3 class="section-label">🎯 Research Goal</h3>
+
+                        <div class="persona-outcome-container">
+                            <!-- Persona Selection -->
+                            <div class="persona-selection">
+                                <label class="selection-label">SELECT PERSONA</label>
+                                <div class="persona-cards" id="urlPersonaCards">
+                                    <div class="persona-card" data-persona="product_manager" onclick="selectPersona('url', 'product_manager')">
+                                        <span class="persona-icon">🏢</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Product Manager</span>
+                                            <span class="persona-desc">Find market gaps & validate features</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="marketer" onclick="selectPersona('url', 'marketer')">
+                                        <span class="persona-icon">📢</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Marketer / Copywriter</span>
+                                            <span class="persona-desc">Find hooks & customer language</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="content_creator" onclick="selectPersona('url', 'content_creator')">
+                                        <span class="persona-icon">🎬</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Content Creator</span>
+                                            <span class="persona-desc">Find video ideas & trending topics</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="custom" onclick="selectPersona('url', 'custom')">
+                                        <span class="persona-icon">⚙️</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Custom / Other</span>
+                                            <span class="persona-desc">Define your own research parameters</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Outcome Selection -->
+                            <div class="outcome-selection" id="urlOutcomeSelection" style="display: none;">
+                                <label class="selection-label" id="urlOutcomeLabel">SELECT SPECIFIC OUTCOME</label>
+                                <div class="outcome-options" id="urlOutcomeOptions">
+                                    <!-- Options populated by JS based on persona -->
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <button id="analyzeBtn" class="analyze-btn" onclick="handleAnalyzeUrl()" style="margin-top: 15px;">
-                        <span class="btn-text">Analyze</span>
+                    <!-- Hidden fields to store role/goal values -->
+                    <input type="hidden" id="urlUserRole" />
+                    <input type="hidden" id="urlUserGoal" />
+
+                    <button id="analyzeBtn" class="analyze-btn start-research-btn" onclick="handleAnalyzeUrl()">
+                        <span class="btn-text">🔍 Start Research</span>
                         <span class="btn-loader" style="display: none;">
                             <span class="spinner"></span>
                         </span>
@@ -101,32 +129,26 @@
                         <p class="hint">Use keywords for best results (e.g., "weight training shoes budget" not full sentences)</p>
                     </div>
 
-                    <!-- Role & Goal Section -->
-                    <div class="role-goal-section">
-                        <div class="role-input-group">
-                            <label for="userRole" class="context-label">
-                                👤 Your Role
-                            </label>
-                            <input
-                                type="text"
-                                id="userRole"
-                                placeholder="e.g., Product Manager, Marketer, Founder, Content Creator"
-                                class="url-input"
-                            />
-                            <p class="hint">What's your role? This tailors insights to your decision-making needs</p>
+                    <!-- Search Filters Row -->
+                    <div class="search-filters-row">
+                        <div class="filter-group">
+                            <label>⏱️ TIME RANGE</label>
+                            <select id="topicTimeRange" class="select-input">
+                                <option value="day">Past 24 Hours</option>
+                                <option value="week" selected>Past Week</option>
+                                <option value="month">Past Month</option>
+                                <option value="year">Past Year</option>
+                                <option value="all">All Time</option>
+                            </select>
                         </div>
-
-                        <div class="goal-input-group">
-                            <label for="userGoal" class="context-label">
-                                🎯 Your Goal
-                            </label>
-                            <input
-                                type="text"
-                                id="userGoal"
-                                placeholder="e.g., find pain points, validate idea, improve positioning, generate content angles"
-                                class="url-input"
-                            />
-                            <p class="hint">What do you want to learn? This focuses the analysis on actionable outcomes</p>
+                        <div class="filter-group">
+                            <label>📊 MAX RESULTS</label>
+                            <select id="topicLimit" class="select-input">
+                                <option value="10">10 posts</option>
+                                <option value="15" selected>15 posts</option>
+                                <option value="25">25 posts</option>
+                                <option value="50">50 posts</option>
+                            </select>
                         </div>
                     </div>
 
@@ -173,33 +195,63 @@
                         </div>
                     </div>
 
-                    <!-- Search Filters -->
-                    <div class="search-form">
-                        <div class="filter-row">
-                            <div class="filter-group">
-                                <label>Time Range:</label>
-                                <select id="topicTimeRange" class="select-input">
-                                    <option value="day">Past 24 Hours</option>
-                                    <option value="week" selected>Past Week</option>
-                                    <option value="month">Past Month</option>
-                                    <option value="year">Past Year</option>
-                                    <option value="all">All Time</option>
-                                </select>
+                    <!-- Research Goal Section -->
+                    <div class="research-goal-section">
+                        <h3 class="section-label">🎯 Research Goal</h3>
+
+                        <div class="persona-outcome-container">
+                            <!-- Persona Selection -->
+                            <div class="persona-selection">
+                                <label class="selection-label">SELECT PERSONA</label>
+                                <div class="persona-cards" id="topicPersonaCards">
+                                    <div class="persona-card" data-persona="product_manager" onclick="selectPersona('topic', 'product_manager')">
+                                        <span class="persona-icon">🏢</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Product Manager</span>
+                                            <span class="persona-desc">Find market gaps & validate features</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="marketer" onclick="selectPersona('topic', 'marketer')">
+                                        <span class="persona-icon">📢</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Marketer / Copywriter</span>
+                                            <span class="persona-desc">Find hooks & customer language</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="content_creator" onclick="selectPersona('topic', 'content_creator')">
+                                        <span class="persona-icon">🎬</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Content Creator</span>
+                                            <span class="persona-desc">Find video ideas & trending topics</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="custom" onclick="selectPersona('topic', 'custom')">
+                                        <span class="persona-icon">⚙️</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Custom / Other</span>
+                                            <span class="persona-desc">Define your own research parameters</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="filter-group">
-                                <label>Max Results:</label>
-                                <select id="topicLimit" class="select-input">
-                                    <option value="10">10 posts</option>
-                                    <option value="15" selected>15 posts</option>
-                                    <option value="25">25 posts</option>
-                                    <option value="50">50 posts</option>
-                                </select>
+
+                            <!-- Outcome Selection -->
+                            <div class="outcome-selection" id="topicOutcomeSelection" style="display: none;">
+                                <label class="selection-label" id="topicOutcomeLabel">SELECT SPECIFIC OUTCOME</label>
+                                <div class="outcome-options" id="topicOutcomeOptions">
+                                    <!-- Options populated by JS based on persona -->
+                                </div>
                             </div>
                         </div>
-                        <button class="analyze-btn" onclick="handleSearchByTopic()">
-                            🔍 Search & Analyze
-                        </button>
                     </div>
+
+                    <!-- Hidden fields to store role/goal values -->
+                    <input type="hidden" id="userRole" />
+                    <input type="hidden" id="userGoal" />
+
+                    <button class="analyze-btn start-research-btn" onclick="handleSearchByTopic()">
+                        🔍 Start Research
+                    </button>
                 </div>
 
                 <!-- Topic Search Results -->
@@ -232,66 +284,94 @@
             <div id="subredditTab" class="tab-content" style="display: none;">
                 <div class="input-section">
                     <h2>Analyze Subreddit Top Posts</h2>
-                    <div class="search-form">
-                        <div class="input-group">
-                            <input
-                                type="text"
-                                id="subredditName"
-                                placeholder="Enter subreddit name (without r/)..."
-                                class="url-input"
-                            />
-                        </div>
-
-                        <!-- Role & Goal Section for Subreddit Tab -->
-                        <div class="role-goal-section">
-                            <div class="role-input-group">
-                                <label for="subredditUserRole" class="context-label">
-                                    👤 Your Role
-                                </label>
-                                <input
-                                    type="text"
-                                    id="subredditUserRole"
-                                    placeholder="e.g., Product Manager, Marketer, Founder"
-                                    class="url-input"
-                                />
-                            </div>
-                            <div class="goal-input-group">
-                                <label for="subredditUserGoal" class="context-label">
-                                    🎯 Your Goal
-                                </label>
-                                <input
-                                    type="text"
-                                    id="subredditUserGoal"
-                                    placeholder="e.g., find pain points, validate idea, generate content angles"
-                                    class="url-input"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="filter-row">
-                            <div class="filter-group">
-                                <label>Time Range:</label>
-                                <select id="subredditTimeRange" class="select-input">
-                                    <option value="day">Past 24 Hours</option>
-                                    <option value="week" selected>Past Week</option>
-                                    <option value="month">Past Month</option>
-                                    <option value="year">Past Year</option>
-                                </select>
-                            </div>
-                            <div class="filter-group">
-                                <label>Max Results:</label>
-                                <select id="subredditLimit" class="select-input">
-                                    <option value="10">10 posts</option>
-                                    <option value="15" selected>15 posts</option>
-                                    <option value="25">25 posts</option>
-                                    <option value="50">50 posts</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button class="analyze-btn" onclick="handleSearchSubreddit()">
-                            📊 Get Top Posts
-                        </button>
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            id="subredditName"
+                            placeholder="Enter subreddit name (without r/)..."
+                            class="url-input"
+                        />
                     </div>
+
+                    <!-- Search Filters Row -->
+                    <div class="search-filters-row">
+                        <div class="filter-group">
+                            <label>⏱️ TIME RANGE</label>
+                            <select id="subredditTimeRange" class="select-input">
+                                <option value="day">Past 24 Hours</option>
+                                <option value="week" selected>Past Week</option>
+                                <option value="month">Past Month</option>
+                                <option value="year">Past Year</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>📊 MAX RESULTS</label>
+                            <select id="subredditLimit" class="select-input">
+                                <option value="10">10 posts</option>
+                                <option value="15" selected>15 posts</option>
+                                <option value="25">25 posts</option>
+                                <option value="50">50 posts</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Research Goal Section -->
+                    <div class="research-goal-section">
+                        <h3 class="section-label">🎯 Research Goal</h3>
+
+                        <div class="persona-outcome-container">
+                            <!-- Persona Selection -->
+                            <div class="persona-selection">
+                                <label class="selection-label">SELECT PERSONA</label>
+                                <div class="persona-cards" id="subredditPersonaCards">
+                                    <div class="persona-card" data-persona="product_manager" onclick="selectPersona('subreddit', 'product_manager')">
+                                        <span class="persona-icon">🏢</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Product Manager</span>
+                                            <span class="persona-desc">Find market gaps & validate features</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="marketer" onclick="selectPersona('subreddit', 'marketer')">
+                                        <span class="persona-icon">📢</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Marketer / Copywriter</span>
+                                            <span class="persona-desc">Find hooks & customer language</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="content_creator" onclick="selectPersona('subreddit', 'content_creator')">
+                                        <span class="persona-icon">🎬</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Content Creator</span>
+                                            <span class="persona-desc">Find video ideas & trending topics</span>
+                                        </div>
+                                    </div>
+                                    <div class="persona-card" data-persona="custom" onclick="selectPersona('subreddit', 'custom')">
+                                        <span class="persona-icon">⚙️</span>
+                                        <div class="persona-info">
+                                            <span class="persona-name">Custom / Other</span>
+                                            <span class="persona-desc">Define your own research parameters</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Outcome Selection -->
+                            <div class="outcome-selection" id="subredditOutcomeSelection" style="display: none;">
+                                <label class="selection-label" id="subredditOutcomeLabel">SELECT SPECIFIC OUTCOME</label>
+                                <div class="outcome-options" id="subredditOutcomeOptions">
+                                    <!-- Options populated by JS based on persona -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden fields to store role/goal values -->
+                    <input type="hidden" id="subredditUserRole" />
+                    <input type="hidden" id="subredditUserGoal" />
+
+                    <button class="analyze-btn start-research-btn" onclick="handleSearchSubreddit()">
+                        🔍 Start Research
+                    </button>
                 </div>
 
                 <!-- Subreddit Search Results -->
