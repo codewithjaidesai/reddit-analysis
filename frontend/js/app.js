@@ -67,21 +67,18 @@ async function handleAnalyzeUrl() {
 }
 
 /**
- * Toggle search method input visibility
+ * Get current search method (supports both dropdown and radio buttons)
  */
-function toggleSearchMethod() {
-    const selectedMethod = document.querySelector('input[name="searchMethod"]:checked').value;
-
-    // Hide all method-specific inputs
-    document.getElementById('subredditMethodInput').style.display = 'none';
-    document.getElementById('urlMethodInput').style.display = 'none';
-
-    // Show relevant input based on selection
-    if (selectedMethod === 'subreddits') {
-        document.getElementById('subredditMethodInput').style.display = 'block';
-    } else if (selectedMethod === 'urls') {
-        document.getElementById('urlMethodInput').style.display = 'block';
+function getSearchMethod() {
+    // Try dropdown first (new UI)
+    const dropdown = document.getElementById('searchMethodDropdown');
+    if (dropdown) {
+        return dropdown.value;
     }
+
+    // Fallback to radio buttons (legacy)
+    const radio = document.querySelector('input[name="searchMethod"]:checked');
+    return radio ? radio.value : 'reddit';
 }
 
 /**
@@ -97,7 +94,7 @@ async function handleSearchByTopic() {
 
     const role = document.getElementById('userRole').value.trim();
     const goal = document.getElementById('userGoal').value.trim();
-    const searchMethod = document.querySelector('input[name="searchMethod"]:checked').value;
+    const searchMethod = getSearchMethod();
     const timeRange = document.getElementById('topicTimeRange').value;
     const limit = parseInt(document.getElementById('topicLimit').value);
 

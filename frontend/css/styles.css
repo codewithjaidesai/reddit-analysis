@@ -856,9 +856,95 @@ main {
 }
 
 /* ============================================
-   SEARCH FILTERS ROW
+   ADVANCED OPTIONS (Subtle filters at bottom)
    ============================================ */
 
+.advanced-options {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.advanced-options-row {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+}
+
+.advanced-options .option-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.advanced-options .option-group label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.subtle-select {
+    padding: 6px 28px 6px 10px;
+    font-size: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    color: var(--text-primary);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23718096' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    min-width: 100px;
+}
+
+.subtle-select:hover {
+    border-color: var(--primary);
+}
+
+.subtle-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.conditional-input {
+    margin-top: 12px;
+}
+
+.subtle-text-input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+}
+
+.subtle-text-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.subtle-textarea {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.subtle-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+/* Legacy - keep for backwards compatibility */
 .search-filters-row {
     display: flex;
     gap: 20px;
