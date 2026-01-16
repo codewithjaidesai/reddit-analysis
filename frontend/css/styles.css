@@ -2331,3 +2331,287 @@ footer a {
     background: var(--primary);
     border-radius: 2px;
 }
+
+/* ============================================
+   ANALYSIS OUTPUT TABS
+   ============================================ */
+
+.analysis-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: var(--bg-card);
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+}
+
+.analysis-tab {
+    flex: 1;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.analysis-tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.analysis-tab.active {
+    background: var(--primary);
+    color: white;
+}
+
+.analysis-tab-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.analysis-tab.active .analysis-tab-badge {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.analysis-tab:not(.active) .analysis-tab-badge {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.analysis-tab-content {
+    display: none;
+}
+
+.analysis-tab-content.active {
+    display: block;
+}
+
+/* ============================================
+   RE-ANALYZE & ANALYSIS HISTORY
+   ============================================ */
+
+.reanalyze-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.reanalyze-bar-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.reanalyze-bar-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.reanalyze-bar-current {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.reanalyze-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--primary);
+    color: var(--primary-light);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.reanalyze-btn:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/* Analysis History */
+.analysis-history {
+    margin-bottom: 24px;
+}
+
+.analysis-history-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.history-tab {
+    padding: 10px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-tab:hover {
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.history-tab.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.history-tab-number {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.history-tab:not(.active) .history-tab-number {
+    background: var(--bg-elevated);
+}
+
+/* Re-analyze Modal */
+.reanalyze-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.reanalyze-modal.show {
+    display: flex;
+}
+
+.reanalyze-modal-content {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.reanalyze-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.reanalyze-modal-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.reanalyze-modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.reanalyze-modal-close:hover {
+    background: var(--error);
+    color: white;
+}
+
+.reanalyze-modal-body {
+    margin-bottom: 20px;
+}
+
+.reanalyze-modal-section {
+    margin-bottom: 20px;
+}
+
+.reanalyze-modal-section-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.reanalyze-modal-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.reanalyze-modal-btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.reanalyze-modal-btn.secondary {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
+.reanalyze-modal-btn.secondary:hover {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+.reanalyze-modal-btn.primary {
+    background: var(--primary);
+    border: none;
+    color: white;
+}
+
+.reanalyze-modal-btn.primary:hover {
+    background: var(--primary-dark);
+}

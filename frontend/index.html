@@ -487,6 +487,68 @@
 
     </div>
 
+    <!-- Re-analyze Modal -->
+    <div id="reanalyzeModal" class="reanalyze-modal" onclick="closeReanalyzeModal(event)">
+        <div class="reanalyze-modal-content" onclick="event.stopPropagation()">
+            <div class="reanalyze-modal-header">
+                <h3 class="reanalyze-modal-title">Re-analyze with Different Goal</h3>
+                <button class="reanalyze-modal-close" onclick="closeReanalyzeModal()">&times;</button>
+            </div>
+            <div class="reanalyze-modal-body">
+                <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+                    Use the same Reddit data but get insights from a different perspective.
+                </p>
+
+                <div class="reanalyze-modal-section">
+                    <div class="reanalyze-modal-section-title">Select Persona</div>
+                    <div class="persona-cards" id="reanalyzePersonaCards">
+                        <div class="persona-card" data-persona="product_manager" onclick="selectReanalyzePersona('product_manager')">
+                            <span class="persona-icon">PM</span>
+                            <div class="persona-info">
+                                <span class="persona-name">Product Manager</span>
+                                <span class="persona-desc">Find market gaps & validate features</span>
+                            </div>
+                        </div>
+                        <div class="persona-card" data-persona="marketer" onclick="selectReanalyzePersona('marketer')">
+                            <span class="persona-icon">MK</span>
+                            <div class="persona-info">
+                                <span class="persona-name">Marketer / Copywriter</span>
+                                <span class="persona-desc">Find hooks & customer language</span>
+                            </div>
+                        </div>
+                        <div class="persona-card" data-persona="content_creator" onclick="selectReanalyzePersona('content_creator')">
+                            <span class="persona-icon">CC</span>
+                            <div class="persona-info">
+                                <span class="persona-name">Content Creator</span>
+                                <span class="persona-desc">Find video ideas & trending topics</span>
+                            </div>
+                        </div>
+                        <div class="persona-card" data-persona="custom" onclick="selectReanalyzePersona('custom')">
+                            <span class="persona-icon">+</span>
+                            <div class="persona-info">
+                                <span class="persona-name">Custom / Other</span>
+                                <span class="persona-desc">Define your own research parameters</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reanalyze-modal-section" id="reanalyzeOutcomeSection" style="display: none;">
+                    <div class="reanalyze-modal-section-title" id="reanalyzeOutcomeLabel">Select Outcome</div>
+                    <div class="outcome-options" id="reanalyzeOutcomeOptions">
+                        <!-- Options populated by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="reanalyze-modal-footer">
+                <button class="reanalyze-modal-btn secondary" onclick="closeReanalyzeModal()">Cancel</button>
+                <button class="reanalyze-modal-btn primary" id="reanalyzeSubmitBtn" onclick="submitReanalyze()" disabled>
+                    Re-analyze
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>

@@ -199,4 +199,40 @@ router.post('/combined', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/analyze/reanalyze
+ * Re-analyze already-extracted posts with a different role/goal (no re-extraction)
+ */
+router.post('/reanalyze', async (req, res) => {
+  try {
+    const { postsData, role, goal } = req.body;
+
+    if (!postsData || !Array.isArray(postsData) || postsData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Posts data array is required'
+      });
+    }
+
+    console.log(`Re-analyzing ${postsData.length} posts with new perspective`);
+    if (role) console.log('New role:', role);
+    if (goal) console.log('New goal:', goal);
+
+    // Generate combined analysis with new role/goal (skip extraction)
+    const combinedInsights = await generateCombinedInsights(postsData, role, goal);
+
+    res.json({
+      success: true,
+      combinedAnalysis: combinedInsights
+    });
+
+  } catch (error) {
+    console.error('Re-analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
