@@ -420,7 +420,7 @@ function exportToPDF() {
             </style>
         </head>
         <body>
-            <h1>📄 ${escapeHtml(post.title)}</h1>
+            <h1>${escapeHtml(post.title)}</h1>
 
             <div class="meta">
                 Posted by u/${escapeHtml(post.author)} •
@@ -472,7 +472,7 @@ function exportToPDF() {
 
             <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
                 <button onclick="window.print()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
-                    🖨️ Print / Save as PDF
+                    Print / Save as PDF
                 </button>
                 <button onclick="window.close()" style="padding: 10px 20px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px;">
                     ✕ Close
@@ -577,7 +577,7 @@ function exportInsightsPDF() {
             </style>
         </head>
         <body>
-            <h1>🤖 AI-Powered Content Intelligence</h1>
+            <h1>AI-Powered Content Intelligence</h1>
 
             <div class="header-meta">
                 <strong>Analysis of:</strong> ${escapeHtml(postTitle)}<br>
@@ -597,7 +597,7 @@ function exportInsightsPDF() {
 
             <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
                 <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🖨️ Print / Save as PDF
+                    Print / Save as PDF
                 </button>
                 <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     ✕ Close
@@ -777,7 +777,8 @@ const personaOutcomes = {
             { id: 'pain_points', label: 'Identify Pain Points & Complaints' },
             { id: 'competitor', label: 'Analyze Competitor Weaknesses' },
             { id: 'validate', label: 'Validate a New Feature Idea' },
-            { id: 'unmet_needs', label: 'Discover Unmet Needs' }
+            { id: 'unmet_needs', label: 'Discover Unmet Needs' },
+            { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
         ]
     },
     marketer: {
@@ -786,7 +787,8 @@ const personaOutcomes = {
             { id: 'voice', label: "Extract 'Voice of Customer' Lingo" },
             { id: 'objections', label: 'Identify Buying Objections' },
             { id: 'viral', label: 'Find Viral Marketing Angles' },
-            { id: 'sentiment', label: 'Analyze Sentiment Drivers' }
+            { id: 'sentiment', label: 'Analyze Sentiment Drivers' },
+            { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
         ]
     },
     content_creator: {
@@ -795,7 +797,8 @@ const personaOutcomes = {
             { id: 'content_gaps', label: 'Find Content Gaps & Questions' },
             { id: 'polarizing', label: 'Identify Polarizing Topics' },
             { id: 'faq', label: 'Gather Q&A for FAQ Video' },
-            { id: 'trends', label: 'Spot Emerging Trends' }
+            { id: 'trends', label: 'Spot Emerging Trends' },
+            { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
         ]
     },
     custom: {
@@ -861,23 +864,27 @@ function selectPersona(tabId, personaId) {
         outcomeLabel.textContent = `SELECT SPECIFIC OUTCOME FOR ${persona.role.toUpperCase()}`;
 
         outcomeOptions.innerHTML = persona.outcomes.map((outcome, index) => `
-            <div class="outcome-option" onclick="selectOutcome('${tabId}', '${personaId}', '${outcome.id}', '${outcome.label}')">
+            <div class="outcome-option" onclick="selectOutcome('${tabId}', '${personaId}', '${outcome.id}', '${outcome.label}', ${outcome.isCustom || false})">
                 <input type="radio" name="${tabId}Outcome" id="${tabId}_${outcome.id}" ${index === 0 ? 'checked' : ''}>
                 <span>${outcome.label}</span>
             </div>
-        `).join('');
+        `).join('') + `
+            <div id="${tabId}FreeFormInput" class="free-form-input-container" style="display: none; grid-column: 1 / -1;">
+                <input type="text" id="${tabId}FreeFormGoal" placeholder="Describe your specific research goal..." class="free-form-goal-input" onchange="updateFreeFormGoal('${tabId}', '${personaId}')" oninput="updateFreeFormGoal('${tabId}', '${personaId}')">
+            </div>
+        `;
 
         outcomeSection.style.display = 'block';
 
         // Auto-select first outcome
-        selectOutcome(tabId, personaId, persona.outcomes[0].id, persona.outcomes[0].label);
+        selectOutcome(tabId, personaId, persona.outcomes[0].id, persona.outcomes[0].label, false);
     }
 }
 
 /**
  * Select an outcome option
  */
-function selectOutcome(tabId, personaId, outcomeId, outcomeLabel) {
+function selectOutcome(tabId, personaId, outcomeId, outcomeLabel, isCustom = false) {
     tabSelections[tabId].outcome = outcomeId;
 
     // Update UI
@@ -893,9 +900,35 @@ function selectOutcome(tabId, personaId, outcomeId, outcomeLabel) {
         radioBtn.closest('.outcome-option').classList.add('selected');
     }
 
-    // Update hidden fields
+    // Show/hide custom input for free_form option
+    const customInput = document.getElementById(`${tabId}FreeFormInput`);
+    if (isCustom || outcomeId === 'free_form') {
+        if (customInput) {
+            customInput.style.display = 'block';
+        }
+        // Use custom input value if available
+        const customValue = document.getElementById(`${tabId}FreeFormGoal`)?.value?.trim();
+        const persona = personaOutcomes[personaId];
+        updateHiddenFields(tabId, persona.role, customValue || 'Custom research goal');
+    } else {
+        if (customInput) {
+            customInput.style.display = 'none';
+        }
+        // Update hidden fields
+        const persona = personaOutcomes[personaId];
+        updateHiddenFields(tabId, persona.role, outcomeLabel);
+    }
+}
+
+/**
+ * Update free form goal when user types
+ */
+function updateFreeFormGoal(tabId, personaId) {
+    const customValue = document.getElementById(`${tabId}FreeFormGoal`)?.value?.trim();
     const persona = personaOutcomes[personaId];
-    updateHiddenFields(tabId, persona.role, outcomeLabel);
+    if (persona && customValue) {
+        updateHiddenFields(tabId, persona.role, customValue);
+    }
 }
 
 /**

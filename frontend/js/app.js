@@ -489,39 +489,19 @@ function displayCombinedResults(result, role, goal) {
                 <span>Goal: <strong>${goal || 'Extract insights'}</strong></span>
             </div>
             <div class="analysis-actions">
-                <button onclick="downloadAllRawData()" class="btn-export">📄 Export All Comments (PDF)</button>
-                <button onclick="exportCombinedSummaryPDF()" class="btn-export btn-primary">📊 Export Insights (PDF)</button>
+                <button onclick="downloadAllRawData()" class="btn-export">Export Comments (PDF)</button>
+                <button onclick="exportCombinedSummaryPDF()" class="btn-export primary">Export Insights (PDF)</button>
             </div>
         </div>
     `;
 
     // Check if we have structured data
     if (structured) {
-        // TOP QUOTES SECTION
-        if (structured.topQuotes && structured.topQuotes.length > 0) {
-            html += `
-                <div class="analysis-section">
-                    <h2 class="section-title">💬 Top Matches</h2>
-                    <p class="section-subtitle">Direct results for your request</p>
-                    <div class="quotes-grid">
-                        ${structured.topQuotes.map(q => `
-                            <div class="quote-card quote-${(q.type || 'insight').toLowerCase()}">
-                                <span class="quote-type-badge">${q.type || 'INSIGHT'}</span>
-                                <div class="quote-icon">❝</div>
-                                <p class="quote-text">"${escapeHtml(q.quote)}"</p>
-                                <p class="quote-source">— Reddit User (${q.subreddit || 'Unknown'})</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // EXECUTIVE SUMMARY
+        // EXECUTIVE SUMMARY (First)
         if (structured.executiveSummary) {
             html += `
                 <div class="analysis-section">
-                    <h2 class="section-title">📋 Executive Summary</h2>
+                    <h2 class="section-title">Executive Summary</h2>
                     <div class="summary-card">
                         <p>${escapeHtml(structured.executiveSummary)}</p>
                     </div>
@@ -533,7 +513,7 @@ function displayCombinedResults(result, role, goal) {
         if (structured.forYourGoal && structured.forYourGoal.length > 0) {
             html += `
                 <div class="analysis-section">
-                    <h2 class="section-title">🎯 For Your Goal: "${goal || 'Insights'}"</h2>
+                    <h2 class="section-title">For Your Goal: "${goal || 'Insights'}"</h2>
                     <div class="goal-answers">
                         ${structured.forYourGoal.map(item => `
                             <div class="goal-item">
@@ -550,7 +530,7 @@ function displayCombinedResults(result, role, goal) {
         if (structured.keyInsights && structured.keyInsights.length > 0) {
             html += `
                 <div class="analysis-section">
-                    <h2 class="section-title">💡 Key Insights</h2>
+                    <h2 class="section-title">Key Insights</h2>
                     <div class="insights-grid">
                         ${structured.keyInsights.map(insight => `
                             <div class="insight-card">
@@ -570,10 +550,30 @@ function displayCombinedResults(result, role, goal) {
         if (structured.confidence) {
             html += `
                 <div class="analysis-section">
-                    <h2 class="section-title">📊 Confidence</h2>
+                    <h2 class="section-title">Confidence</h2>
                     <div class="confidence-card confidence-${structured.confidence.level || 'medium'}">
                         <span class="confidence-level">${(structured.confidence.level || 'medium').toUpperCase()}</span>
                         <span class="confidence-reason">${escapeHtml(structured.confidence.reason || '')}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // TOP QUOTES SECTION (Last - supporting evidence)
+        if (structured.topQuotes && structured.topQuotes.length > 0) {
+            html += `
+                <div class="analysis-section">
+                    <h2 class="section-title">Supporting Quotes</h2>
+                    <p class="section-subtitle">Direct quotes from Reddit users</p>
+                    <div class="quotes-grid">
+                        ${structured.topQuotes.map(q => `
+                            <div class="quote-card quote-${(q.type || 'insight').toLowerCase()}">
+                                <span class="quote-type-badge">${q.type || 'INSIGHT'}</span>
+                                <div class="quote-icon">"</div>
+                                <p class="quote-text">"${escapeHtml(q.quote)}"</p>
+                                <p class="quote-source">— Reddit User (${q.subreddit || 'Unknown'})</p>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
@@ -593,7 +593,7 @@ function displayCombinedResults(result, role, goal) {
     html += `
         <div class="analysis-section" style="margin-top: 20px;">
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button onclick="copyCombinedSummary()" class="btn-secondary">📋 Copy Summary</button>
+                <button onclick="copyCombinedSummary()" class="btn-secondary">Copy Summary</button>
             </div>
         </div>
     `;
@@ -601,7 +601,7 @@ function displayCombinedResults(result, role, goal) {
     // Source Posts Section
     html += `
         <div class="result-card" style="margin-top: 20px;">
-            <h3 style="color: #2d3748; margin-bottom: 15px;">📖 Source Posts (Raw Data)</h3>
+            <h3 style="color: #2d3748; margin-bottom: 15px;">Source Posts (Raw Data)</h3>
             <div class="source-posts-list">
     `;
 
@@ -623,13 +623,13 @@ function displayCombinedResults(result, role, goal) {
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button onclick="exportSourcePostPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                            📄 PDF
+                            PDF
                         </button>
                         <button onclick="copySourcePostForAI(${index})" style="background: #9f7aea; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                            📋 Copy for AI
+                            Copy for AI
                         </button>
                         <button onclick="copySourcePostAsText(${index})" style="background: #48bb78; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                            📝 Copy Text
+                            Copy Text
                         </button>
                     </div>
                 </div>
@@ -662,10 +662,10 @@ function displayCombinedResults(result, role, goal) {
             </div>
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
                 <button onclick="downloadAllRawData()" style="background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
-                    📦 Download All Raw Data
+                    Download All Raw Data
                 </button>
                 <button onclick="copyAllForAI()" style="background: #9f7aea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
-                    📋 Copy All for AI
+                    Copy All for AI
                 </button>
             </div>
         </div>
@@ -710,7 +710,7 @@ function exportCombinedSummaryPDF() {
         if (structured.executiveSummary) {
             insightsHtml += `
                 <div class="section executive-summary">
-                    <h2>📋 Executive Summary</h2>
+                    <h2>Executive Summary</h2>
                     <p class="summary-text">${escapeHtml(structured.executiveSummary)}</p>
                 </div>
             `;
@@ -720,7 +720,7 @@ function exportCombinedSummaryPDF() {
         if (structured.topQuotes && structured.topQuotes.length > 0) {
             insightsHtml += `
                 <div class="section">
-                    <h2>💬 Key Quotes from Reddit Users</h2>
+                    <h2>Key Quotes from Reddit Users</h2>
                     <div class="quotes-list">
                         ${structured.topQuotes.map(q => `
                             <div class="quote-item quote-${(q.type || 'insight').toLowerCase()}">
@@ -738,7 +738,7 @@ function exportCombinedSummaryPDF() {
         if (structured.forYourGoal && structured.forYourGoal.length > 0) {
             insightsHtml += `
                 <div class="section goal-section">
-                    <h2>🎯 For Your Goal: "${escapeHtml(researchContext.goal || 'Insights')}"</h2>
+                    <h2>For Your Goal: "${escapeHtml(researchContext.goal || 'Insights')}"</h2>
                     <ul class="goal-list">
                         ${structured.forYourGoal.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
                     </ul>
@@ -750,7 +750,7 @@ function exportCombinedSummaryPDF() {
         if (structured.keyInsights && structured.keyInsights.length > 0) {
             insightsHtml += `
                 <div class="section">
-                    <h2>💡 Key Insights</h2>
+                    <h2>Key Insights</h2>
                     <div class="insights-list">
                         ${structured.keyInsights.map(insight => `
                             <div class="insight-item">
@@ -767,7 +767,7 @@ function exportCombinedSummaryPDF() {
         if (structured.confidence) {
             insightsHtml += `
                 <div class="section confidence-section">
-                    <h2>📊 Analysis Confidence</h2>
+                    <h2>Analysis Confidence</h2>
                     <p><strong>Level:</strong> <span class="confidence-badge ${structured.confidence.level || 'medium'}">${(structured.confidence.level || 'medium').toUpperCase()}</span></p>
                     <p><strong>Reason:</strong> ${escapeHtml(structured.confidence.reason || 'Based on available data')}</p>
                 </div>
@@ -929,7 +929,7 @@ function exportCombinedSummaryPDF() {
             </style>
         </head>
         <body>
-            <h1>🤖 AI-Powered Content Intelligence</h1>
+            <h1>AI-Powered Content Intelligence</h1>
 
             <div class="header-meta">
                 <strong>Analysis of:</strong> Combined Analysis: ${posts.length} posts<br>
@@ -946,10 +946,10 @@ function exportCombinedSummaryPDF() {
 
             <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
                 <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🖨️ Print / Save as PDF
+                    Print / Save as PDF
                 </button>
                 <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    ✕ Close
+                    Close
                 </button>
             </div>
         </body>
@@ -977,13 +977,13 @@ function copyCombinedSummary() {
         text += '═══════════════════════════════════════════════════════════════\n\n';
 
         if (structured.executiveSummary) {
-            text += '📋 EXECUTIVE SUMMARY\n';
+            text += 'EXECUTIVE SUMMARY\n';
             text += '─────────────────────\n';
             text += structured.executiveSummary + '\n\n';
         }
 
         if (structured.topQuotes && structured.topQuotes.length > 0) {
-            text += '💬 KEY QUOTES\n';
+            text += 'KEY QUOTES\n';
             text += '─────────────────────\n';
             structured.topQuotes.forEach((q, i) => {
                 text += `[${q.type || 'INSIGHT'}] "${q.quote}"\n`;
@@ -992,7 +992,7 @@ function copyCombinedSummary() {
         }
 
         if (structured.forYourGoal && structured.forYourGoal.length > 0) {
-            text += `🎯 FOR YOUR GOAL: "${researchContext.goal || 'Insights'}"\n`;
+            text += `FOR YOUR GOAL: "${researchContext.goal || 'Insights'}"\n`;
             text += '─────────────────────\n';
             structured.forYourGoal.forEach((item, i) => {
                 text += `• ${item}\n`;
@@ -1001,7 +1001,7 @@ function copyCombinedSummary() {
         }
 
         if (structured.keyInsights && structured.keyInsights.length > 0) {
-            text += '💡 KEY INSIGHTS\n';
+            text += 'KEY INSIGHTS\n';
             text += '─────────────────────\n';
             structured.keyInsights.forEach((insight, i) => {
                 text += `${i + 1}. ${insight.title} [${insight.sentiment || 'neutral'}]\n`;
@@ -1010,7 +1010,7 @@ function copyCombinedSummary() {
         }
 
         if (structured.confidence) {
-            text += '📊 CONFIDENCE\n';
+            text += 'CONFIDENCE\n';
             text += '─────────────────────\n';
             text += `Level: ${(structured.confidence.level || 'medium').toUpperCase()}\n`;
             text += `Reason: ${structured.confidence.reason || 'Based on available data'}\n\n`;
@@ -1262,7 +1262,7 @@ function downloadAllRawData() {
             </style>
         </head>
         <body>
-            <h1>📄 Reddit Comments Export</h1>
+            <h1>Reddit Comments Export</h1>
 
             <div class="header-meta">
                 <strong>Total Posts:</strong> ${posts.length}<br>
@@ -1281,10 +1281,10 @@ function downloadAllRawData() {
 
             <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
                 <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    🖨️ Print / Save as PDF
+                    Print / Save as PDF
                 </button>
                 <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    ✕ Close
+                    Close
                 </button>
             </div>
         </body>

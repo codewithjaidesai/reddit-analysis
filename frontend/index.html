@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🔍 Reddit Insight Analyzer</h1>
+            <h1>Reddit Insight Analyzer</h1>
             <p class="subtitle">Extract evidence-based insights from Reddit discussions</p>
             <div class="header-actions">
                 <select id="recentSearches" class="recent-searches-dropdown" style="display: none;" onchange="loadRecentSearch(this.value)">
@@ -22,13 +22,13 @@
             <!-- Tab Navigation -->
             <div class="tab-navigation">
                 <button class="tab-btn" onclick="switchTab('url')">
-                    🔗 Analyze URL
+                    Analyze URL
                 </button>
                 <button class="tab-btn active" onclick="switchTab('topic')">
-                    🔍 Topic Search
+                    Topic Search
                 </button>
                 <button class="tab-btn" onclick="switchTab('subreddit')">
-                    📊 Subreddit Analysis
+                    Subreddit Analysis
                 </button>
             </div>
 
@@ -48,7 +48,7 @@
 
                     <!-- Research Goal Section -->
                     <div class="research-goal-section">
-                        <h3 class="section-label">🎯 Research Goal</h3>
+                        <h3 class="section-label">Research Goal</h3>
 
                         <div class="persona-outcome-container">
                             <!-- Persona Selection -->
@@ -56,28 +56,28 @@
                                 <label class="selection-label">SELECT PERSONA</label>
                                 <div class="persona-cards" id="urlPersonaCards">
                                     <div class="persona-card" data-persona="product_manager" onclick="selectPersona('url', 'product_manager')">
-                                        <span class="persona-icon">🏢</span>
+                                        <span class="persona-icon">PM</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Product Manager</span>
                                             <span class="persona-desc">Find market gaps & validate features</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="marketer" onclick="selectPersona('url', 'marketer')">
-                                        <span class="persona-icon">📢</span>
+                                        <span class="persona-icon">MK</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Marketer / Copywriter</span>
                                             <span class="persona-desc">Find hooks & customer language</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="content_creator" onclick="selectPersona('url', 'content_creator')">
-                                        <span class="persona-icon">🎬</span>
+                                        <span class="persona-icon">CC</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Content Creator</span>
                                             <span class="persona-desc">Find video ideas & trending topics</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="custom" onclick="selectPersona('url', 'custom')">
-                                        <span class="persona-icon">⚙️</span>
+                                        <span class="persona-icon">+</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Custom / Other</span>
                                             <span class="persona-desc">Define your own research parameters</span>
@@ -101,7 +101,7 @@
                     <input type="hidden" id="urlUserGoal" />
 
                     <button id="analyzeBtn" class="analyze-btn start-research-btn" onclick="handleAnalyzeUrl()">
-                        <span class="btn-text">🔍 Start Research</span>
+                        <span class="btn-text">Start Research →</span>
                         <span class="btn-loader" style="display: none;">
                             <span class="spinner"></span>
                         </span>
@@ -117,7 +117,7 @@
                     <!-- Research Question (REQUIRED) -->
                     <div class="research-context-section">
                         <label for="researchQuestion" class="context-label">
-                            💡 What are you researching? <span class="required-tag">*</span>
+                            What are you researching? <span class="required-tag">*</span>
                         </label>
                         <textarea
                             id="researchQuestion"
@@ -131,7 +131,7 @@
 
                     <!-- Research Goal Section (PROMINENT - right after research input) -->
                     <div class="research-goal-section">
-                        <h3 class="section-label">🎯 Research Goal</h3>
+                        <h3 class="section-label">Research Goal</h3>
 
                         <div class="persona-outcome-container">
                             <!-- Persona Selection -->
@@ -139,28 +139,28 @@
                                 <label class="selection-label">SELECT PERSONA</label>
                                 <div class="persona-cards" id="topicPersonaCards">
                                     <div class="persona-card" data-persona="product_manager" onclick="selectPersona('topic', 'product_manager')">
-                                        <span class="persona-icon">🏢</span>
+                                        <span class="persona-icon">PM</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Product Manager</span>
                                             <span class="persona-desc">Find market gaps & validate features</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="marketer" onclick="selectPersona('topic', 'marketer')">
-                                        <span class="persona-icon">📢</span>
+                                        <span class="persona-icon">MK</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Marketer / Copywriter</span>
                                             <span class="persona-desc">Find hooks & customer language</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="content_creator" onclick="selectPersona('topic', 'content_creator')">
-                                        <span class="persona-icon">🎬</span>
+                                        <span class="persona-icon">CC</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Content Creator</span>
                                             <span class="persona-desc">Find video ideas & trending topics</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="custom" onclick="selectPersona('topic', 'custom')">
-                                        <span class="persona-icon">⚙️</span>
+                                        <span class="persona-icon">+</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Custom / Other</span>
                                             <span class="persona-desc">Define your own research parameters</span>
@@ -237,7 +237,7 @@
                     </div>
 
                     <button class="analyze-btn start-research-btn" onclick="handleSearchByTopic()">
-                        🔍 Start Research
+                        Start Research →
                     </button>
                 </div>
 
@@ -251,7 +251,7 @@
                         <div class="selected-summary">
                             <span id="topicSelectedCount">0 posts selected</span>
                             <button class="analyze-btn" onclick="analyzeTopicSelectedPosts()">
-                                📊 Analyze Selected Posts
+                                Analyze Selected →
                             </button>
                         </div>
                     </div>
@@ -260,7 +260,7 @@
                         <div class="selected-summary">
                             <span id="topicSelectedCountBottom">0 posts selected</span>
                             <button class="analyze-btn" onclick="analyzeTopicSelectedPosts()">
-                                📊 Analyze Selected Posts
+                                Analyze Selected →
                             </button>
                         </div>
                     </div>
@@ -287,7 +287,7 @@
 
                     <!-- Research Goal Section (PROMINENT) -->
                     <div class="research-goal-section">
-                        <h3 class="section-label">🎯 Research Goal</h3>
+                        <h3 class="section-label">Research Goal</h3>
 
                         <div class="persona-outcome-container">
                             <!-- Persona Selection -->
@@ -295,28 +295,28 @@
                                 <label class="selection-label">SELECT PERSONA</label>
                                 <div class="persona-cards" id="subredditPersonaCards">
                                     <div class="persona-card" data-persona="product_manager" onclick="selectPersona('subreddit', 'product_manager')">
-                                        <span class="persona-icon">🏢</span>
+                                        <span class="persona-icon">PM</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Product Manager</span>
                                             <span class="persona-desc">Find market gaps & validate features</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="marketer" onclick="selectPersona('subreddit', 'marketer')">
-                                        <span class="persona-icon">📢</span>
+                                        <span class="persona-icon">MK</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Marketer / Copywriter</span>
                                             <span class="persona-desc">Find hooks & customer language</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="content_creator" onclick="selectPersona('subreddit', 'content_creator')">
-                                        <span class="persona-icon">🎬</span>
+                                        <span class="persona-icon">CC</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Content Creator</span>
                                             <span class="persona-desc">Find video ideas & trending topics</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="custom" onclick="selectPersona('subreddit', 'custom')">
-                                        <span class="persona-icon">⚙️</span>
+                                        <span class="persona-icon">+</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Custom / Other</span>
                                             <span class="persona-desc">Define your own research parameters</span>
@@ -364,7 +364,7 @@
                     </div>
 
                     <button class="analyze-btn start-research-btn" onclick="handleSearchSubreddit()">
-                        🔍 Start Research
+                        Start Research →
                     </button>
                 </div>
 
@@ -378,7 +378,7 @@
                         <div class="selected-summary">
                             <span id="subredditSelectedCount">0 posts selected</span>
                             <button class="analyze-btn" onclick="analyzeSubredditSelectedPosts()">
-                                📊 Analyze Selected Posts
+                                Analyze Selected →
                             </button>
                         </div>
                     </div>
@@ -387,7 +387,7 @@
                         <div class="selected-summary">
                             <span id="subredditSelectedCountBottom">0 posts selected</span>
                             <button class="analyze-btn" onclick="analyzeSubredditSelectedPosts()">
-                                📊 Analyze Selected Posts
+                                Analyze Selected →
                             </button>
                         </div>
                     </div>
@@ -410,12 +410,12 @@
                 <!-- Extracted Data -->
                 <div id="extractedDataCard" class="result-card" style="display: none;">
                     <div class="card-header">
-                        <h2>📊 Extracted Comments</h2>
+                        <h2>Extracted Comments</h2>
                         <div style="display: flex; gap: 10px;">
-                            <button class="export-btn" onclick="exportToPDF()" style="background: #ed8936;">📄 Export PDF</button>
-                            <button class="export-btn" onclick="copyToClipboard()" style="background: #9f7aea;">📋 Copy for AI</button>
-                            <button class="export-btn" onclick="copyAsText()" style="background: #48bb78;">📝 Copy Text</button>
-                            <button class="export-btn" onclick="exportData()">💾 Export JSON</button>
+                            <button class="export-btn" onclick="exportToPDF()" style="background: #ed8936;">Export PDF</button>
+                            <button class="export-btn" onclick="copyToClipboard()" style="background: #9f7aea;">Copy for AI</button>
+                            <button class="export-btn" onclick="copyAsText()" style="background: #48bb78;">Copy Text</button>
+                            <button class="export-btn" onclick="exportData()">Export JSON</button>
                         </div>
                     </div>
                     <div id="extractedDataContent"></div>
@@ -424,8 +424,8 @@
                 <!-- AI Insights -->
                 <div id="insightsCard" class="result-card" style="display: none;">
                     <div class="card-header">
-                        <h2>🤖 AI-Powered Insights</h2>
-                        <button class="export-btn" onclick="exportInsightsPDF()">📄 Export PDF</button>
+                        <h2>AI-Powered Insights</h2>
+                        <button class="export-btn" onclick="exportInsightsPDF()">Export PDF</button>
                     </div>
                     <div id="insightsContent"></div>
                 </div>

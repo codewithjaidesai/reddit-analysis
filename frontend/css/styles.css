@@ -701,11 +701,11 @@ main {
 
 /* Research Context Section */
 .research-context-section {
-    background: #f0f4ff;
+    background: #f8fafc;
     padding: 20px;
     border-radius: 12px;
     margin-bottom: 20px;
-    border: 2px dashed var(--primary);
+    border: 1px solid #cbd5e0;
 }
 
 .context-label,
@@ -1043,7 +1043,8 @@ main {
 }
 
 .persona-icon {
-    font-size: 1.4rem;
+    font-size: 0.75rem;
+    font-weight: 700;
     width: 36px;
     height: 36px;
     display: flex;
@@ -1051,6 +1052,8 @@ main {
     justify-content: center;
     background: var(--bg-main);
     border-radius: 8px;
+    color: var(--primary);
+    letter-spacing: 0.5px;
 }
 
 .persona-card.selected .persona-icon {
@@ -1114,6 +1117,31 @@ main {
     font-size: 0.9rem;
     color: var(--text-primary);
     font-weight: 500;
+}
+
+/* Free Form Input for Custom Goals */
+.free-form-input-container {
+    margin-top: 12px;
+}
+
+.free-form-goal-input {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.free-form-goal-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.free-form-goal-input::placeholder {
+    color: var(--text-secondary);
 }
 
 /* Custom Role/Goal Inputs */
