@@ -111,157 +111,197 @@
 
             <!-- Tab 2: Topic Search -->
             <div id="topicTab" class="tab-content active">
-                <div class="input-section">
-                    <h2>Search Reddit by Topic</h2>
-
-                    <!-- Research Question (REQUIRED) -->
-                    <div class="research-context-section">
-                        <label for="researchQuestion" class="context-label">
-                            What are you researching? <span class="required-tag">*</span>
-                        </label>
-                        <textarea
-                            id="researchQuestion"
-                            placeholder="e.g., budget weight training shoes, notion vs evernote, best crm for startups"
-                            class="research-input"
-                            rows="2"
-                            required
-                        ></textarea>
-                        <p class="hint">Use keywords for best results (e.g., "weight training shoes budget" not full sentences)</p>
+                <!-- Collapsible Input Section -->
+                <div id="topicInputSection" class="collapsible-section">
+                    <!-- Collapsed Summary (shown when collapsed) -->
+                    <div class="collapsed-summary" onclick="toggleSection('topicInputSection')">
+                        <div class="collapsed-summary-content">
+                            <div class="collapsed-summary-icon">Q</div>
+                            <div class="collapsed-summary-text">
+                                <div class="collapsed-summary-title" id="topicInputCollapsedTitle">Search Parameters</div>
+                                <div class="collapsed-summary-subtitle" id="topicInputCollapsedSubtitle">Click to edit search</div>
+                            </div>
+                        </div>
+                        <div class="collapsed-summary-expand">
+                            Edit <span class="expand-arrow">▼</span>
+                        </div>
                     </div>
 
-                    <!-- Research Goal Section (PROMINENT - right after research input) -->
-                    <div class="research-goal-section">
-                        <h3 class="section-label">Research Goal</h3>
+                    <!-- Collapsible Content -->
+                    <div class="collapsible-content">
+                        <div class="input-section">
+                            <h2>Search Reddit by Topic</h2>
 
-                        <div class="persona-outcome-container">
-                            <!-- Persona Selection -->
-                            <div class="persona-selection">
-                                <label class="selection-label">SELECT PERSONA</label>
-                                <div class="persona-cards" id="topicPersonaCards">
-                                    <div class="persona-card" data-persona="product_manager" onclick="selectPersona('topic', 'product_manager')">
-                                        <span class="persona-icon">PM</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Product Manager</span>
-                                            <span class="persona-desc">Find market gaps & validate features</span>
+                            <!-- Research Question (REQUIRED) -->
+                            <div class="research-context-section">
+                                <label for="researchQuestion" class="context-label">
+                                    What are you researching? <span class="required-tag">*</span>
+                                </label>
+                                <textarea
+                                    id="researchQuestion"
+                                    placeholder="e.g., budget weight training shoes, notion vs evernote, best crm for startups"
+                                    class="research-input"
+                                    rows="2"
+                                    required
+                                ></textarea>
+                                <p class="hint">Use keywords for best results (e.g., "weight training shoes budget" not full sentences)</p>
+                            </div>
+
+                            <!-- Research Goal Section (PROMINENT - right after research input) -->
+                            <div class="research-goal-section">
+                                <h3 class="section-label">Research Goal</h3>
+
+                                <div class="persona-outcome-container">
+                                    <!-- Persona Selection -->
+                                    <div class="persona-selection">
+                                        <label class="selection-label">SELECT PERSONA</label>
+                                        <div class="persona-cards" id="topicPersonaCards">
+                                            <div class="persona-card" data-persona="product_manager" onclick="selectPersona('topic', 'product_manager')">
+                                                <span class="persona-icon">PM</span>
+                                                <div class="persona-info">
+                                                    <span class="persona-name">Product Manager</span>
+                                                    <span class="persona-desc">Find market gaps & validate features</span>
+                                                </div>
+                                            </div>
+                                            <div class="persona-card" data-persona="marketer" onclick="selectPersona('topic', 'marketer')">
+                                                <span class="persona-icon">MK</span>
+                                                <div class="persona-info">
+                                                    <span class="persona-name">Marketer / Copywriter</span>
+                                                    <span class="persona-desc">Find hooks & customer language</span>
+                                                </div>
+                                            </div>
+                                            <div class="persona-card" data-persona="content_creator" onclick="selectPersona('topic', 'content_creator')">
+                                                <span class="persona-icon">CC</span>
+                                                <div class="persona-info">
+                                                    <span class="persona-name">Content Creator</span>
+                                                    <span class="persona-desc">Find video ideas & trending topics</span>
+                                                </div>
+                                            </div>
+                                            <div class="persona-card" data-persona="custom" onclick="selectPersona('topic', 'custom')">
+                                                <span class="persona-icon">+</span>
+                                                <div class="persona-info">
+                                                    <span class="persona-name">Custom / Other</span>
+                                                    <span class="persona-desc">Define your own research parameters</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="persona-card" data-persona="marketer" onclick="selectPersona('topic', 'marketer')">
-                                        <span class="persona-icon">MK</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Marketer / Copywriter</span>
-                                            <span class="persona-desc">Find hooks & customer language</span>
-                                        </div>
-                                    </div>
-                                    <div class="persona-card" data-persona="content_creator" onclick="selectPersona('topic', 'content_creator')">
-                                        <span class="persona-icon">CC</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Content Creator</span>
-                                            <span class="persona-desc">Find video ideas & trending topics</span>
-                                        </div>
-                                    </div>
-                                    <div class="persona-card" data-persona="custom" onclick="selectPersona('topic', 'custom')">
-                                        <span class="persona-icon">+</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Custom / Other</span>
-                                            <span class="persona-desc">Define your own research parameters</span>
+
+                                    <!-- Outcome Selection -->
+                                    <div class="outcome-selection" id="topicOutcomeSelection" style="display: none;">
+                                        <label class="selection-label" id="topicOutcomeLabel">SELECT SPECIFIC OUTCOME</label>
+                                        <div class="outcome-options" id="topicOutcomeOptions">
+                                            <!-- Options populated by JS based on persona -->
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Outcome Selection -->
-                            <div class="outcome-selection" id="topicOutcomeSelection" style="display: none;">
-                                <label class="selection-label" id="topicOutcomeLabel">SELECT SPECIFIC OUTCOME</label>
-                                <div class="outcome-options" id="topicOutcomeOptions">
-                                    <!-- Options populated by JS based on persona -->
+                            <!-- Hidden fields to store role/goal values -->
+                            <input type="hidden" id="userRole" />
+                            <input type="hidden" id="userGoal" />
+
+                            <!-- Advanced Options (subtle, at the bottom) -->
+                            <div class="advanced-options">
+                                <div class="advanced-options-row">
+                                    <div class="option-group">
+                                        <label>Search in</label>
+                                        <select id="searchMethodDropdown" class="subtle-select" onchange="toggleSearchMethodDropdown()">
+                                            <option value="reddit" selected>All of Reddit</option>
+                                            <option value="subreddits">Specific subreddits</option>
+                                            <option value="urls">Specific URLs</option>
+                                        </select>
+                                    </div>
+                                    <div class="option-group">
+                                        <label>Time</label>
+                                        <select id="topicTimeRange" class="subtle-select">
+                                            <option value="day">24 hours</option>
+                                            <option value="week">Week</option>
+                                            <option value="month">Month</option>
+                                            <option value="year" selected>Year</option>
+                                            <option value="all">All time</option>
+                                        </select>
+                                    </div>
+                                    <div class="option-group">
+                                        <label>Results</label>
+                                        <select id="topicLimit" class="subtle-select">
+                                            <option value="10">10</option>
+                                            <option value="15" selected>15</option>
+                                            <option value="25">25</option>
+                                            <option value="50">50</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Subreddit Input (shown when subreddits selected) -->
+                                <div id="subredditMethodInput" class="conditional-input" style="display: none;">
+                                    <input
+                                        type="text"
+                                        id="topicSubreddits"
+                                        placeholder="Enter subreddits (comma-separated): AskReddit, productivity, Notion"
+                                        class="subtle-text-input"
+                                    />
+                                </div>
+
+                                <!-- URL Input (shown when URLs selected) -->
+                                <div id="urlMethodInput" class="conditional-input" style="display: none;">
+                                    <textarea
+                                        id="topicUrls"
+                                        placeholder="Paste Reddit post URLs (one per line)..."
+                                        class="subtle-textarea"
+                                        rows="3"
+                                    ></textarea>
                                 </div>
                             </div>
+
+                            <button class="analyze-btn start-research-btn" onclick="handleSearchByTopic()">
+                                Start Research →
+                            </button>
                         </div>
                     </div>
-
-                    <!-- Hidden fields to store role/goal values -->
-                    <input type="hidden" id="userRole" />
-                    <input type="hidden" id="userGoal" />
-
-                    <!-- Advanced Options (subtle, at the bottom) -->
-                    <div class="advanced-options">
-                        <div class="advanced-options-row">
-                            <div class="option-group">
-                                <label>Search in</label>
-                                <select id="searchMethodDropdown" class="subtle-select" onchange="toggleSearchMethodDropdown()">
-                                    <option value="reddit" selected>All of Reddit</option>
-                                    <option value="subreddits">Specific subreddits</option>
-                                    <option value="urls">Specific URLs</option>
-                                </select>
-                            </div>
-                            <div class="option-group">
-                                <label>Time</label>
-                                <select id="topicTimeRange" class="subtle-select">
-                                    <option value="day">24 hours</option>
-                                    <option value="week">Week</option>
-                                    <option value="month">Month</option>
-                                    <option value="year" selected>Year</option>
-                                    <option value="all">All time</option>
-                                </select>
-                            </div>
-                            <div class="option-group">
-                                <label>Results</label>
-                                <select id="topicLimit" class="subtle-select">
-                                    <option value="10">10</option>
-                                    <option value="15" selected>15</option>
-                                    <option value="25">25</option>
-                                    <option value="50">50</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Subreddit Input (shown when subreddits selected) -->
-                        <div id="subredditMethodInput" class="conditional-input" style="display: none;">
-                            <input
-                                type="text"
-                                id="topicSubreddits"
-                                placeholder="Enter subreddits (comma-separated): AskReddit, productivity, Notion"
-                                class="subtle-text-input"
-                            />
-                        </div>
-
-                        <!-- URL Input (shown when URLs selected) -->
-                        <div id="urlMethodInput" class="conditional-input" style="display: none;">
-                            <textarea
-                                id="topicUrls"
-                                placeholder="Paste Reddit post URLs (one per line)..."
-                                class="subtle-textarea"
-                                rows="3"
-                            ></textarea>
-                        </div>
-                    </div>
-
-                    <button class="analyze-btn start-research-btn" onclick="handleSearchByTopic()">
-                        Start Research →
-                    </button>
                 </div>
 
-                <!-- Topic Search Results -->
-                <div id="topicResults" style="display: none;">
-                    <div class="results-header">
-                        <h3 id="topicResultsTitle">Search Results</h3>
-                        <div id="topicResultsSummary"></div>
-                    </div>
-                    <div id="topicSelectedActions" style="display: none;">
-                        <div class="selected-summary">
-                            <span id="topicSelectedCount">0 posts selected</span>
-                            <button class="analyze-btn" onclick="analyzeTopicSelectedPosts()">
-                                Analyze Selected →
-                            </button>
+                <!-- Collapsible Results Section (hidden until search) -->
+                <div id="topicResultsSection" class="collapsible-section" style="display: none;">
+                    <!-- Collapsed Summary (shown when collapsed) -->
+                    <div class="collapsed-summary" onclick="toggleSection('topicResultsSection')">
+                        <div class="collapsed-summary-content">
+                            <div class="collapsed-summary-icon">R</div>
+                            <div class="collapsed-summary-text">
+                                <div class="collapsed-summary-title" id="topicResultsCollapsedTitle">Search Results</div>
+                                <div class="collapsed-summary-subtitle" id="topicResultsCollapsedSubtitle">Click to view/edit selection</div>
+                            </div>
+                        </div>
+                        <div class="collapsed-summary-expand">
+                            Edit <span class="expand-arrow">▼</span>
                         </div>
                     </div>
-                    <div id="topicPostsList"></div>
-                    <div id="topicSelectedActionsBottom" style="display: none;">
-                        <div class="selected-summary">
-                            <span id="topicSelectedCountBottom">0 posts selected</span>
-                            <button class="analyze-btn" onclick="analyzeTopicSelectedPosts()">
-                                Analyze Selected →
-                            </button>
+
+                    <!-- Collapsible Content -->
+                    <div class="collapsible-content">
+                        <!-- Topic Search Results -->
+                        <div id="topicResults" style="display: none;">
+                            <div class="results-header">
+                                <h3 id="topicResultsTitle">Search Results</h3>
+                                <div id="topicResultsSummary"></div>
+                            </div>
+                            <div id="topicSelectedActions" style="display: none;">
+                                <div class="selected-summary">
+                                    <span id="topicSelectedCount">0 posts selected</span>
+                                    <button class="analyze-btn" onclick="analyzeTopicSelectedPosts()">
+                                        Analyze Selected →
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="topicPostsList"></div>
+                            <div id="topicSelectedActionsBottom" style="display: none;">
+                                <div class="selected-summary">
+                                    <span id="topicSelectedCountBottom">0 posts selected</span>
+                                    <button class="analyze-btn" onclick="analyzeTopicSelectedPosts()">
+                                        Analyze Selected →
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
