@@ -7,6 +7,67 @@ let currentTopicResults = [];
 let currentSubredditResults = [];
 
 /**
+ * Toggle collapsible section
+ */
+function toggleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.classList.toggle('collapsed');
+    }
+}
+
+/**
+ * Collapse a section
+ */
+function collapseSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section && !section.classList.contains('collapsed')) {
+        section.classList.add('collapsed');
+    }
+}
+
+/**
+ * Expand a section
+ */
+function expandSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section && section.classList.contains('collapsed')) {
+        section.classList.remove('collapsed');
+    }
+}
+
+/**
+ * Update collapsed summary text for input section
+ */
+function updateInputCollapsedSummary(query, goal) {
+    const titleEl = document.getElementById('topicInputCollapsedTitle');
+    const subtitleEl = document.getElementById('topicInputCollapsedSubtitle');
+
+    if (titleEl) {
+        const truncatedQuery = query.length > 40 ? query.substring(0, 40) + '...' : query;
+        titleEl.textContent = `"${truncatedQuery}"`;
+    }
+    if (subtitleEl) {
+        subtitleEl.textContent = goal ? `Goal: ${goal.substring(0, 50)}` : 'Click to edit search';
+    }
+}
+
+/**
+ * Update collapsed summary text for results section
+ */
+function updateResultsCollapsedSummary(postCount, selectedCount) {
+    const titleEl = document.getElementById('topicResultsCollapsedTitle');
+    const subtitleEl = document.getElementById('topicResultsCollapsedSubtitle');
+
+    if (titleEl) {
+        titleEl.textContent = `${postCount} posts found`;
+    }
+    if (subtitleEl) {
+        subtitleEl.textContent = `${selectedCount} selected for analysis`;
+    }
+}
+
+/**
  * Analyze single URL
  */
 async function handleAnalyzeUrl() {
@@ -258,6 +319,7 @@ async function handleSearchByTopic() {
 
         // Display results
         hideAll();
+        document.getElementById('topicResultsSection').style.display = 'block';
         document.getElementById('topicResults').style.display = 'block';
 
         let titleText = `Found ${result.afterFiltering} posts`;
@@ -275,6 +337,13 @@ async function handleSearchByTopic() {
 
         displayPostCards(result.posts, 'topicPostsList', topicSelectedPosts, 'toggleTopicPost');
         updateTopicSelectedCount();
+
+        // Collapse input section and update its summary
+        updateInputCollapsedSummary(researchQuestion, goal);
+        collapseSection('topicInputSection');
+
+        // Ensure results section is expanded
+        expandSection('topicResultsSection');
 
     } catch (error) {
         console.error('Search error:', error);
@@ -325,6 +394,10 @@ async function analyzeTopicSelectedPosts() {
     const selectedUrls = currentTopicResults
         .filter(post => topicSelectedPosts.has(post.id))
         .map(post => post.url);
+
+    // Collapse results section and update its summary
+    updateResultsCollapsedSummary(currentTopicResults.length, topicSelectedPosts.size);
+    collapseSection('topicResultsSection');
 
     await analyzeMultiplePosts(selectedUrls);
 }

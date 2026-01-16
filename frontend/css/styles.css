@@ -1952,3 +1952,107 @@ footer a {
         font-size: 1rem;
     }
 }
+
+/* ============================================
+   COLLAPSIBLE SECTIONS
+   ============================================ */
+
+.collapsible-section {
+    transition: all 0.3s ease;
+}
+
+.collapsible-section.collapsed .collapsible-content {
+    display: none;
+}
+
+.collapsible-section.collapsed .collapsed-summary {
+    display: flex;
+}
+
+.collapsed-summary {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 20px;
+}
+
+.collapsed-summary:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+}
+
+.collapsed-summary-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+    min-width: 0;
+}
+
+.collapsed-summary-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.collapsed-summary-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.collapsed-summary-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.collapsed-summary-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.collapsed-summary-expand {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary-light);
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 8px 12px;
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.collapsed-summary-expand:hover {
+    background: rgba(139, 92, 246, 0.2);
+}
+
+.expand-arrow {
+    transition: transform 0.2s ease;
+}
+
+.collapsible-section:not(.collapsed) .expand-arrow {
+    transform: rotate(180deg);
+}
