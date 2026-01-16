@@ -166,6 +166,33 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
   "confidence": {
     "level": "high or medium or low",
     "reason": "Brief explanation based on data volume/quality"
+  },
+  "quantitativeInsights": {
+    "topicsDiscussed": [
+      {
+        "topic": "Topic/theme name",
+        "mentions": 5,
+        "sentiment": "positive or negative or mixed",
+        "example": "Brief example phrase from comments"
+      }
+    ],
+    "sentimentBreakdown": {
+      "positive": 40,
+      "negative": 35,
+      "neutral": 25
+    },
+    "commonPhrases": [
+      {
+        "phrase": "Common phrase or term",
+        "count": 8,
+        "context": "How it's typically used"
+      }
+    ],
+    "dataPatterns": [
+      "Pattern 1: observation about the data",
+      "Pattern 2: another trend noticed"
+    ],
+    "engagementCorrelation": "What types of comments get more upvotes in this dataset"
   }
 }
 
@@ -173,8 +200,14 @@ RULES:
 1. topQuotes: Pick 4-6 most impactful REAL quotes from the comments. Include subreddit name.
 2. keyInsights: 3-5 insights. Title should be catchy. Focus on what matters for their GOAL.
 3. forYourGoal: 3-5 bullets that DIRECTLY answer what the ${role || 'user'} asked for: "${goal || 'insights'}"
-4. Keep it concise. No fluff.
-5. Return ONLY the JSON object, nothing else.`;
+4. quantitativeInsights: Analyze the data quantitatively:
+   - topicsDiscussed: 4-7 distinct topics/themes with actual mention counts from the data
+   - sentimentBreakdown: Estimate % breakdown based on comment tone
+   - commonPhrases: 3-5 frequently mentioned terms/phrases with counts
+   - dataPatterns: 2-4 patterns you notice in the data
+   - engagementCorrelation: What content gets upvoted
+5. Keep it concise. No fluff.
+6. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
 }
