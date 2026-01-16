@@ -6,6 +6,15 @@ let subredditSelectedPosts = new Set();
 let currentTopicResults = [];
 let currentSubredditResults = [];
 
+// Analysis history state
+let analysisHistory = [];
+let currentAnalysisIndex = 0;
+let extractedPostsData = null; // Store extracted posts for re-analysis
+
+// Re-analyze modal state
+let reanalyzeSelectedPersona = null;
+let reanalyzeSelectedOutcome = null;
+
 /**
  * Toggle collapsible section
  */
@@ -502,9 +511,17 @@ async function analyzeSubredditSelectedPosts() {
 /**
  * Analyze multiple posts with combined analysis (single AI call)
  */
-async function analyzeMultiplePosts(urls) {
+async function analyzeMultiplePosts(urls, isReanalyze = false) {
     hideAll();
-    showStatus(`Extracting data from ${urls.length} posts...`, 20);
+
+    // Reset analysis history for new search (not re-analyze)
+    if (!isReanalyze) {
+        analysisHistory = [];
+        currentAnalysisIndex = 0;
+        extractedPostsData = null;
+    }
+
+    showStatus(isReanalyze ? 'Re-analyzing with new perspective...' : `Extracting data from ${urls.length} posts...`, 20);
 
     // Auto-scroll to status section
     document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -535,7 +552,7 @@ async function analyzeMultiplePosts(urls) {
 // Store combined results globally for export
 window.combinedResultsData = null;
 
-function displayCombinedResults(result, role, goal) {
+function displayCombinedResults(result, role, goal, isReanalyze = false) {
     hideAll();
     document.getElementById('resultsSection').style.display = 'block';
     document.getElementById('multiPostResults').style.display = 'block';
@@ -548,7 +565,54 @@ function displayCombinedResults(result, role, goal) {
     const subreddits = combinedAnalysis.subreddits || [];
     const structured = combinedAnalysis.structured;
 
+    // Store extracted posts for re-analysis
+    if (!isReanalyze) {
+        extractedPostsData = posts.map(p => p.extractedData);
+    }
+
+    // Add to analysis history
+    const analysisEntry = {
+        id: Date.now(),
+        role: role,
+        goal: goal,
+        result: result,
+        timestamp: new Date()
+    };
+
+    if (isReanalyze) {
+        analysisHistory.push(analysisEntry);
+        currentAnalysisIndex = analysisHistory.length - 1;
+    } else {
+        analysisHistory = [analysisEntry];
+        currentAnalysisIndex = 0;
+    }
+
     let html = '';
+
+    // Analysis History Tabs (if more than one analysis)
+    if (analysisHistory.length > 1) {
+        html += `<div class="analysis-history">
+            <div class="analysis-history-tabs">
+                ${analysisHistory.map((entry, idx) => `
+                    <button class="history-tab ${idx === currentAnalysisIndex ? 'active' : ''}" onclick="switchAnalysis(${idx})">
+                        <span class="history-tab-number">${idx + 1}</span>
+                        <span>${entry.role || 'Analysis'}: ${(entry.goal || 'Insights').substring(0, 25)}${(entry.goal || '').length > 25 ? '...' : ''}</span>
+                    </button>
+                `).join('')}
+            </div>
+        </div>`;
+    }
+
+    // Re-analyze bar
+    html += `
+        <div class="reanalyze-bar">
+            <div class="reanalyze-bar-info">
+                <span class="reanalyze-bar-label">Current perspective:</span>
+                <span class="reanalyze-bar-current">${role || 'Analyst'} — ${(goal || 'Extract insights').substring(0, 40)}${(goal || '').length > 40 ? '...' : ''}</span>
+            </div>
+            <button class="reanalyze-btn" onclick="openReanalyzeModal()">Re-analyze with different goal</button>
+        </div>
+    `;
 
     // Header section
     html += `
@@ -558,7 +622,7 @@ function displayCombinedResults(result, role, goal) {
                 <span class="analysis-badge">Based on ${posts.length} selected sources</span>
             </div>
             <div class="analysis-meta">
-                <span>Topic: <strong>${window.currentResearchContext?.topic || 'Reddit Analysis'}</strong></span>
+                <span>Topic: <strong>${window.currentResearchContext?.researchQuestion || window.currentResearchContext?.topic || 'Reddit Analysis'}</strong></span>
                 <span>Goal: <strong>${goal || 'Extract insights'}</strong></span>
             </div>
             <div class="analysis-actions">
@@ -570,6 +634,24 @@ function displayCombinedResults(result, role, goal) {
 
     // Check if we have structured data
     if (structured) {
+        // Analysis Tabs (Qualitative vs Data)
+        const hasQuantitative = structured.quantitativeInsights;
+        if (hasQuantitative) {
+            html += `
+                <div class="analysis-tabs">
+                    <button class="analysis-tab active" onclick="switchAnalysisTab('qualitative')">
+                        Qualitative Insights
+                    </button>
+                    <button class="analysis-tab" onclick="switchAnalysisTab('quantitative')">
+                        Data Analysis <span class="analysis-tab-badge">Experimental</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        // QUALITATIVE TAB CONTENT
+        html += `<div id="qualitativeTab" class="analysis-tab-content active">`;
+
         // EXECUTIVE SUMMARY (First)
         if (structured.executiveSummary) {
             html += `
@@ -632,13 +714,32 @@ function displayCombinedResults(result, role, goal) {
             `;
         }
 
-        // QUANTITATIVE INSIGHTS SECTION (Experimental)
-        if (structured.quantitativeInsights) {
-            const quant = structured.quantitativeInsights;
+        // TOP QUOTES SECTION (in qualitative tab)
+        if (structured.topQuotes && structured.topQuotes.length > 0) {
             html += `
-                <div class="analysis-section quantitative-section" id="quantitativeSection">
-                    <h2 class="section-title">Data Analysis <span class="section-badge">Experimental</span></h2>
+                <div class="analysis-section">
+                    <h2 class="section-title">Supporting Quotes</h2>
+                    <p class="section-subtitle">Direct quotes from Reddit users</p>
+                    <div class="quotes-grid">
+                        ${structured.topQuotes.map(q => `
+                            <div class="quote-card quote-${(q.type || 'insight').toLowerCase()}">
+                                <span class="quote-type-badge">${q.type || 'INSIGHT'}</span>
+                                <div class="quote-icon">"</div>
+                                <p class="quote-text">"${escapeHtml(q.quote)}"</p>
+                                <p class="quote-source">— Reddit User (${q.subreddit || 'Unknown'})</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
             `;
+        }
+
+        html += `</div>`; // End qualitative tab
+
+        // QUANTITATIVE TAB CONTENT
+        if (hasQuantitative) {
+            const quant = structured.quantitativeInsights;
+            html += `<div id="quantitativeTab" class="analysis-tab-content">`;
 
             // Topics Discussed
             if (quant.topicsDiscussed && quant.topicsDiscussed.length > 0) {
@@ -664,7 +765,6 @@ function displayCombinedResults(result, role, goal) {
             // Sentiment Breakdown
             if (quant.sentimentBreakdown) {
                 const sb = quant.sentimentBreakdown;
-                const total = (sb.positive || 0) + (sb.negative || 0) + (sb.neutral || 0);
                 html += `
                     <div class="quant-subsection">
                         <h3 class="quant-subsection-title">Sentiment Distribution</h3>
@@ -734,28 +834,9 @@ function displayCombinedResults(result, role, goal) {
                 `;
             }
 
-            html += `</div>`;
+            html += `</div>`; // End quantitative tab
         }
 
-        // TOP QUOTES SECTION (Last - supporting evidence)
-        if (structured.topQuotes && structured.topQuotes.length > 0) {
-            html += `
-                <div class="analysis-section">
-                    <h2 class="section-title">Supporting Quotes</h2>
-                    <p class="section-subtitle">Direct quotes from Reddit users</p>
-                    <div class="quotes-grid">
-                        ${structured.topQuotes.map(q => `
-                            <div class="quote-card quote-${(q.type || 'insight').toLowerCase()}">
-                                <span class="quote-type-badge">${q.type || 'INSIGHT'}</span>
-                                <div class="quote-icon">"</div>
-                                <p class="quote-text">"${escapeHtml(q.quote)}"</p>
-                                <p class="quote-source">— Reddit User (${q.subreddit || 'Unknown'})</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
     } else {
         // FALLBACK: Use markdown rendering
         html += `
@@ -1608,3 +1689,261 @@ document.addEventListener('keypress', function(e) {
         handleSearchSubreddit();
     }
 });
+
+// ============================================
+// ANALYSIS TABS (Qualitative vs Data Analysis)
+// ============================================
+
+/**
+ * Switch between analysis tabs
+ */
+function switchAnalysisTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.analysis-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.analysis-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    const tabContent = document.getElementById(tabName + 'Tab');
+    if (tabContent) {
+        tabContent.classList.add('active');
+    }
+}
+
+// ============================================
+// ANALYSIS HISTORY
+// ============================================
+
+/**
+ * Switch to a different analysis in history
+ */
+function switchAnalysis(index) {
+    if (index < 0 || index >= analysisHistory.length) return;
+
+    currentAnalysisIndex = index;
+    const entry = analysisHistory[index];
+
+    // Update global state
+    window.combinedResultsData = entry.result;
+
+    // Re-render with the selected analysis
+    displayCombinedResults(entry.result, entry.role, entry.goal, true);
+}
+
+// ============================================
+// RE-ANALYZE MODAL
+// ============================================
+
+// Persona outcomes mapping (same as in ui.js)
+const reanalyzePersonaOutcomes = {
+    product_manager: {
+        role: 'Product Manager',
+        outcomes: [
+            { id: 'pain_points', label: 'Identify Pain Points & Complaints' },
+            { id: 'competitor', label: 'Analyze Competitor Weaknesses' },
+            { id: 'validate', label: 'Validate a New Feature Idea' },
+            { id: 'unmet_needs', label: 'Discover Unmet Needs' },
+            { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
+        ]
+    },
+    marketer: {
+        role: 'Marketer / Copywriter',
+        outcomes: [
+            { id: 'hooks', label: 'Find Attention-Grabbing Hooks' },
+            { id: 'language', label: 'Extract Customer Language & Phrases' },
+            { id: 'objections', label: 'Identify Common Objections' },
+            { id: 'testimonials', label: 'Find Testimonial Patterns' },
+            { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
+        ]
+    },
+    content_creator: {
+        role: 'Content Creator',
+        outcomes: [
+            { id: 'video_ideas', label: 'Generate Video/Content Ideas' },
+            { id: 'trending', label: 'Find Trending Topics' },
+            { id: 'controversy', label: 'Identify Debate-Worthy Takes' },
+            { id: 'questions', label: 'Find Most-Asked Questions' },
+            { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
+        ]
+    },
+    custom: {
+        role: 'Custom',
+        outcomes: [
+            { id: 'custom_goal', label: 'Define your own goal', isCustom: true }
+        ]
+    }
+};
+
+/**
+ * Open re-analyze modal
+ */
+function openReanalyzeModal() {
+    // Reset state
+    reanalyzeSelectedPersona = null;
+    reanalyzeSelectedOutcome = null;
+
+    // Reset UI
+    document.querySelectorAll('#reanalyzePersonaCards .persona-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    document.getElementById('reanalyzeOutcomeSection').style.display = 'none';
+    document.getElementById('reanalyzeSubmitBtn').disabled = true;
+
+    // Show modal
+    document.getElementById('reanalyzeModal').classList.add('show');
+}
+
+/**
+ * Close re-analyze modal
+ */
+function closeReanalyzeModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('reanalyzeModal').classList.remove('show');
+}
+
+/**
+ * Select persona in re-analyze modal
+ */
+function selectReanalyzePersona(persona) {
+    reanalyzeSelectedPersona = persona;
+    reanalyzeSelectedOutcome = null;
+
+    // Update UI
+    document.querySelectorAll('#reanalyzePersonaCards .persona-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.persona === persona);
+    });
+
+    // Show outcome options
+    const personaData = reanalyzePersonaOutcomes[persona];
+    if (personaData) {
+        const outcomeSection = document.getElementById('reanalyzeOutcomeSection');
+        const outcomeLabel = document.getElementById('reanalyzeOutcomeLabel');
+        const outcomeOptions = document.getElementById('reanalyzeOutcomeOptions');
+
+        outcomeLabel.textContent = `SELECT OUTCOME FOR ${personaData.role.toUpperCase()}`;
+
+        let optionsHtml = personaData.outcomes.map(outcome => `
+            <div class="outcome-option" data-outcome="${outcome.id}" onclick="selectReanalyzeOutcome('${outcome.id}', '${escapeHtml(outcome.label)}', ${outcome.isCustom || false})">
+                <span class="outcome-radio"></span>
+                <span class="outcome-label">${outcome.label}</span>
+            </div>
+        `).join('');
+
+        // Add custom input field (hidden by default)
+        optionsHtml += `
+            <div id="reanalyzeFreeFormInput" class="free-form-goal-input" style="display: none;">
+                <input type="text" id="reanalyzeFreeFormGoal" placeholder="Describe your specific goal..."
+                       oninput="updateReanalyzeFreeFormGoal()" />
+            </div>
+        `;
+
+        outcomeOptions.innerHTML = optionsHtml;
+        outcomeSection.style.display = 'block';
+    }
+
+    document.getElementById('reanalyzeSubmitBtn').disabled = true;
+}
+
+/**
+ * Select outcome in re-analyze modal
+ */
+function selectReanalyzeOutcome(outcomeId, outcomeLabel, isCustom) {
+    // Update UI
+    document.querySelectorAll('#reanalyzeOutcomeOptions .outcome-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.outcome === outcomeId);
+    });
+
+    // Handle custom/free-form input
+    const freeFormInput = document.getElementById('reanalyzeFreeFormInput');
+    if (isCustom) {
+        freeFormInput.style.display = 'block';
+        document.getElementById('reanalyzeFreeFormGoal').focus();
+        reanalyzeSelectedOutcome = null; // Will be set when user types
+        document.getElementById('reanalyzeSubmitBtn').disabled = true;
+    } else {
+        freeFormInput.style.display = 'none';
+        reanalyzeSelectedOutcome = outcomeLabel;
+        document.getElementById('reanalyzeSubmitBtn').disabled = false;
+    }
+}
+
+/**
+ * Update free-form goal in re-analyze modal
+ */
+function updateReanalyzeFreeFormGoal() {
+    const input = document.getElementById('reanalyzeFreeFormGoal');
+    const value = input.value.trim();
+
+    if (value) {
+        reanalyzeSelectedOutcome = value;
+        document.getElementById('reanalyzeSubmitBtn').disabled = false;
+    } else {
+        reanalyzeSelectedOutcome = null;
+        document.getElementById('reanalyzeSubmitBtn').disabled = true;
+    }
+}
+
+/**
+ * Submit re-analyze request
+ */
+async function submitReanalyze() {
+    if (!reanalyzeSelectedPersona || !reanalyzeSelectedOutcome) return;
+    if (!extractedPostsData || extractedPostsData.length === 0) {
+        showError('No data available for re-analysis');
+        return;
+    }
+
+    // Close modal
+    closeReanalyzeModal();
+
+    // Get role and goal
+    const personaData = reanalyzePersonaOutcomes[reanalyzeSelectedPersona];
+    const role = personaData ? personaData.role : 'Analyst';
+    const goal = reanalyzeSelectedOutcome;
+
+    // Update research context
+    window.currentResearchContext = {
+        ...window.currentResearchContext,
+        role: role,
+        goal: goal
+    };
+
+    // Show loading
+    hideAll();
+    showStatus('Re-analyzing with new perspective...', 30);
+
+    try {
+        // Call the backend with existing extracted data
+        showStatus('Generating new analysis...', 60);
+
+        const response = await fetch(`${API_BASE_URL}/api/analyze/reanalyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                postsData: extractedPostsData,
+                role: role,
+                goal: goal
+            })
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Re-analysis failed');
+        }
+
+        showStatus('Complete!', 100);
+
+        // Display with isReanalyze = true to preserve history
+        displayCombinedResults(result, role, goal, true);
+
+    } catch (error) {
+        console.error('Re-analysis error:', error);
+        showError(error.message || 'Re-analysis failed');
+    }
+}
