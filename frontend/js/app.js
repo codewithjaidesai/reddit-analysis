@@ -632,6 +632,111 @@ function displayCombinedResults(result, role, goal) {
             `;
         }
 
+        // QUANTITATIVE INSIGHTS SECTION (Experimental)
+        if (structured.quantitativeInsights) {
+            const quant = structured.quantitativeInsights;
+            html += `
+                <div class="analysis-section quantitative-section" id="quantitativeSection">
+                    <h2 class="section-title">Data Analysis <span class="section-badge">Experimental</span></h2>
+            `;
+
+            // Topics Discussed
+            if (quant.topicsDiscussed && quant.topicsDiscussed.length > 0) {
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Topics Discussed</h3>
+                        <div class="topics-grid">
+                            ${quant.topicsDiscussed.map(topic => `
+                                <div class="topic-card">
+                                    <div class="topic-header">
+                                        <span class="topic-name">${escapeHtml(topic.topic)}</span>
+                                        <span class="topic-count">${topic.mentions}x</span>
+                                    </div>
+                                    <span class="topic-sentiment ${topic.sentiment || 'neutral'}">${topic.sentiment || 'neutral'}</span>
+                                    ${topic.example ? `<p class="topic-example">"${escapeHtml(topic.example)}"</p>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Sentiment Breakdown
+            if (quant.sentimentBreakdown) {
+                const sb = quant.sentimentBreakdown;
+                const total = (sb.positive || 0) + (sb.negative || 0) + (sb.neutral || 0);
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Sentiment Distribution</h3>
+                        <div class="sentiment-breakdown">
+                            <div class="sentiment-bar-container">
+                                <div class="sentiment-bar-label">Overall tone of the discussion</div>
+                                <div class="sentiment-bar">
+                                    ${sb.positive > 0 ? `<div class="sentiment-bar-segment positive" style="width: ${sb.positive}%">${sb.positive}%</div>` : ''}
+                                    ${sb.neutral > 0 ? `<div class="sentiment-bar-segment neutral" style="width: ${sb.neutral}%">${sb.neutral}%</div>` : ''}
+                                    ${sb.negative > 0 ? `<div class="sentiment-bar-segment negative" style="width: ${sb.negative}%">${sb.negative}%</div>` : ''}
+                                </div>
+                            </div>
+                            <div class="sentiment-stats">
+                                <div class="sentiment-stat"><span class="sentiment-dot positive"></span> Positive: ${sb.positive || 0}%</div>
+                                <div class="sentiment-stat"><span class="sentiment-dot neutral"></span> Neutral: ${sb.neutral || 0}%</div>
+                                <div class="sentiment-stat"><span class="sentiment-dot negative"></span> Negative: ${sb.negative || 0}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Common Phrases
+            if (quant.commonPhrases && quant.commonPhrases.length > 0) {
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Frequently Mentioned</h3>
+                        <div class="phrases-list">
+                            ${quant.commonPhrases.map(phrase => `
+                                <div class="phrase-tag">
+                                    <span class="phrase-text">${escapeHtml(phrase.phrase)}</span>
+                                    <span class="phrase-count">${phrase.count}x</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Data Patterns
+            if (quant.dataPatterns && quant.dataPatterns.length > 0) {
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Observed Patterns</h3>
+                        <div class="patterns-list">
+                            ${quant.dataPatterns.map(pattern => `
+                                <div class="pattern-item">
+                                    <span class="pattern-icon">~</span>
+                                    <span class="pattern-text">${escapeHtml(pattern)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Engagement Correlation
+            if (quant.engagementCorrelation) {
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Engagement Insight</h3>
+                        <div class="engagement-insight">
+                            <span class="engagement-insight-icon">^</span>
+                            <span class="engagement-insight-text">${escapeHtml(quant.engagementCorrelation)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+        }
+
         // TOP QUOTES SECTION (Last - supporting evidence)
         if (structured.topQuotes && structured.topQuotes.length > 0) {
             html += `
