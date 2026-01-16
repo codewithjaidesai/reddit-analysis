@@ -601,7 +601,7 @@ function displayCombinedResults(result, role, goal) {
     // Source Posts Section
     html += `
         <div class="result-card" style="margin-top: 20px;">
-            <h3 style="color: #2d3748; margin-bottom: 15px;">Source Posts (Raw Data)</h3>
+            <h3 style="color: #f1f5f9; margin-bottom: 15px;">Source Posts (Raw Data)</h3>
             <div class="source-posts-list">
     `;
 
@@ -611,13 +611,13 @@ function displayCombinedResults(result, role, goal) {
         const stats = data.extractionStats;
 
         html += `
-            <div class="source-post-item" style="padding: 15px; background: #f7fafc; border-radius: 8px; margin-bottom: 10px;">
+            <div class="source-post-item" style="padding: 15px; background: #1c2432; border-radius: 8px; margin-bottom: 10px; border: 1px solid #2d3a4d;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
                     <div style="flex: 1; min-width: 200px;">
-                        <div style="font-weight: 600; color: #2d3748; cursor: pointer;" onclick="togglePostDetails(${index})">
+                        <div style="font-weight: 600; color: #f1f5f9; cursor: pointer;" onclick="togglePostDetails(${index})">
                             ► Post ${index + 1}: "${escapeHtml(postInfo.title.substring(0, 60))}${postInfo.title.length > 60 ? '...' : ''}"
                         </div>
-                        <div style="font-size: 13px; color: #718096; margin-top: 4px;">
+                        <div style="font-size: 13px; color: #94a3b8; margin-top: 4px;">
                             r/${postInfo.subreddit} • ${stats.extracted} comments • ${formatNumber(postInfo.score)} upvotes
                         </div>
                     </div>
@@ -625,22 +625,22 @@ function displayCombinedResults(result, role, goal) {
                         <button onclick="exportSourcePostPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
                             PDF
                         </button>
-                        <button onclick="copySourcePostForAI(${index})" style="background: #9f7aea; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                        <button onclick="copySourcePostForAI(${index})" style="background: #8b5cf6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
                             Copy for AI
                         </button>
-                        <button onclick="copySourcePostAsText(${index})" style="background: #48bb78; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                        <button onclick="copySourcePostAsText(${index})" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
                             Copy Text
                         </button>
                     </div>
                 </div>
-                <div id="post-details-${index}" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                <div id="post-details-${index}" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #2d3a4d;">
                     <div style="max-height: 300px; overflow-y: auto; font-size: 13px;">
                         ${data.valuableComments.slice(0, 10).map(c => `
-                            <div style="padding: 8px; background: white; border-radius: 4px; margin-bottom: 8px;">
-                                <span style="color: #718096;">[${c.score} pts]</span> ${escapeHtml(c.body.substring(0, 200))}${c.body.length > 200 ? '...' : ''}
+                            <div style="padding: 8px; background: #242d3d; border-radius: 4px; margin-bottom: 8px; color: #f1f5f9;">
+                                <span style="color: #a78bfa;">[${c.score} pts]</span> ${escapeHtml(c.body.substring(0, 200))}${c.body.length > 200 ? '...' : ''}
                             </div>
                         `).join('')}
-                        ${data.valuableComments.length > 10 ? `<p style="color: #718096; text-align: center;">... and ${data.valuableComments.length - 10} more comments</p>` : ''}
+                        ${data.valuableComments.length > 10 ? `<p style="color: #94a3b8; text-align: center;">... and ${data.valuableComments.length - 10} more comments</p>` : ''}
                     </div>
                 </div>
             </div>
@@ -651,8 +651,8 @@ function displayCombinedResults(result, role, goal) {
     if (failures && failures.length > 0) {
         failures.forEach(failure => {
             html += `
-                <div style="padding: 10px 15px; background: #fff5f5; border-radius: 8px; margin-bottom: 10px; color: #c53030; font-size: 13px;">
-                    ⚠️ Failed: ${escapeHtml(failure.url)} - ${failure.error}
+                <div style="padding: 10px 15px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; margin-bottom: 10px; color: #fc8181; font-size: 13px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                    Failed: ${escapeHtml(failure.url)} - ${failure.error}
                 </div>
             `;
         });
@@ -660,11 +660,11 @@ function displayCombinedResults(result, role, goal) {
 
     html += `
             </div>
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px;">
-                <button onclick="downloadAllRawData()" style="background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #2d3a4d; display: flex; gap: 10px;">
+                <button onclick="downloadAllRawData()" style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
                     Download All Raw Data
                 </button>
-                <button onclick="copyAllForAI()" style="background: #9f7aea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                <button onclick="copyAllForAI()" style="background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
                     Copy All for AI
                 </button>
             </div>
