@@ -15,6 +15,38 @@ let extractedPostsData = null; // Store extracted posts for re-analysis
 let reanalyzeSelectedPersona = null;
 let reanalyzeSelectedOutcome = null;
 
+// Content generation state
+let generatedContents = []; // Store generated content for the Generated tab
+let generateModalSelectedType = null;
+
+// Deliverable types per persona
+const personaDeliverables = {
+    'Product Manager': [
+        { id: 'user_stories', label: 'User Stories', icon: '📋', description: 'Generate user stories in "As a user..." format' },
+        { id: 'feature_brief', label: 'Feature Brief', icon: '📄', description: 'One-pager outlining a feature based on user needs' }
+    ],
+    'Marketer / Copywriter': [
+        { id: 'seo_article', label: 'SEO Article', icon: '📝', description: 'Long-form blog post with real quotes' },
+        { id: 'ad_copy', label: 'Ad Copy', icon: '📣', description: '3-5 ad copy variations for social/search' },
+        { id: 'email_sequence', label: 'Email Sequence', icon: '📧', description: '3-5 email nurture sequence' },
+        { id: 'headlines', label: 'Headlines', icon: '🎯', description: '10+ hook/headline variations' }
+    ],
+    'Content Creator': [
+        { id: 'twitter_thread', label: 'Twitter/X Thread', icon: '🐦', description: '5-10 tweet thread with hooks' },
+        { id: 'linkedin_post', label: 'LinkedIn Post', icon: '💼', description: 'Professional long-form post' },
+        { id: 'youtube_outline', label: 'YouTube Outline', icon: '🎬', description: 'Video script with hook and sections' },
+        { id: 'blog_draft', label: 'Blog Draft', icon: '✍️', description: 'Full article with quotes woven in' }
+    ],
+    'Founder / Entrepreneur': [
+        { id: 'pitch_points', label: 'Pitch Talking Points', icon: '🎤', description: 'Problem/solution content for pitch deck' },
+        { id: 'problem_solution', label: 'Problem-Solution Brief', icon: '💡', description: 'Structured validation document' }
+    ],
+    'UX Researcher': [
+        { id: 'user_persona', label: 'User Persona', icon: '👤', description: 'Detailed persona based on comment patterns' },
+        { id: 'research_synthesis', label: 'Research Synthesis', icon: '🔬', description: 'Themes, quotes, and recommendations' }
+    ]
+};
+
 /**
  * Toggle collapsible section
  */
@@ -646,17 +678,27 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
 
     // Check if we have structured data
     if (structured) {
-        // Analysis Tabs (Qualitative vs Data)
+        // Analysis Tabs (Qualitative vs Data vs Generated)
         const hasQuantitative = structured.quantitativeInsights;
-        if (hasQuantitative) {
+        const hasGenerated = generatedContents.length > 0;
+
+        // Always show tabs if we have quantitative or generated content
+        if (hasQuantitative || hasGenerated) {
             html += `
                 <div class="analysis-tabs">
                     <button class="analysis-tab active" onclick="switchAnalysisTab('qualitative')">
                         Qualitative Insights
                     </button>
+                    ${hasQuantitative ? `
                     <button class="analysis-tab" onclick="switchAnalysisTab('quantitative')">
                         Data Analysis <span class="analysis-tab-badge">Experimental</span>
                     </button>
+                    ` : ''}
+                    ${hasGenerated ? `
+                    <button class="analysis-tab" onclick="switchAnalysisTab('generated')">
+                        Generated <span class="analysis-tab-badge generated-count">${generatedContents.length}</span>
+                    </button>
+                    ` : ''}
                 </div>
             `;
         }
@@ -687,6 +729,28 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                 <span class="goal-bullet">→</span>
                                 <span>${escapeHtml(item)}</span>
                             </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // GENERATE CONTENT SECTION - Show deliverable buttons based on persona
+        const deliverables = personaDeliverables[role] || [];
+        if (deliverables.length > 0) {
+            html += `
+                <div class="analysis-section generate-section">
+                    <div class="generate-section-header">
+                        <h2 class="section-title">Create Content</h2>
+                        <span class="generate-section-hint">Generate deliverables using insights + real quotes</span>
+                    </div>
+                    <div class="generate-buttons-grid">
+                        ${deliverables.map(d => `
+                            <button class="generate-btn" onclick="openGenerateModal('${d.id}', '${escapeHtml(d.label)}')">
+                                <span class="generate-btn-icon">${d.icon}</span>
+                                <span class="generate-btn-label">${escapeHtml(d.label)}</span>
+                                <span class="generate-btn-desc">${escapeHtml(d.description)}</span>
+                            </button>
                         `).join('')}
                     </div>
                 </div>
@@ -847,6 +911,35 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             }
 
             html += `</div>`; // End quantitative tab
+        }
+
+        // GENERATED TAB CONTENT
+        if (generatedContents.length > 0) {
+            html += `<div id="generatedTab" class="analysis-tab-content">`;
+            html += `
+                <div class="generated-content-list">
+                    ${generatedContents.map((content, idx) => `
+                        <div class="generated-content-item">
+                            <div class="generated-content-header">
+                                <div class="generated-content-title">
+                                    <span class="generated-content-icon">${content.icon || '📄'}</span>
+                                    <h3>${escapeHtml(content.label)}</h3>
+                                    <span class="generated-content-time">${new Date(content.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                                <div class="generated-content-actions">
+                                    <button onclick="copyGeneratedContent(${idx})" class="btn-small">Copy</button>
+                                    <button onclick="exportGeneratedContentPDF(${idx})" class="btn-small btn-primary">Export PDF</button>
+                                    <button onclick="deleteGeneratedContent(${idx})" class="btn-small btn-danger">Delete</button>
+                                </div>
+                            </div>
+                            <div class="generated-content-body">
+                                <div class="generated-content-text">${formatMarkdown(content.content)}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            html += `</div>`; // End generated tab
         }
 
     } else {
@@ -2156,5 +2249,236 @@ async function submitReanalyze() {
     } catch (error) {
         console.error('Re-analysis error:', error);
         showError(error.message || 'Re-analysis failed');
+    }
+}
+
+// ============================================
+// CONTENT GENERATION
+// ============================================
+
+/**
+ * Open the generate content modal
+ */
+function openGenerateModal(typeId, typeLabel) {
+    generateModalSelectedType = typeId;
+
+    // Find the deliverable info
+    const role = window.currentResearchContext?.role;
+    const deliverables = personaDeliverables[role] || [];
+    const deliverable = deliverables.find(d => d.id === typeId);
+
+    // Update modal content
+    document.getElementById('generateModalTitle').textContent = `Generate ${typeLabel}`;
+    document.getElementById('generateModalDescription').textContent = deliverable?.description || '';
+    document.getElementById('generateFocusInput').value = '';
+
+    // Show modal
+    document.getElementById('generateModal').classList.add('show');
+}
+
+/**
+ * Close the generate content modal
+ */
+function closeGenerateModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('generateModal').classList.remove('show');
+    generateModalSelectedType = null;
+}
+
+/**
+ * Submit content generation request
+ */
+async function submitGenerate() {
+    if (!generateModalSelectedType) return;
+
+    const focus = document.getElementById('generateFocusInput').value.trim();
+    const tone = document.querySelector('input[name="generateTone"]:checked')?.value || 'conversational';
+    const length = document.querySelector('input[name="generateLength"]:checked')?.value || 'medium';
+
+    // Get current context
+    const role = window.currentResearchContext?.role || 'Analyst';
+    const goal = window.currentResearchContext?.goal || '';
+    const structured = window.combinedResultsData?.combinedAnalysis?.structured;
+
+    // Find deliverable info
+    const deliverables = personaDeliverables[role] || [];
+    const deliverable = deliverables.find(d => d.id === generateModalSelectedType);
+
+    // Close modal
+    closeGenerateModal();
+
+    // Show loading
+    hideAll();
+    showStatus(`Generating ${deliverable?.label || 'content'}...`, 30);
+
+    try {
+        showStatus('Crafting content with real insights...', 60);
+
+        // Call the backend
+        const result = await generateContent({
+            type: generateModalSelectedType,
+            typeLabel: deliverable?.label || 'Content',
+            focus: focus,
+            tone: tone,
+            length: length,
+            role: role,
+            goal: goal,
+            insights: structured,
+            postsData: extractedPostsData
+        });
+
+        if (!result.success) {
+            throw new Error(result.error || 'Generation failed');
+        }
+
+        showStatus('Content generated!', 100);
+
+        // Add to generated contents
+        generatedContents.push({
+            id: Date.now(),
+            type: generateModalSelectedType,
+            label: deliverable?.label || 'Content',
+            icon: deliverable?.icon || '📄',
+            content: result.content,
+            timestamp: new Date(),
+            focus: focus,
+            tone: tone,
+            length: length
+        });
+
+        // Re-render results to show the Generated tab
+        const currentResult = window.combinedResultsData;
+        displayCombinedResults(currentResult, role, goal, false, true);
+
+        // Switch to Generated tab
+        setTimeout(() => {
+            const generatedTabBtn = document.querySelector('.analysis-tab:last-child');
+            if (generatedTabBtn) {
+                generatedTabBtn.click();
+            }
+        }, 100);
+
+    } catch (error) {
+        console.error('Generation error:', error);
+        showError(error.message || 'Content generation failed');
+        // Re-show results
+        const currentResult = window.combinedResultsData;
+        if (currentResult) {
+            displayCombinedResults(currentResult, role, goal, false, true);
+        }
+    }
+}
+
+/**
+ * Copy generated content to clipboard
+ */
+function copyGeneratedContent(index) {
+    if (index < 0 || index >= generatedContents.length) return;
+
+    const content = generatedContents[index];
+    navigator.clipboard.writeText(content.content).then(() => {
+        alert('Content copied to clipboard!');
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        alert('Failed to copy content');
+    });
+}
+
+/**
+ * Export generated content as PDF
+ */
+function exportGeneratedContentPDF(index) {
+    if (index < 0 || index >= generatedContents.length) return;
+
+    const content = generatedContents[index];
+    const printWindow = window.open('', '', 'width=900,height=700');
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${escapeHtml(content.label)} - Generated Content</title>
+            <style>
+                body {
+                    font-family: 'Georgia', 'Times New Roman', serif;
+                    line-height: 1.8;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 40px;
+                    color: #2d3748;
+                }
+                h1 {
+                    color: #1a202c;
+                    border-bottom: 3px solid #805ad5;
+                    padding-bottom: 15px;
+                }
+                h2, h3 { color: #2d3748; margin-top: 25px; }
+                .meta {
+                    background: #f7fafc;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 20px 0;
+                    font-size: 14px;
+                    color: #4a5568;
+                }
+                .content {
+                    white-space: pre-wrap;
+                    font-size: 15px;
+                }
+                .footer {
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e2e8f0;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #a0aec0;
+                }
+                @media print {
+                    .no-print { display: none !important; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>${escapeHtml(content.label)}</h1>
+            <div class="meta">
+                <strong>Generated:</strong> ${new Date(content.timestamp).toLocaleString()}<br>
+                <strong>Tone:</strong> ${content.tone || 'conversational'}<br>
+                ${content.focus ? `<strong>Focus:</strong> ${escapeHtml(content.focus)}<br>` : ''}
+            </div>
+            <div class="content">${formatMarkdown(content.content)}</div>
+            <div class="footer">
+                Reddit Analyzer - AI Generated Content<br>
+                ${new Date().toISOString()}
+            </div>
+            <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
+                <button onclick="window.print()" style="padding: 12px 24px; background: #805ad5; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                    Print / Save as PDF
+                </button>
+            </div>
+        </body>
+        </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+/**
+ * Delete generated content
+ */
+function deleteGeneratedContent(index) {
+    if (index < 0 || index >= generatedContents.length) return;
+
+    if (!confirm('Delete this generated content?')) return;
+
+    generatedContents.splice(index, 1);
+
+    // Re-render results
+    const role = window.currentResearchContext?.role;
+    const goal = window.currentResearchContext?.goal;
+    const currentResult = window.combinedResultsData;
+
+    if (currentResult) {
+        displayCombinedResults(currentResult, role, goal, false, true);
     }
 }

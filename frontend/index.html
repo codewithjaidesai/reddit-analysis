@@ -549,6 +549,67 @@
         </div>
     </div>
 
+    <!-- Generate Content Modal -->
+    <div id="generateModal" class="generate-modal" onclick="closeGenerateModal(event)">
+        <div class="generate-modal-content" onclick="event.stopPropagation()">
+            <div class="generate-modal-header">
+                <h3 id="generateModalTitle" class="generate-modal-title">Generate Content</h3>
+                <button class="generate-modal-close" onclick="closeGenerateModal()">&times;</button>
+            </div>
+            <div class="generate-modal-body">
+                <p id="generateModalDescription" class="generate-modal-desc"></p>
+
+                <div class="generate-form-group">
+                    <label for="generateFocusInput">Focus (optional)</label>
+                    <input type="text" id="generateFocusInput" placeholder="e.g., weight loss transformation stories" class="generate-input">
+                    <span class="generate-input-hint">Narrow down the content focus</span>
+                </div>
+
+                <div class="generate-form-group">
+                    <label>Tone</label>
+                    <div class="generate-radio-group">
+                        <label class="generate-radio">
+                            <input type="radio" name="generateTone" value="professional">
+                            <span>Professional</span>
+                        </label>
+                        <label class="generate-radio">
+                            <input type="radio" name="generateTone" value="conversational" checked>
+                            <span>Conversational</span>
+                        </label>
+                        <label class="generate-radio">
+                            <input type="radio" name="generateTone" value="casual">
+                            <span>Casual</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="generate-form-group">
+                    <label>Length</label>
+                    <div class="generate-radio-group">
+                        <label class="generate-radio">
+                            <input type="radio" name="generateLength" value="short">
+                            <span>Short</span>
+                        </label>
+                        <label class="generate-radio">
+                            <input type="radio" name="generateLength" value="medium" checked>
+                            <span>Medium</span>
+                        </label>
+                        <label class="generate-radio">
+                            <input type="radio" name="generateLength" value="long">
+                            <span>Long</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="generate-modal-footer">
+                <button class="generate-modal-btn secondary" onclick="closeGenerateModal()">Cancel</button>
+                <button class="generate-modal-btn primary" onclick="submitGenerate()">
+                    Generate
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/config.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>

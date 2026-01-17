@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { extractRedditData } = require('../services/reddit');
-const { generateAIInsights, generateCombinedInsights } = require('../services/insights');
+const { generateAIInsights, generateCombinedInsights, generateContent } = require('../services/insights');
 
 /**
  * POST /api/analyze/extract
@@ -232,6 +232,48 @@ router.post('/reanalyze', async (req, res) => {
 
   } catch (error) {
     console.error('Re-analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/analyze/generate
+ * Generate content (articles, threads, etc.) using insights + raw data
+ */
+router.post('/generate', async (req, res) => {
+  try {
+    const { type, typeLabel, focus, tone, length, role, goal, insights, postsData } = req.body;
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content type is required'
+      });
+    }
+
+    console.log(`Generating ${typeLabel} content`);
+    if (role) console.log('Role:', role);
+    if (focus) console.log('Focus:', focus);
+
+    const result = await generateContent({
+      type,
+      typeLabel,
+      focus,
+      tone,
+      length,
+      role,
+      goal,
+      insights,
+      postsData
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Content generation error:', error);
     res.status(500).json({
       success: false,
       error: error.message
