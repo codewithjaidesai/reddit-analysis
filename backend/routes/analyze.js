@@ -221,9 +221,13 @@ router.post('/reanalyze', async (req, res) => {
     // Generate combined analysis with new role/goal (skip extraction)
     const combinedInsights = await generateCombinedInsights(postsData, role, goal);
 
+    // Return in same format as /combined endpoint for frontend compatibility
+    const posts = postsData.map(data => ({ extractedData: data }));
+
     res.json({
       success: true,
-      combinedAnalysis: combinedInsights
+      combinedAnalysis: combinedInsights,
+      posts
     });
 
   } catch (error) {
