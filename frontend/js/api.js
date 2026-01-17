@@ -99,3 +99,10 @@ async function reanalyzePostsData(postsData, role = null, goal = null) {
         goal
     });
 }
+
+/**
+ * Generate content (articles, threads, etc.) using insights + raw data
+ */
+async function generateContent(params) {
+    return await callAPI(API_CONFIG.endpoints.generate, params);
+}
