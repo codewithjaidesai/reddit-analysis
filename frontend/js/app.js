@@ -1921,17 +1921,7 @@ async function submitReanalyze() {
         // Call the backend with existing extracted data
         showStatus('Generating new analysis...', 60);
 
-        const response = await fetch(`${API_BASE_URL}/api/analyze/reanalyze`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                postsData: extractedPostsData,
-                role: role,
-                goal: goal
-            })
-        });
-
-        const result = await response.json();
+        const result = await reanalyzePostsData(extractedPostsData, role, goal);
 
         if (!result.success) {
             throw new Error(result.error || 'Re-analysis failed');
