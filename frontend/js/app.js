@@ -2289,20 +2289,32 @@ function closeGenerateModal(event) {
  * Submit content generation request
  */
 async function submitGenerate() {
-    if (!generateModalSelectedType) return;
+    console.log('submitGenerate called');
+    console.log('generateModalSelectedType:', generateModalSelectedType);
+
+    if (!generateModalSelectedType) {
+        console.error('No type selected');
+        return;
+    }
 
     const focus = document.getElementById('generateFocusInput').value.trim();
     const tone = document.querySelector('input[name="generateTone"]:checked')?.value || 'conversational';
     const length = document.querySelector('input[name="generateLength"]:checked')?.value || 'medium';
+
+    console.log('Form values:', { focus, tone, length });
 
     // Get current context
     const role = window.currentResearchContext?.role || 'Analyst';
     const goal = window.currentResearchContext?.goal || '';
     const structured = window.combinedResultsData?.combinedAnalysis?.structured;
 
+    console.log('Context:', { role, goal, hasStructured: !!structured });
+
     // Find deliverable info
     const deliverables = personaDeliverables[role] || [];
     const deliverable = deliverables.find(d => d.id === generateModalSelectedType);
+
+    console.log('Deliverable:', deliverable);
 
     // Close modal
     closeGenerateModal();
@@ -2313,6 +2325,9 @@ async function submitGenerate() {
 
     try {
         showStatus('Crafting content with real insights...', 60);
+
+        console.log('Calling generateContent API...');
+        console.log('extractedPostsData:', extractedPostsData ? `${extractedPostsData.length} posts` : 'null');
 
         // Call the backend
         const result = await generateContent({
@@ -2326,6 +2341,8 @@ async function submitGenerate() {
             insights: structured,
             postsData: extractedPostsData
         });
+
+        console.log('API result:', result);
 
         if (!result.success) {
             throw new Error(result.error || 'Generation failed');
@@ -2346,13 +2363,18 @@ async function submitGenerate() {
             length: length
         });
 
+        console.log('generatedContents now has', generatedContents.length, 'items');
+
         // Re-render results to show the Generated tab
         const currentResult = window.combinedResultsData;
-        displayCombinedResults(currentResult, role, goal, false, true);
+        const originalRole = window.currentResearchContext?.role;
+        const originalGoal = window.currentResearchContext?.goal;
+        displayCombinedResults(currentResult, originalRole, originalGoal, false, true);
 
-        // Switch to Generated tab
+        // Switch to Generated tab - find it by onclick attribute
         setTimeout(() => {
-            const generatedTabBtn = document.querySelector('.analysis-tab:last-child');
+            const generatedTabBtn = document.querySelector('.analysis-tab[onclick*="generated"]');
+            console.log('Found generated tab button:', generatedTabBtn);
             if (generatedTabBtn) {
                 generatedTabBtn.click();
             }
@@ -2364,7 +2386,9 @@ async function submitGenerate() {
         // Re-show results
         const currentResult = window.combinedResultsData;
         if (currentResult) {
-            displayCombinedResults(currentResult, role, goal, false, true);
+            const originalRole = window.currentResearchContext?.role;
+            const originalGoal = window.currentResearchContext?.goal;
+            displayCombinedResults(currentResult, originalRole, originalGoal, false, true);
         }
     }
 }
