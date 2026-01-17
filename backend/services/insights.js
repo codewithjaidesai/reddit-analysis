@@ -243,10 +243,11 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
     try {
       // Clean up response - remove any markdown code blocks if present
       let cleanedResponse = aiResult.analysis.trim();
+
+      // Remove markdown code block wrappers
       if (cleanedResponse.startsWith('```json')) {
         cleanedResponse = cleanedResponse.slice(7);
-      }
-      if (cleanedResponse.startsWith('```')) {
+      } else if (cleanedResponse.startsWith('```')) {
         cleanedResponse = cleanedResponse.slice(3);
       }
       if (cleanedResponse.endsWith('```')) {
@@ -254,10 +255,17 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
       }
       cleanedResponse = cleanedResponse.trim();
 
+      // Try to extract JSON if there's extra text around it
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedResponse = jsonMatch[0];
+      }
+
       structuredAnalysis = JSON.parse(cleanedResponse);
       console.log('Successfully parsed structured JSON response');
     } catch (parseError) {
       console.log('Failed to parse JSON, falling back to markdown:', parseError.message);
+      console.log('Raw response preview:', aiResult.analysis.substring(0, 200));
       // Keep structuredAnalysis as null, frontend will use markdown fallback
     }
 

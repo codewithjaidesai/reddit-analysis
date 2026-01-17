@@ -563,7 +563,17 @@ function displayCombinedResults(result, role, goal, isReanalyze = false) {
     const { combinedAnalysis, posts, failures } = result;
     const totalComments = combinedAnalysis.totalComments || 0;
     const subreddits = combinedAnalysis.subreddits || [];
-    const structured = combinedAnalysis.structured;
+
+    // Get structured data - could be nested or at top level
+    let structured = combinedAnalysis.structured;
+
+    // If structured is null but combinedAnalysis has the expected fields, use it directly
+    if (!structured && combinedAnalysis.executiveSummary) {
+        structured = combinedAnalysis;
+        console.log('Using combinedAnalysis directly as structured data');
+    }
+
+    console.log('displayCombinedResults - structured:', structured ? 'exists' : 'null');
 
     // Store extracted posts for re-analysis
     if (!isReanalyze) {
