@@ -552,7 +552,7 @@ async function analyzeMultiplePosts(urls, isReanalyze = false) {
 // Store combined results globally for export
 window.combinedResultsData = null;
 
-function displayCombinedResults(result, role, goal, isReanalyze = false) {
+function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitching = false) {
     hideAll();
     document.getElementById('resultsSection').style.display = 'block';
     document.getElementById('multiPostResults').style.display = 'block';
@@ -575,26 +575,28 @@ function displayCombinedResults(result, role, goal, isReanalyze = false) {
 
     console.log('displayCombinedResults - structured:', structured ? 'exists' : 'null');
 
-    // Store extracted posts for re-analysis
-    if (!isReanalyze) {
+    // Store extracted posts for re-analysis (only on fresh analysis)
+    if (!isReanalyze && !isSwitching) {
         extractedPostsData = posts.map(p => p.extractedData);
     }
 
-    // Add to analysis history
-    const analysisEntry = {
-        id: Date.now(),
-        role: role,
-        goal: goal,
-        result: result,
-        timestamp: new Date()
-    };
+    // Only modify history if not just switching between existing analyses
+    if (!isSwitching) {
+        const analysisEntry = {
+            id: Date.now(),
+            role: role,
+            goal: goal,
+            result: result,
+            timestamp: new Date()
+        };
 
-    if (isReanalyze) {
-        analysisHistory.push(analysisEntry);
-        currentAnalysisIndex = analysisHistory.length - 1;
-    } else {
-        analysisHistory = [analysisEntry];
-        currentAnalysisIndex = 0;
+        if (isReanalyze) {
+            analysisHistory.push(analysisEntry);
+            currentAnalysisIndex = analysisHistory.length - 1;
+        } else {
+            analysisHistory = [analysisEntry];
+            currentAnalysisIndex = 0;
+        }
     }
 
     let html = '';
@@ -1042,6 +1044,91 @@ function exportCombinedSummaryPDF() {
                 </div>
             `;
         }
+
+        // Quantitative Insights (Data Analysis - Experimental)
+        if (structured.quantitativeInsights) {
+            const quant = structured.quantitativeInsights;
+            insightsHtml += `
+                <div class="section quant-section">
+                    <h2>Data Analysis <span class="experimental-badge">Experimental</span></h2>
+            `;
+
+            // Topics Discussed
+            if (quant.topicsDiscussed && quant.topicsDiscussed.length > 0) {
+                insightsHtml += `
+                    <div class="quant-subsection">
+                        <h3>Topics Discussed</h3>
+                        <div class="topics-list">
+                            ${quant.topicsDiscussed.map(topic => `
+                                <div class="topic-item">
+                                    <span class="topic-name">${escapeHtml(topic.topic)}</span>
+                                    <span class="topic-mentions">${topic.mentions}x mentioned</span>
+                                    <span class="topic-sentiment sentiment-${topic.sentiment || 'neutral'}">${topic.sentiment || 'neutral'}</span>
+                                    ${topic.example ? `<p class="topic-example">"${escapeHtml(topic.example)}"</p>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Sentiment Breakdown
+            if (quant.sentimentBreakdown) {
+                const sb = quant.sentimentBreakdown;
+                insightsHtml += `
+                    <div class="quant-subsection">
+                        <h3>Sentiment Distribution</h3>
+                        <div class="sentiment-stats">
+                            <span class="sentiment-stat positive">Positive: ${sb.positive || 0}%</span>
+                            <span class="sentiment-stat neutral">Neutral: ${sb.neutral || 0}%</span>
+                            <span class="sentiment-stat negative">Negative: ${sb.negative || 0}%</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Common Phrases
+            if (quant.commonPhrases && quant.commonPhrases.length > 0) {
+                insightsHtml += `
+                    <div class="quant-subsection">
+                        <h3>Common Phrases</h3>
+                        <div class="phrases-list">
+                            ${quant.commonPhrases.map(phrase => `
+                                <div class="phrase-item">
+                                    <span class="phrase-text">"${escapeHtml(phrase.phrase)}"</span>
+                                    <span class="phrase-count">${phrase.count}x</span>
+                                    ${phrase.context ? `<span class="phrase-context">— ${escapeHtml(phrase.context)}</span>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Data Patterns
+            if (quant.dataPatterns && quant.dataPatterns.length > 0) {
+                insightsHtml += `
+                    <div class="quant-subsection">
+                        <h3>Data Patterns</h3>
+                        <ul class="patterns-list">
+                            ${quant.dataPatterns.map(pattern => `<li>${escapeHtml(pattern)}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Engagement Correlation
+            if (quant.engagementCorrelation) {
+                insightsHtml += `
+                    <div class="quant-subsection">
+                        <h3>Engagement Insight</h3>
+                        <p class="engagement-insight">${escapeHtml(quant.engagementCorrelation)}</p>
+                    </div>
+                `;
+            }
+
+            insightsHtml += `</div>`;
+        }
     } else {
         // Fallback to raw text
         insightsHtml = `<div class="section"><div class="raw-content">${formatMarkdown(combinedAnalysis.aiAnalysis)}</div></div>`;
@@ -1182,6 +1269,125 @@ function exportCombinedSummaryPDF() {
                 .confidence-badge.high { background: #c6f6d5; color: #276749; }
                 .confidence-badge.medium { background: #feebc8; color: #c05621; }
                 .confidence-badge.low { background: #fed7d7; color: #c53030; }
+                .quant-section {
+                    background: #f8fafc;
+                    border: 2px solid #e2e8f0;
+                    border-radius: 12px;
+                    padding: 20px;
+                }
+                .quant-section h2 {
+                    margin-top: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .experimental-badge {
+                    font-size: 10px;
+                    background: #805ad5;
+                    color: white;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    font-weight: normal;
+                }
+                .quant-subsection {
+                    margin: 20px 0;
+                    padding-top: 15px;
+                    border-top: 1px solid #e2e8f0;
+                }
+                .quant-subsection:first-child {
+                    border-top: none;
+                    padding-top: 0;
+                }
+                .quant-subsection h3 {
+                    color: #4a5568;
+                    margin-bottom: 12px;
+                }
+                .topic-item {
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 10px;
+                    background: white;
+                    border-radius: 6px;
+                    margin: 8px 0;
+                    border: 1px solid #e2e8f0;
+                }
+                .topic-name {
+                    font-weight: 600;
+                    color: #2d3748;
+                }
+                .topic-mentions {
+                    font-size: 12px;
+                    color: #718096;
+                }
+                .topic-sentiment {
+                    font-size: 11px;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                }
+                .sentiment-positive, .topic-sentiment.sentiment-positive { background: #c6f6d5; color: #276749; }
+                .sentiment-negative, .topic-sentiment.sentiment-negative { background: #fed7d7; color: #c53030; }
+                .sentiment-neutral, .topic-sentiment.sentiment-neutral { background: #e2e8f0; color: #4a5568; }
+                .sentiment-mixed, .topic-sentiment.sentiment-mixed { background: #feebc8; color: #c05621; }
+                .topic-example {
+                    width: 100%;
+                    font-size: 13px;
+                    font-style: italic;
+                    color: #718096;
+                    margin: 5px 0 0 0;
+                }
+                .sentiment-stats {
+                    display: flex;
+                    gap: 15px;
+                    flex-wrap: wrap;
+                }
+                .sentiment-stat {
+                    padding: 8px 15px;
+                    border-radius: 6px;
+                    font-weight: 500;
+                }
+                .sentiment-stat.positive { background: #c6f6d5; color: #276749; }
+                .sentiment-stat.neutral { background: #e2e8f0; color: #4a5568; }
+                .sentiment-stat.negative { background: #fed7d7; color: #c53030; }
+                .phrase-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 8px 12px;
+                    background: white;
+                    border-radius: 6px;
+                    margin: 6px 0;
+                    border: 1px solid #e2e8f0;
+                }
+                .phrase-text {
+                    font-weight: 500;
+                    color: #2d3748;
+                }
+                .phrase-count {
+                    font-size: 12px;
+                    color: #667eea;
+                    font-weight: 600;
+                }
+                .phrase-context {
+                    font-size: 12px;
+                    color: #718096;
+                    font-style: italic;
+                }
+                .patterns-list {
+                    padding-left: 20px;
+                }
+                .patterns-list li {
+                    margin: 8px 0;
+                    color: #4a5568;
+                }
+                .engagement-insight {
+                    background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+                    padding: 15px;
+                    border-radius: 8px;
+                    border-left: 4px solid #667eea;
+                    color: #4a5568;
+                }
                 .footer {
                     margin-top: 40px;
                     padding-top: 20px;
@@ -1740,9 +1946,14 @@ function switchAnalysis(index) {
 
     // Update global state
     window.combinedResultsData = entry.result;
+    window.currentResearchContext = {
+        ...window.currentResearchContext,
+        role: entry.role,
+        goal: entry.goal
+    };
 
-    // Re-render with the selected analysis
-    displayCombinedResults(entry.result, entry.role, entry.goal, true);
+    // Re-render with the selected analysis (isSwitching = true to prevent adding to history)
+    displayCombinedResults(entry.result, entry.role, entry.goal, false, true);
 }
 
 // ============================================
