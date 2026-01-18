@@ -2297,6 +2297,9 @@ async function submitGenerate() {
         return;
     }
 
+    // Save type BEFORE closing modal (which resets generateModalSelectedType to null)
+    const selectedType = generateModalSelectedType;
+
     const focus = document.getElementById('generateFocusInput').value.trim();
     const tone = document.querySelector('input[name="generateTone"]:checked')?.value || 'conversational';
     const length = document.querySelector('input[name="generateLength"]:checked')?.value || 'medium';
@@ -2312,7 +2315,7 @@ async function submitGenerate() {
 
     // Find deliverable info
     const deliverables = personaDeliverables[role] || [];
-    const deliverable = deliverables.find(d => d.id === generateModalSelectedType);
+    const deliverable = deliverables.find(d => d.id === selectedType);
 
     console.log('Deliverable:', deliverable);
 
@@ -2331,7 +2334,7 @@ async function submitGenerate() {
 
         // Call the backend
         const result = await generateContent({
-            type: generateModalSelectedType,
+            type: selectedType,
             typeLabel: deliverable?.label || 'Content',
             focus: focus,
             tone: tone,
@@ -2353,7 +2356,7 @@ async function submitGenerate() {
         // Add to generated contents
         generatedContents.push({
             id: Date.now(),
-            type: generateModalSelectedType,
+            type: selectedType,
             label: deliverable?.label || 'Content',
             icon: deliverable?.icon || '📄',
             content: result.content,
