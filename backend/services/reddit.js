@@ -132,6 +132,11 @@ function extractAllComments(commentChildren) {
 
     // Add this comment if it has valid content
     if (comment.body && comment.author) {
+      // Count direct replies
+      const replyCount = (comment.replies && comment.replies.data && comment.replies.data.children)
+        ? comment.replies.data.children.filter(r => r.kind !== 'more').length
+        : 0;
+
       comments.push({
         id: comment.id,
         author: comment.author,
@@ -140,7 +145,8 @@ function extractAllComments(commentChildren) {
         created_utc: comment.created_utc,
         parent_id: comment.parent_id,
         depth: comment.depth || 0,
-        awards: comment.all_awardings ? comment.all_awardings.length : 0
+        awards: comment.all_awardings ? comment.all_awardings.length : 0,
+        replies: replyCount
       });
     }
 
@@ -200,30 +206,82 @@ function extractValuableContent(comments, post) {
     };
   }
 
-  // Calculate quality threshold
+  // Calculate dynamic thresholds based on post data
   const scores = validComments.map(c => c.score).sort((a, b) => b - a);
   const topScore = scores[0];
   const medianScore = scores[Math.floor(scores.length / 2)];
 
-  // Dynamic threshold based on post engagement
-  const qualityThreshold = Math.max(
-    Math.floor(medianScore * 0.5),
-    3
-  );
+  // Helper function to get median
+  const getMedian = (arr) => {
+    if (arr.length === 0) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+  };
 
-  console.log(`Quality threshold: ${qualityThreshold} (top: ${topScore}, median: ${medianScore})`);
+  // Helper function to get percentile
+  const getPercentile = (arr, p) => {
+    if (arr.length === 0) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    const index = Math.ceil((p / 100) * sorted.length) - 1;
+    return sorted[Math.max(0, index)];
+  };
 
-  // Filter high-value comments
+  // Calculate engagement stats for dynamic thresholds
+  const replyCounts = validComments.map(c => c.replies || 0);
+  const depths = validComments.map(c => c.depth || 0);
+  const totalAwards = validComments.reduce((sum, c) => sum + (c.awards || 0), 0);
+
+  // Dynamic thresholds
+  const thresholds = {
+    // Base score threshold (existing logic - unchanged)
+    score: Math.max(Math.floor(medianScore * 0.5), 3),
+
+    // High score for short comments (Path B) - 75th percentile or 2x base
+    highScore: Math.max(getPercentile(scores, 75), Math.max(Math.floor(medianScore * 0.5), 3) * 2),
+
+    // Reply count to be considered "discussion-sparking" - relative to this post
+    replies: Math.max(Math.ceil(getMedian(replyCounts) * 2), 1),
+
+    // Award count to be considered notable - relative to thread
+    awards: totalAwards > 10 ? 2 : 1,
+
+    // Depth to be considered "top-level-ish" - top 40% of thread depth
+    depth: Math.max(Math.ceil(Math.max(...depths) * 0.4), 1)
+  };
+
+  console.log(`Quality thresholds: score=${thresholds.score}, highScore=${thresholds.highScore}, replies=${thresholds.replies}, awards=${thresholds.awards}, depth=${thresholds.depth}`);
+  console.log(`Post stats: topScore=${topScore}, medianScore=${medianScore}, totalAwards=${totalAwards}`);
+
+  // Dual-path quality filter
   const valuableComments = validComments
     .filter(comment => {
-      const meetsScoreThreshold = comment.score >= qualityThreshold;
-      const hasSubstance = comment.body.length >= 50;
+      // Filter out automoderator
       const notAutoMod = !comment.author.toLowerCase().includes('automoderator');
+      if (!notAutoMod) return false;
 
-      return meetsScoreThreshold && hasSubstance && notAutoMod;
+      // Path A: Substance-based (EXISTING LOGIC - UNCHANGED)
+      // Comments with good length and score threshold
+      if (comment.body.length >= 50 && comment.score >= thresholds.score) {
+        return true;
+      }
+
+      // Path B: Engagement-based (NEW - ADDITIVE)
+      // Short comments (20-49 chars) that are highly engaged
+      if (comment.body.length >= 20 && comment.body.length < 50) {
+        const hasEngagement =
+          (comment.replies || 0) >= thresholds.replies ||
+          (comment.awards || 0) >= thresholds.awards ||
+          ((comment.depth || 0) <= thresholds.depth && (comment.replies || 0) > 0);
+
+        if (comment.score >= thresholds.highScore && hasEngagement) {
+          return true;
+        }
+      }
+
+      return false;
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 50); // Limit to top 50 comments
+    .slice(0, 150); // Safety cap for extremely viral posts
 
   const avgScore = Math.round(
     valuableComments.reduce((sum, c) => sum + c.score, 0) / valuableComments.length

@@ -20,7 +20,7 @@ THREAD: "${post.title}"
 ${post.selftext ? post.selftext.substring(0, 300) + '...' : ''}
 
 COMMENTS:
-${comments.slice(0, 25).map((c) => `[${c.score} pts] ${c.body.substring(0, 300)}`).join('\n---\n')}
+${comments.map((c) => `[${c.score} pts] ${c.body.substring(0, 300)}`).join('\n---\n')}
 
 ===
 
@@ -130,7 +130,7 @@ function formatCombinedAnalysisPrompt(postsData, role = null, goal = null) {
     return `
 POST ${idx + 1}: "${post.title}"
 r/${post.subreddit} • ${post.score} upvotes • ${comments.length} comments
-${comments.slice(0, 12).map(c => `[r/${post.subreddit}, ${c.score} pts] ${c.body.substring(0, 300)}`).join('\n')}`;
+${comments.map(c => `[r/${post.subreddit}, ${c.score} pts] ${c.body.substring(0, 300)}`).join('\n')}`;
   }).join('\n---\n');
 
   const prompt = `You are analyzing Reddit comments for a ${role || 'researcher'}.
@@ -333,7 +333,7 @@ function buildContentPrompt(type, typeLabel, focus, tone, length, role, goal, in
   if (postsData && postsData.length > 0) {
     postsData.forEach(post => {
       const comments = post.valuableComments || [];
-      comments.slice(0, 8).forEach(c => {
+      comments.forEach(c => {
         realQuotes.push({
           text: c.body.substring(0, 400),
           score: c.score,

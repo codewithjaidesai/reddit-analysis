@@ -9,8 +9,10 @@ const config = require('../config');
  * @returns {Promise<object>} Result object
  */
 async function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
-  const maxOutputTokens = modelName.includes('2.5') || modelName.includes('pro') ? 65536 : 8192;
-  const topK = modelName.includes('2.5') || modelName.includes('pro') ? 64 : 40;
+  // Gemini 3 and 2.5 models support higher token limits
+  const isAdvancedModel = modelName.includes('3') || modelName.includes('2.5') || modelName.includes('pro');
+  const maxOutputTokens = isAdvancedModel ? 65536 : 8192;
+  const topK = isAdvancedModel ? 64 : 40;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
