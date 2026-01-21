@@ -1,6 +1,18 @@
 const { analyzeWithGemini } = require('./gemini');
 
 /**
+ * Insights Service
+ *
+ * This service formats quality-filtered comments for AI analysis.
+ * Comments are pre-filtered by the quality filter in reddit.js using
+ * a dual-path approach (substance-based + engagement-based).
+ *
+ * All quality comments are sent to the AI - no additional slicing.
+ *
+ * @see docs/QUALITY_FILTER_LOGIC.md for quality filter documentation
+ */
+
+/**
  * Format extracted Reddit data for AI analysis
  * @param {object} extractedData - Extracted Reddit post and comments
  * @param {string} role - User's role (e.g. Product Manager, Marketer, Founder)
