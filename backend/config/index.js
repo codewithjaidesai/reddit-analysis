@@ -15,8 +15,8 @@ module.exports = {
   // Gemini AI Configuration
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    fallbackModels: ['gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-flash-latest'],
+    model: process.env.GEMINI_MODEL || 'gemini-3-pro-preview',
+    fallbackModels: ['gemini-3-flash-preview', 'gemini-2.5-pro', 'gemini-2.5-flash'],
     apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/',
     maxOutputTokens: 65536,
     temperature: 0.7,
