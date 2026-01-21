@@ -116,8 +116,19 @@ async function fetchAuthenticatedRedditData(inputUrl) {
 
 /**
  * Extract all comments recursively from Reddit API response
+ *
+ * Extracts engagement data for each comment:
+ * - score (upvotes - downvotes)
+ * - depth (nesting level)
+ * - awards (count of all awardings)
+ * - replies (direct reply count)
+ *
+ * This data is used by extractValuableContent() for quality filtering.
+ *
+ * @see docs/QUALITY_FILTER_LOGIC.md for how engagement data is used
+ *
  * @param {Array} commentChildren - Reddit comments array
- * @returns {Array} Flat array of all comments
+ * @returns {Array} Flat array of all comments with engagement data
  */
 function extractAllComments(commentChildren) {
   const comments = [];
@@ -163,6 +174,15 @@ function extractAllComments(commentChildren) {
 
 /**
  * Extract high-value comments using quality filtering
+ *
+ * Uses a dual-path approach:
+ * - Path A: Substance-based (length >= 50, score >= threshold)
+ * - Path B: Engagement-based (short but high engagement signals)
+ *
+ * All thresholds are dynamic based on post engagement.
+ *
+ * @see docs/QUALITY_FILTER_LOGIC.md for full documentation
+ *
  * @param {Array} comments - All comments from post
  * @param {object} post - Post data
  * @returns {object} Extracted data with stats
