@@ -205,6 +205,30 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
       "Pattern 2: another trend noticed"
     ],
     "engagementCorrelation": "What types of comments get more upvotes in this dataset"
+  },
+  "evidenceAnalysis": {
+    "primaryClaim": "The main hypothesis or claim that emerges from this data (inferred from the user's goal)",
+    "verdict": "Strongly Supported or Supported or Mixed Evidence or Weakly Supported or Not Supported",
+    "evidenceScore": 73,
+    "supporting": {
+      "count": 42,
+      "percentage": 73,
+      "keyPoints": ["Point 1 from data", "Point 2 from data"],
+      "quotes": [
+        {"text": "Exact quote supporting the claim (max 150 chars)", "score": 234, "subreddit": "SubredditName"}
+      ]
+    },
+    "counter": {
+      "count": 16,
+      "percentage": 27,
+      "keyPoints": ["Counter point 1", "Counter point 2"],
+      "quotes": [
+        {"text": "Exact quote contradicting the claim (max 150 chars)", "score": 45, "subreddit": "SubredditName"}
+      ]
+    },
+    "nuances": ["Important nuance or caveat about this evidence"],
+    "confidenceLevel": "high or medium or low",
+    "confidenceReason": "Why this confidence level (data volume, consistency, etc.)"
   }
 }
 
@@ -218,8 +242,15 @@ RULES:
    - commonPhrases: 3-5 frequently mentioned terms/phrases with counts
    - dataPatterns: 2-4 patterns you notice in the data
    - engagementCorrelation: What content gets upvoted
-5. Keep it concise. No fluff.
-6. Return ONLY the JSON object, nothing else.`;
+5. evidenceAnalysis: Treat the user's goal as a hypothesis to validate:
+   - primaryClaim: Infer the main claim/hypothesis from their goal (e.g., goal "find if users want dark mode" → claim "Users want dark mode")
+   - Count comments that support vs contradict this claim
+   - evidenceScore: percentage of relevant comments supporting the claim (0-100)
+   - Include 2-4 supporting quotes and 1-2 counter quotes with scores
+   - verdict: Based on evidence score (>75% = Strongly Supported, 60-75% = Supported, 40-60% = Mixed Evidence, 25-40% = Weakly Supported, <25% = Not Supported)
+   - confidenceLevel: high (50+ relevant comments), medium (20-50), low (<20)
+6. Keep it concise. No fluff.
+7. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
 }
