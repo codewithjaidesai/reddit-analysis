@@ -222,17 +222,20 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
     "primaryClaim": "The main hypothesis or claim that emerges from this data (inferred from the user's goal)",
     "verdict": "Strongly Supported or Supported or Mixed Evidence or Weakly Supported or Not Supported",
     "evidenceScore": 73,
+    "totalAnalyzed": 300,
+    "relevantCount": 190,
+    "notRelevantCount": 110,
     "supporting": {
-      "count": 42,
-      "percentage": 73,
+      "count": 156,
+      "percentage": 82,
       "keyPoints": ["Point 1 from data", "Point 2 from data"],
       "quotes": [
         {"text": "Exact quote supporting the claim (max 150 chars)", "score": 234, "subreddit": "SubredditName"}
       ]
     },
     "counter": {
-      "count": 16,
-      "percentage": 27,
+      "count": 34,
+      "percentage": 18,
       "keyPoints": ["Counter point 1", "Counter point 2"],
       "quotes": [
         {"text": "Exact quote contradicting the claim (max 150 chars)", "score": 45, "subreddit": "SubredditName"}
@@ -256,8 +259,11 @@ RULES:
    - engagementCorrelation: What content gets upvoted
 5. evidenceAnalysis: Treat the user's goal as a hypothesis to validate:
    - primaryClaim: Infer the main claim/hypothesis from their goal (e.g., goal "find if users want dark mode" → claim "Users want dark mode")
-   - Count comments that support vs contradict this claim
-   - evidenceScore: percentage of relevant comments supporting the claim (0-100)
+   - totalAnalyzed: Total number of comments you analyzed
+   - relevantCount: How many comments are relevant to this hypothesis (speak to it directly or indirectly)
+   - notRelevantCount: How many comments are not relevant (about other topics)
+   - supporting.count and counter.count must add up to relevantCount
+   - evidenceScore: percentage of RELEVANT comments supporting the claim (supporting.count / relevantCount * 100)
    - Include 2-4 supporting quotes and 1-2 counter quotes with scores
    - verdict: Based on evidence score (>75% = Strongly Supported, 60-75% = Supported, 40-60% = Mixed Evidence, 25-40% = Weakly Supported, <25% = Not Supported)
    - confidenceLevel: high (50+ relevant comments), medium (20-50), low (<20)
