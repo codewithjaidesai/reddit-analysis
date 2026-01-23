@@ -3270,3 +3270,12 @@ footer a {
     font-size: 0.9rem;
     color: var(--text-secondary);
 }
+
+.evidence-footnote {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}

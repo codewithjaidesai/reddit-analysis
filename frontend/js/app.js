@@ -991,6 +991,13 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                             <span class="confidence-badge confidence-${evidence.confidenceLevel || 'medium'}">${(evidence.confidenceLevel || 'medium').toUpperCase()}</span>
                             <span class="confidence-reason">${escapeHtml(evidence.confidenceReason || '')}</span>
                         </div>
+
+                        ${evidence.totalAnalyzed ? `
+                            <p class="evidence-footnote">
+                                * Of ${evidence.totalAnalyzed} comments analyzed, ${evidence.relevantCount || 0} were relevant to this hypothesis.
+                                ${evidence.notRelevantCount ? `${evidence.notRelevantCount} comments discussed other topics.` : ''}
+                            </p>
+                        ` : ''}
                     </div>
                 `;
             }
