@@ -735,91 +735,6 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             `;
         }
 
-        // EVIDENCE ANALYSIS SECTION
-        if (structured.evidenceAnalysis) {
-            const evidence = structured.evidenceAnalysis;
-            const verdictClass = (evidence.verdict || '').toLowerCase().replace(/\s+/g, '-');
-
-            html += `
-                <div class="analysis-section evidence-section">
-                    <h2 class="section-title">Evidence Analysis</h2>
-
-                    <div class="evidence-header">
-                        <div class="evidence-claim">
-                            <span class="evidence-label">Hypothesis:</span>
-                            <span class="evidence-claim-text">${escapeHtml(evidence.primaryClaim || 'N/A')}</span>
-                        </div>
-                        <div class="evidence-verdict verdict-${verdictClass}">
-                            <span class="verdict-label">${escapeHtml(evidence.verdict || 'Unknown')}</span>
-                            <span class="evidence-score">${evidence.evidenceScore || 0}% support</span>
-                        </div>
-                    </div>
-
-                    <div class="evidence-columns">
-                        <div class="evidence-column supporting">
-                            <h3 class="evidence-column-title">
-                                <span class="evidence-icon">✓</span>
-                                Supporting Evidence
-                                <span class="evidence-count">(${evidence.supporting?.count || 0} comments, ${evidence.supporting?.percentage || 0}%)</span>
-                            </h3>
-                            ${evidence.supporting?.keyPoints ? `
-                                <ul class="evidence-points">
-                                    ${evidence.supporting.keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
-                                </ul>
-                            ` : ''}
-                            ${evidence.supporting?.quotes ? `
-                                <div class="evidence-quotes">
-                                    ${evidence.supporting.quotes.map(q => `
-                                        <div class="evidence-quote">
-                                            <span class="quote-text">"${escapeHtml(q.text)}"</span>
-                                            <span class="quote-meta">${q.score} pts • r/${escapeHtml(q.subreddit || 'unknown')}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-
-                        <div class="evidence-column counter">
-                            <h3 class="evidence-column-title">
-                                <span class="evidence-icon">✗</span>
-                                Counter Evidence
-                                <span class="evidence-count">(${evidence.counter?.count || 0} comments, ${evidence.counter?.percentage || 0}%)</span>
-                            </h3>
-                            ${evidence.counter?.keyPoints ? `
-                                <ul class="evidence-points">
-                                    ${evidence.counter.keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
-                                </ul>
-                            ` : ''}
-                            ${evidence.counter?.quotes ? `
-                                <div class="evidence-quotes">
-                                    ${evidence.counter.quotes.map(q => `
-                                        <div class="evidence-quote">
-                                            <span class="quote-text">"${escapeHtml(q.text)}"</span>
-                                            <span class="quote-meta">${q.score} pts • r/${escapeHtml(q.subreddit || 'unknown')}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-
-                    ${evidence.nuances && evidence.nuances.length > 0 ? `
-                        <div class="evidence-nuances">
-                            <h4>Nuances & Caveats</h4>
-                            <ul>
-                                ${evidence.nuances.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
-                            </ul>
-                        </div>
-                    ` : ''}
-
-                    <div class="evidence-confidence">
-                        <span class="confidence-badge confidence-${evidence.confidenceLevel || 'medium'}">${(evidence.confidenceLevel || 'medium').toUpperCase()}</span>
-                        <span class="confidence-reason">${escapeHtml(evidence.confidenceReason || '')}</span>
-                    </div>
-                </div>
-            `;
-        }
-
         // GENERATE CONTENT SECTION - Show deliverable buttons based on persona
         const deliverables = personaDeliverables[role] || [];
         if (deliverables.length > 0) {
@@ -990,6 +905,91 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                         <div class="engagement-insight">
                             <span class="engagement-insight-icon">^</span>
                             <span class="engagement-insight-text">${escapeHtml(quant.engagementCorrelation)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Evidence Analysis (in Data Analysis tab)
+            if (structured.evidenceAnalysis) {
+                const evidence = structured.evidenceAnalysis;
+                const verdictClass = (evidence.verdict || '').toLowerCase().replace(/\s+/g, '-');
+
+                html += `
+                    <div class="quant-subsection evidence-section">
+                        <h3 class="quant-subsection-title">Evidence Analysis</h3>
+
+                        <div class="evidence-header">
+                            <div class="evidence-claim">
+                                <span class="evidence-label">Hypothesis:</span>
+                                <span class="evidence-claim-text">${escapeHtml(evidence.primaryClaim || 'N/A')}</span>
+                            </div>
+                            <div class="evidence-verdict verdict-${verdictClass}">
+                                <span class="verdict-label">${escapeHtml(evidence.verdict || 'Unknown')}</span>
+                                <span class="evidence-score">${evidence.evidenceScore || 0}% support</span>
+                            </div>
+                        </div>
+
+                        <div class="evidence-columns">
+                            <div class="evidence-column supporting">
+                                <h3 class="evidence-column-title">
+                                    <span class="evidence-icon">✓</span>
+                                    Supporting Evidence
+                                    <span class="evidence-count">(${evidence.supporting?.count || 0} comments, ${evidence.supporting?.percentage || 0}%)</span>
+                                </h3>
+                                ${evidence.supporting?.keyPoints ? `
+                                    <ul class="evidence-points">
+                                        ${evidence.supporting.keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+                                    </ul>
+                                ` : ''}
+                                ${evidence.supporting?.quotes ? `
+                                    <div class="evidence-quotes">
+                                        ${evidence.supporting.quotes.map(q => `
+                                            <div class="evidence-quote">
+                                                <span class="quote-text">"${escapeHtml(q.text)}"</span>
+                                                <span class="quote-meta">${q.score} pts • r/${escapeHtml(q.subreddit || 'unknown')}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <div class="evidence-column counter">
+                                <h3 class="evidence-column-title">
+                                    <span class="evidence-icon">✗</span>
+                                    Counter Evidence
+                                    <span class="evidence-count">(${evidence.counter?.count || 0} comments, ${evidence.counter?.percentage || 0}%)</span>
+                                </h3>
+                                ${evidence.counter?.keyPoints ? `
+                                    <ul class="evidence-points">
+                                        ${evidence.counter.keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+                                    </ul>
+                                ` : ''}
+                                ${evidence.counter?.quotes ? `
+                                    <div class="evidence-quotes">
+                                        ${evidence.counter.quotes.map(q => `
+                                            <div class="evidence-quote">
+                                                <span class="quote-text">"${escapeHtml(q.text)}"</span>
+                                                <span class="quote-meta">${q.score} pts • r/${escapeHtml(q.subreddit || 'unknown')}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        ${evidence.nuances && evidence.nuances.length > 0 ? `
+                            <div class="evidence-nuances">
+                                <h4>Nuances & Caveats</h4>
+                                <ul>
+                                    ${evidence.nuances.map(n => `<li>${escapeHtml(n)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+
+                        <div class="evidence-confidence">
+                            <span class="confidence-badge confidence-${evidence.confidenceLevel || 'medium'}">${(evidence.confidenceLevel || 'medium').toUpperCase()}</span>
+                            <span class="confidence-reason">${escapeHtml(evidence.confidenceReason || '')}</span>
                         </div>
                     </div>
                 `;
