@@ -42,14 +42,26 @@ INSTRUCTIONS:
 3. NO TABLES. Use bullet points only.
 4. If ${commentCount} < 15 comments, warn that data is limited and suggest specific follow-up searches.
 5. Include mention counts only if pattern appears 3+ times.
+6. IMPORTANT: Treat the user's GOAL as a hypothesis to validate with evidence.
 
 OUTPUT FORMAT:
 
 ## 🎯 ${goal || 'Key Findings'}
 [3-7 bullets directly answering their goal]
 
-## 📊 Confidence
-[1 sentence: is this enough data?]
+## 📊 Evidence Analysis
+**Hypothesis:** [Infer the main claim from their goal]
+**Verdict:** [Strongly Supported / Supported / Mixed Evidence / Weakly Supported / Not Supported]
+**Evidence Score:** [X]% of relevant comments support this (N supporting, M contradicting)
+
+**Supporting Evidence:**
+- "[Exact quote]" (X pts)
+- "[Exact quote]" (X pts)
+
+**Counter Evidence:**
+- "[Exact quote]" (X pts)
+
+**Confidence:** [High/Medium/Low] - [reason based on data volume]
 
 ## ⚡ Patterns
 [3-5 bullets if useful, skip if redundant]
