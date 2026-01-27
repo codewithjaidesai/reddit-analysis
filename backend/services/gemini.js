@@ -177,6 +177,26 @@ async function analyzeWithGemini(prompt) {
 }
 
 /**
+ * Analyze with a specific Gemini model (no fallback chain)
+ * Used for map steps and pre-screening where we want a specific model
+ * @param {string} prompt - The prompt text
+ * @param {string} modelName - Specific model to use
+ * @returns {Promise<object>} Result object
+ */
+async function analyzeWithModel(prompt, modelName) {
+  console.log(`Calling specific Gemini model: ${modelName}`);
+  const result = await callGeminiWithRetry(modelName, prompt, 3);
+
+  if (result.success) {
+    return result;
+  }
+
+  // If specific model failed, fall back to standard chain
+  console.log(`Specific model ${modelName} failed, falling back to standard chain`);
+  return analyzeWithGemini(prompt);
+}
+
+/**
  * Helper function to sleep
  * @param {number} ms - Milliseconds to sleep
  */
@@ -186,5 +206,6 @@ function sleep(ms) {
 
 module.exports = {
   analyzeWithGemini,
+  analyzeWithModel,
   callGeminiWithRetry
 };

@@ -101,6 +101,29 @@ async function reanalyzePostsData(postsData, role = null, goal = null) {
 }
 
 /**
+ * Pre-screen posts for relevance using AI
+ */
+async function preScreenPosts(posts, topic, role = null, goal = null) {
+    return await callAPI(API_CONFIG.endpoints.prescreen, {
+        posts,
+        topic,
+        role,
+        goal
+    });
+}
+
+/**
+ * Auto-analyze: batched extraction + map-reduce analysis
+ */
+async function autoAnalysis(urls, role = null, goal = null) {
+    return await callAPI(API_CONFIG.endpoints.auto, {
+        urls,
+        role,
+        goal
+    });
+}
+
+/**
  * Generate content (articles, threads, etc.) using insights + raw data
  */
 async function generateContent(params) {

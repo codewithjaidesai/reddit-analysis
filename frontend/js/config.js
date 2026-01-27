@@ -17,7 +17,9 @@ const API_CONFIG = {
         insights: '/api/analyze/insights',
         full: '/api/analyze/full',
         combined: '/api/analyze/combined',
+        auto: '/api/analyze/auto',
         reanalyze: '/api/analyze/reanalyze',
-        generate: '/api/analyze/generate'
+        generate: '/api/analyze/generate',
+        prescreen: '/api/search/prescreen'
     }
 };
