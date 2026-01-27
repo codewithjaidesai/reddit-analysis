@@ -338,13 +338,13 @@ async function mapAnalyzeChunk(chunkData, role, goal, chunkIndex, totalChunks) {
 function buildReducePrompt(chunkResults, role, goal, metadata) {
   const validChunks = chunkResults.filter(c => c !== null);
 
-  // Aggregate data from all chunks
-  const allThemes = validChunks.flatMap(c => c.themes || []);
-  const allGoalFindings = validChunks.flatMap(c => c.goalFindings || []);
-  const allContradictions = validChunks.flatMap(c => c.contradictions || []);
-  const allOutliers = validChunks.flatMap(c => c.outlierInsights || []);
-  const allQuotes = validChunks.flatMap(c => c.topQuotes || []);
-  const allPhrases = validChunks.flatMap(c => c.commonPhrases || []);
+  // Aggregate data from all chunks (capped to prevent oversized prompts)
+  const allThemes = validChunks.flatMap(c => c.themes || []).slice(0, 30);
+  const allGoalFindings = validChunks.flatMap(c => c.goalFindings || []).slice(0, 15);
+  const allContradictions = validChunks.flatMap(c => c.contradictions || []).slice(0, 10);
+  const allOutliers = validChunks.flatMap(c => c.outlierInsights || []).slice(0, 10);
+  const allQuotes = validChunks.flatMap(c => c.topQuotes || []).slice(0, 20);
+  const allPhrases = validChunks.flatMap(c => c.commonPhrases || []).slice(0, 15);
   const totalComments = validChunks.reduce((sum, c) => sum + (c.commentsAnalyzed || 0), 0);
 
   // Aggregate sentiment
@@ -578,12 +578,29 @@ async function runMapReduceAnalysis(postsData, role = null, goal = null) {
   }
   console.log(`Split into ${chunks.length} chunks`);
 
-  // Step 2: MAP - Analyze all chunks in parallel
-  console.log(`Starting MAP phase: ${chunks.length} parallel chunk analyses...`);
-  const mapPromises = chunks.map((chunk, idx) =>
-    mapAnalyzeChunk(chunk, role, goal, idx, chunks.length)
-  );
-  const chunkResults = await Promise.all(mapPromises);
+  // Step 2: MAP - Analyze chunks in staggered batches to avoid flooding API
+  // Process 2 chunks at a time with a small delay between batches
+  const MAP_CONCURRENCY = 2;
+  const MAP_BATCH_DELAY = 1500; // ms between map batches
+  console.log(`Starting MAP phase: ${chunks.length} chunks (concurrency: ${MAP_CONCURRENCY})...`);
+
+  const chunkResults = new Array(chunks.length).fill(null);
+  for (let i = 0; i < chunks.length; i += MAP_CONCURRENCY) {
+    const batch = chunks.slice(i, i + MAP_CONCURRENCY);
+    const batchPromises = batch.map((chunk, batchIdx) =>
+      mapAnalyzeChunk(chunk, role, goal, i + batchIdx, chunks.length)
+    );
+    const batchResults = await Promise.all(batchPromises);
+    batchResults.forEach((result, batchIdx) => {
+      chunkResults[i + batchIdx] = result;
+    });
+
+    // Delay between map batches to avoid rate limits
+    if (i + MAP_CONCURRENCY < chunks.length) {
+      console.log(`MAP batch complete. Waiting ${MAP_BATCH_DELAY}ms before next batch...`);
+      await sleep(MAP_BATCH_DELAY);
+    }
+  }
 
   const successfulChunks = chunkResults.filter(c => c !== null);
   console.log(`MAP phase complete: ${successfulChunks.length}/${chunks.length} chunks succeeded`);
@@ -591,6 +608,11 @@ async function runMapReduceAnalysis(postsData, role = null, goal = null) {
   if (successfulChunks.length === 0) {
     throw new Error('All map chunks failed - cannot proceed to reduce step');
   }
+
+  // Delay between map and reduce to let API quota recover
+  const REDUCE_DELAY = 3000;
+  console.log(`Waiting ${REDUCE_DELAY}ms before REDUCE phase to let API recover...`);
+  await sleep(REDUCE_DELAY);
 
   // Step 3: REDUCE - Synthesize all chunk results
   console.log(`Starting REDUCE phase...`);
@@ -600,13 +622,159 @@ async function runMapReduceAnalysis(postsData, role = null, goal = null) {
     subreddits
   };
 
-  const result = await reduceAnalysis(chunkResults, role, goal, metadata);
+  let result;
+  try {
+    result = await reduceAnalysis(chunkResults, role, goal, metadata);
+  } catch (reduceError) {
+    console.error('REDUCE failed, building fallback from map chunks:', reduceError.message);
+    result = buildFallbackFromChunks(chunkResults, role, goal, metadata);
+  }
 
   console.log(`\n=== MAP-REDUCE COMPLETE ===`);
   console.log(`Chunks: ${successfulChunks.length}, Result has structured: ${!!result.structured}`);
   console.log(`===========================\n`);
 
   return result;
+}
+
+
+// ============================================================
+// FALLBACK: Build result from map chunks when reduce fails
+// ============================================================
+
+/**
+ * Build a usable analysis result directly from map chunk outputs
+ * when the reduce step fails. Not as polished as a real reduce,
+ * but much better than showing an error.
+ */
+function buildFallbackFromChunks(chunkResults, role, goal, metadata) {
+  const validChunks = chunkResults.filter(c => c !== null);
+
+  // Merge themes - deduplicate by name similarity
+  const themeMap = new Map();
+  validChunks.forEach(c => {
+    (c.themes || []).forEach(t => {
+      const key = t.name.toLowerCase().replace(/[^a-z]/g, '');
+      if (themeMap.has(key)) {
+        const existing = themeMap.get(key);
+        existing.frequency = (existing.frequency || 0) + (t.frequency || 0);
+        if (t.quotes) existing.quotes = (existing.quotes || []).concat(t.quotes).slice(0, 3);
+      } else {
+        themeMap.set(key, { ...t });
+      }
+    });
+  });
+  const mergedThemes = [...themeMap.values()]
+    .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
+    .slice(0, 8);
+
+  // Aggregate other data
+  const allGoalFindings = validChunks.flatMap(c => c.goalFindings || []).slice(0, 6);
+  const allQuotes = validChunks.flatMap(c => c.topQuotes || [])
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, 6);
+  const allContradictions = validChunks.flatMap(c => c.contradictions || []).slice(0, 4);
+  const allOutliers = validChunks.flatMap(c => c.outlierInsights || []).slice(0, 4);
+  const allPhrases = validChunks.flatMap(c => c.commonPhrases || []).slice(0, 10);
+
+  // Aggregate sentiment
+  const sentimentAgg = { positive: 0, negative: 0, neutral: 0 };
+  validChunks.forEach(c => {
+    if (c.sentimentSignals) {
+      sentimentAgg.positive += c.sentimentSignals.positive || 0;
+      sentimentAgg.negative += c.sentimentSignals.negative || 0;
+      sentimentAgg.neutral += c.sentimentSignals.neutral || 0;
+    }
+  });
+  const sentTotal = sentimentAgg.positive + sentimentAgg.negative + sentimentAgg.neutral;
+  if (sentTotal > 0) {
+    sentimentAgg.positive = Math.round((sentimentAgg.positive / sentTotal) * 100);
+    sentimentAgg.negative = Math.round((sentimentAgg.negative / sentTotal) * 100);
+    sentimentAgg.neutral = 100 - sentimentAgg.positive - sentimentAgg.negative;
+  }
+
+  const totalComments = validChunks.reduce((sum, c) => sum + (c.commentsAnalyzed || 0), 0);
+
+  // Build structured response matching the reduce output format
+  const structured = {
+    executiveSummary: `Analysis of ${metadata.totalPosts} posts across ${metadata.subreddits.length} subreddits found ${mergedThemes.length} key themes. ${allGoalFindings.length > 0 ? allGoalFindings[0] : 'Multiple perspectives emerged from the discussion.'}`,
+    topQuotes: allQuotes.map(q => ({
+      type: q.type || 'INSIGHT',
+      quote: q.text || q.quote || '',
+      subreddit: q.subreddit || ''
+    })),
+    keyInsights: mergedThemes.slice(0, 6).map(t => ({
+      title: t.name,
+      description: t.nuance || `Mentioned ${t.frequency || 'multiple'} times across discussions.`,
+      sentiment: t.sentiment || 'neutral'
+    })),
+    forYourGoal: allGoalFindings,
+    confidence: {
+      level: validChunks.length >= 3 ? 'medium' : 'low',
+      reason: `Based on ${metadata.totalPosts} posts, ~${totalComments} comments across ${metadata.subreddits.length} subreddits (synthesized from ${validChunks.length} analysis chunks without full reduction)`
+    },
+    quantitativeInsights: {
+      topicsDiscussed: mergedThemes.map(t => ({
+        topic: t.name,
+        mentions: t.frequency || 0,
+        sentiment: t.sentiment || 'mixed',
+        example: (t.quotes && t.quotes[0]) || ''
+      })),
+      sentimentBreakdown: sentimentAgg,
+      commonPhrases: allPhrases.map(p => ({
+        phrase: p.phrase,
+        count: p.count || 0,
+        context: ''
+      })),
+      dataPatterns: allOutliers.map(o => o.insight),
+      engagementCorrelation: 'Data synthesized from map chunks'
+    },
+    evidenceAnalysis: {
+      primaryClaim: goal || 'Research findings',
+      verdict: 'Mixed Evidence',
+      evidenceScore: 50,
+      totalAnalyzed: totalComments,
+      relevantCount: totalComments,
+      notRelevantCount: 0,
+      supporting: {
+        count: 0,
+        percentage: 0,
+        keyPoints: allGoalFindings.slice(0, 3),
+        quotes: allQuotes.filter(q => q.type === 'INSIGHT' || q.type === 'TIP').slice(0, 3).map(q => ({
+          text: q.text || q.quote || '',
+          score: q.score || 0,
+          subreddit: q.subreddit || ''
+        }))
+      },
+      counter: {
+        count: 0,
+        percentage: 0,
+        keyPoints: allContradictions.map(c => c.point).slice(0, 2),
+        quotes: allQuotes.filter(q => q.type === 'WARNING' || q.type === 'COMPLAINT').slice(0, 2).map(q => ({
+          text: q.text || q.quote || '',
+          score: q.score || 0,
+          subreddit: q.subreddit || ''
+        }))
+      },
+      nuances: allContradictions.map(c => `${c.point}: ${c.sideA} vs ${c.sideB}`).slice(0, 3),
+      confidenceLevel: validChunks.length >= 3 ? 'medium' : 'low',
+      confidenceReason: 'Synthesized from map chunks without full AI reduction'
+    }
+  };
+
+  console.log('FALLBACK: Built result from map chunks');
+  return {
+    mode: 'map_reduce_analysis',
+    model: 'fallback_from_chunks',
+    structured,
+    aiAnalysis: JSON.stringify(structured, null, 2),
+    mapModel: config.mapReduce.mapModel,
+    reduceModel: 'fallback',
+    chunksProcessed: validChunks.length,
+    totalPosts: metadata.totalPosts,
+    totalComments: metadata.totalComments,
+    subreddits: metadata.subreddits
+  };
 }
 
 

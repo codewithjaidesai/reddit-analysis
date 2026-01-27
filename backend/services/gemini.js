@@ -51,7 +51,7 @@ async function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
       };
 
       console.log(`Attempt ${attempt}/${maxRetries} for model: ${modelName}`);
-      const response = await axios.post(url, payload);
+      const response = await axios.post(url, payload, { timeout: 120000 }); // 2 min timeout
 
       // Success!
       const result = response.data;
@@ -115,6 +115,22 @@ async function callGeminiWithRetry(modelName, prompt, maxRetries = 3) {
           error: `Model ${modelName} not available`,
           code: 404
         };
+      }
+
+      // Handle timeout errors
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        console.log(`⚠️ Request timed out for ${modelName}`);
+        if (attempt === maxRetries) {
+          return {
+            success: false,
+            error: `Model ${modelName} request timed out`,
+            code: 'TIMEOUT'
+          };
+        }
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`Waiting ${waitTime/1000}s before retry...`);
+        await sleep(waitTime);
+        continue;
       }
 
       console.error(`Exception on attempt ${attempt}:`, error.message);
