@@ -358,10 +358,11 @@ async function runAutoAnalyze(urls, role, goal, researchQuestion) {
     // Auto-scroll to status section
     document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Reset analysis history
+    // Reset analysis history and generated content for fresh results
     analysisHistory = [];
     currentAnalysisIndex = 0;
     extractedPostsData = null;
+    generatedContents = [];
 
     try {
         const result = await autoAnalysis(urls, role, goal);
@@ -639,6 +640,8 @@ async function analyzeMultiplePosts(urls, isReanalyze = false) {
         currentAnalysisIndex = 0;
         extractedPostsData = null;
     }
+    // Always clear generated content for fresh results
+    generatedContents = [];
 
     showStatus(isReanalyze ? 'Re-analyzing with new perspective...' : `Extracting data from ${urls.length} posts...`, 20);
 
@@ -751,7 +754,6 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             <div class="analysis-header-content">
                 <h1 class="analysis-title">Insight Analysis</h1>
                 <span class="analysis-badge">Based on ${posts.length} selected sources</span>
-                ${result.meta?.analysisMethod === 'map_reduce' ? `<span class="analysis-badge" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa;">Map-Reduce Analysis</span>` : ''}
             </div>
             <div class="analysis-meta">
                 <span>Topic: <strong>${window.currentResearchContext?.researchQuestion || window.currentResearchContext?.topic || 'Reddit Analysis'}</strong></span>
@@ -2211,7 +2213,120 @@ function updateRecentSearchesDropdown() {
 // Initialize recent searches dropdown on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateRecentSearchesDropdown();
+    updateSavedContentDropdown();
 });
+
+// ============================================
+// SAVED GENERATED CONTENT (localStorage)
+// ============================================
+
+/**
+ * Save generated content to localStorage
+ */
+function saveGeneratedToHistory(content) {
+    try {
+        const MAX_SAVED = 20;
+        let saved = JSON.parse(localStorage.getItem('savedGeneratedContent') || '[]');
+
+        saved.unshift({
+            label: content.label,
+            type: content.type,
+            icon: content.icon,
+            content: content.content,
+            topic: window.currentResearchContext?.researchQuestion || '',
+            role: window.currentResearchContext?.role || '',
+            goal: window.currentResearchContext?.goal || '',
+            timestamp: new Date().toISOString()
+        });
+
+        saved = saved.slice(0, MAX_SAVED);
+        localStorage.setItem('savedGeneratedContent', JSON.stringify(saved));
+        updateSavedContentDropdown();
+    } catch (error) {
+        console.error('Error saving generated content:', error);
+    }
+}
+
+/**
+ * Update the saved content dropdown in the header
+ */
+function updateSavedContentDropdown() {
+    try {
+        const dropdown = document.getElementById('savedContent');
+        if (!dropdown) return;
+
+        const saved = JSON.parse(localStorage.getItem('savedGeneratedContent') || '[]');
+
+        if (saved.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        dropdown.style.display = 'inline-block';
+        dropdown.innerHTML = '<option value="">Saved Content (' + saved.length + ')</option>';
+
+        saved.forEach((item, index) => {
+            const topic = item.topic ? item.topic.substring(0, 30) : 'Untitled';
+            const label = item.label || item.type || 'Content';
+            const date = new Date(item.timestamp).toLocaleDateString();
+            dropdown.innerHTML += `<option value="${index}">${label} — ${topic}${item.topic?.length > 30 ? '...' : ''} (${date})</option>`;
+        });
+    } catch (error) {
+        console.error('Error updating saved content dropdown:', error);
+    }
+}
+
+/**
+ * Load saved generated content from localStorage
+ */
+function loadSavedContent(index) {
+    if (index === '' || index === undefined) return;
+
+    try {
+        const saved = JSON.parse(localStorage.getItem('savedGeneratedContent') || '[]');
+        const item = saved[index];
+
+        if (!item) return;
+
+        // Show in a modal-style view
+        const viewWindow = window.open('', '', 'width=800,height=600');
+        viewWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${item.icon || ''} ${item.label || 'Generated Content'}</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; background: #0f1419; color: #f1f5f9; line-height: 1.6; }
+                    h1 { color: #a78bfa; font-size: 1.4rem; margin-bottom: 5px; }
+                    .meta { color: #94a3b8; font-size: 0.85rem; margin-bottom: 25px; border-bottom: 1px solid #2d3a4d; padding-bottom: 15px; }
+                    .content { white-space: pre-wrap; font-size: 0.95rem; }
+                    button { background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 8px; }
+                    button:hover { background: #7c3aed; }
+                    .actions { margin-bottom: 20px; }
+                </style>
+            </head>
+            <body>
+                <h1>${item.icon || ''} ${item.label || 'Generated Content'}</h1>
+                <div class="meta">
+                    Topic: ${item.topic || 'N/A'} | Role: ${item.role || 'N/A'} | Goal: ${item.goal || 'N/A'}<br>
+                    Generated: ${new Date(item.timestamp).toLocaleString()}
+                </div>
+                <div class="actions">
+                    <button onclick="navigator.clipboard.writeText(document.querySelector('.content').textContent).then(() => alert('Copied!'))">Copy</button>
+                    <button onclick="window.print()">Print / Save PDF</button>
+                </div>
+                <div class="content">${item.content}</div>
+            </body>
+            </html>
+        `);
+        viewWindow.document.close();
+
+        // Reset dropdown
+        document.getElementById('savedContent').value = '';
+    } catch (error) {
+        console.error('Error loading saved content:', error);
+    }
+}
 
 // Keyboard shortcuts
 document.addEventListener('keypress', function(e) {
@@ -2454,6 +2569,9 @@ async function submitReanalyze() {
         goal: goal
     };
 
+    // Clear generated content for fresh results
+    generatedContents = [];
+
     // Show loading
     hideAll();
     showStatus('Re-analyzing with new perspective...', 30);
@@ -2580,8 +2698,8 @@ async function submitGenerate() {
 
         showStatus('Content generated!', 100);
 
-        // Add to generated contents
-        generatedContents.push({
+        // Add to generated contents (current session)
+        const generatedItem = {
             id: Date.now(),
             type: selectedType,
             label: deliverable?.label || 'Content',
@@ -2591,9 +2709,11 @@ async function submitGenerate() {
             focus: focus,
             tone: tone,
             length: length
-        });
+        };
+        generatedContents.push(generatedItem);
 
-        console.log('generatedContents now has', generatedContents.length, 'items');
+        // Persist to localStorage
+        saveGeneratedToHistory(generatedItem);
 
         // Re-render results to show the Generated tab
         const currentResult = window.combinedResultsData;
