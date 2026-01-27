@@ -240,8 +240,8 @@ async function handleSearchByTopic() {
             timestamp: Date.now()
         });
 
-        // Analyze URLs directly
-        await analyzeMultiplePosts(urls);
+        // Analyze URLs directly with auto-analyze
+        await runAutoAnalyze(urls, role, goal, researchQuestion);
         return;
     }
 
@@ -270,126 +270,142 @@ async function handleSearchByTopic() {
     // Reset
     hideAll();
     topicSelectedPosts.clear();
-    showStatus('Searching Reddit...', 50);
+
+    // Collapse input section immediately
+    updateInputCollapsedSummary(researchQuestion, goal);
+    collapseSection('topicInputSection');
 
     try {
-        // Log search parameters for debugging
-        console.log('\n🔍 SEARCH PARAMETERS:');
+        // === STEP 1: Search Reddit ===
+        showStatus('Searching Reddit...', 10);
+
+        console.log('\n=== AUTO-ANALYZE FLOW ===');
         console.log('Research Question:', researchQuestion);
-        console.log('Time Range:', timeRange);
-        console.log('Subreddits:', subreddits || 'All of Reddit');
         console.log('Limit:', limit);
         console.log('Role:', role || 'Not specified');
         console.log('Goal:', goal || 'Not specified');
-        console.log('Search Method:', searchMethod);
-        console.log('---');
 
-        // Use research question as the search topic
-        const result = await searchTopic(researchQuestion, timeRange, subreddits, limit, role, goal);
-
-        // Log search results for debugging
-        console.log('\n📊 SEARCH RESULTS:');
-        console.log('Success:', result.success);
-        console.log('Total found by Reddit:', result.totalFound);
-        console.log('After filtering:', result.afterFiltering);
-        console.log('Posts returned:', result.posts?.length || 0);
-        if (!result.success) {
-            console.error('Error:', result.error);
-        }
-        console.log('---\n');
-
-        // Display backend debug information
-        if (result.debug) {
-            console.log('\n🔧 BACKEND DEBUG INFO:');
-            console.log('═══════════════════════════════════════');
-            console.log('Original Query:', result.debug.originalQuery);
-            console.log('Formatted Query (after phrase matching):', result.debug.formattedQuery);
-            console.log('Final Query (sent to Reddit):', result.debug.finalQuery);
-            console.log('');
-            console.log('Role:', result.debug.role || 'Not specified');
-            console.log('Goal:', result.debug.goal || 'Not specified');
-            console.log('');
-            console.log('User Specified Subreddits:', result.debug.userSpecifiedSubreddits);
-            console.log('Auto-Suggested Subreddits:', result.debug.autoSuggestedSubreddits || 'None');
-            console.log('Effective Subreddits:', result.debug.effectiveSubreddits);
-            console.log('');
-            console.log('Reddit API URL:', result.debug.redditApiUrl);
-            console.log('');
-
-            if (result.debug.samplePosts && result.debug.samplePosts.length > 0) {
-                console.log('Sample Posts Returned by Reddit:');
-                result.debug.samplePosts.forEach((post, i) => {
-                    console.log(`  ${i + 1}. r/${post.subreddit} - ${post.title}`);
-                    console.log(`     Score: ${post.score}, Comments: ${post.comments}, Ratio: ${post.upvoteRatio}`);
-                });
-            } else {
-                console.log('⚠️  Reddit returned 0 posts');
-            }
-            console.log('');
-
-            if (result.debug.filterStats) {
-                console.log('Filter Statistics:');
-                console.log(`  Total posts from Reddit: ${result.debug.filterStats.total}`);
-                console.log(`  Passed all filters: ${result.debug.filterStats.passed}`);
-                console.log(`  Filter criteria: score ≥ ${result.debug.filterStats.minScore}, comments ≥ ${result.debug.filterStats.minComments}, ratio ≥ ${result.debug.filterStats.minUpvoteRatio}`);
-                console.log(`  Filtered out:`);
-                console.log(`    - Low score: ${result.debug.filterStats.lowScore}`);
-                console.log(`    - Low comments: ${result.debug.filterStats.lowComments}`);
-                console.log(`    - Low upvote ratio: ${result.debug.filterStats.lowUpvoteRatio}`);
-                console.log(`    - Is video: ${result.debug.filterStats.isVideo}`);
-                console.log(`    - Is stickied: ${result.debug.filterStats.isStickied}`);
-            }
-
-            if (result.debug.filteredExamples && result.debug.filteredExamples.length > 0) {
-                console.log('');
-                console.log('⚠️  Examples of Filtered Posts:');
-                result.debug.filteredExamples.forEach((post, i) => {
-                    console.log(`  ${i + 1}. r/${post.subreddit} - ${post.title}`);
-                    console.log(`     Failed: ${post.failedReasons.join(', ')}`);
-                });
-            }
-
-            console.log('═══════════════════════════════════════\n');
-        }
+        // Always fetch 100 to have more posts for pre-screening
+        const searchLimit = Math.max(limit * 2, 100);
+        const result = await searchTopic(researchQuestion, timeRange, subreddits, searchLimit, role, goal);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
         }
 
-        currentTopicResults = result.posts;
+        console.log(`Search returned ${result.posts?.length || 0} posts`);
 
-        // Display results
-        hideAll();
-        document.getElementById('topicResultsSection').style.display = 'block';
-        document.getElementById('topicResults').style.display = 'block';
-
-        let titleText = `Found ${result.afterFiltering} posts`;
-        if (researchQuestion) {
-            titleText += ` for "${researchQuestion.substring(0, 50)}${researchQuestion.length > 50 ? '...' : ''}"`;
+        if (!result.posts || result.posts.length === 0) {
+            throw new Error('No posts found matching your search. Try different keywords or expand the time range.');
         }
-        document.getElementById('topicResultsTitle').textContent = titleText;
 
-        let summaryText = `Filtered ${result.afterFiltering} high-engagement posts from ${result.totalFound} total results`;
-        summaryText += ` | Research: "${researchQuestion.substring(0, 80)}${researchQuestion.length > 80 ? '...' : ''}"`;
-        if (goal) {
-            summaryText += ` | Goal: ${goal.substring(0, 50)}${goal.length > 50 ? '...' : ''}`;
+        // === STEP 2: Pre-screen for relevance ===
+        showStatus(`Filtering ${result.posts.length} posts for relevance...`, 25);
+
+        let postsToAnalyze = result.posts;
+
+        // Only pre-screen if we have more posts than the limit
+        if (result.posts.length > limit) {
+            try {
+                const screenResult = await preScreenPosts(result.posts, researchQuestion, role, goal);
+                if (screenResult.success && screenResult.posts.length > 0) {
+                    postsToAnalyze = screenResult.posts.slice(0, limit);
+                    console.log(`Pre-screening: ${screenResult.screenedCount}/${screenResult.originalCount} relevant, taking top ${postsToAnalyze.length}`);
+                } else {
+                    // Pre-screening failed or returned nothing, use engagement-sorted posts
+                    postsToAnalyze = result.posts.slice(0, limit);
+                    console.log('Pre-screening returned no results, using engagement-sorted posts');
+                }
+            } catch (screenError) {
+                console.log('Pre-screening failed, using engagement-sorted posts:', screenError.message);
+                postsToAnalyze = result.posts.slice(0, limit);
+            }
+        } else {
+            postsToAnalyze = result.posts.slice(0, limit);
         }
-        document.getElementById('topicResultsSummary').textContent = summaryText;
 
-        displayPostCards(result.posts, 'topicPostsList', topicSelectedPosts, 'toggleTopicPost');
-        updateTopicSelectedCount();
+        // Store all results and the ones being analyzed
+        currentTopicResults = postsToAnalyze;
 
-        // Collapse input section and update its summary
-        updateInputCollapsedSummary(researchQuestion, goal);
-        collapseSection('topicInputSection');
+        // Select all posts for analysis by default
+        topicSelectedPosts.clear();
+        postsToAnalyze.forEach(post => topicSelectedPosts.add(post.id));
 
-        // Ensure results section is expanded
-        expandSection('topicResultsSection');
+        // Get URLs for analysis
+        const urls = postsToAnalyze.map(post => post.url);
+
+        // === STEP 3: Auto-analyze (extraction + map-reduce) ===
+        showStatus(`Analyzing ${urls.length} posts (extracting comments & running AI analysis)...`, 40);
+
+        // Auto-scroll to status section
+        document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        await runAutoAnalyze(urls, role, goal, researchQuestion);
 
     } catch (error) {
-        console.error('Search error:', error);
-        showError(error.message || 'Search failed');
+        console.error('Auto-analyze error:', error);
+        showError(error.message || 'Analysis failed');
     }
+}
+
+/**
+ * Run auto-analyze: extraction + map-reduce, then display results with collapsed post list
+ */
+async function runAutoAnalyze(urls, role, goal, researchQuestion) {
+    hideAll();
+    showStatus(`Analyzing ${urls.length} posts (extracting comments & running AI analysis)...`, 40);
+
+    // Auto-scroll to status section
+    document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Reset analysis history
+    analysisHistory = [];
+    currentAnalysisIndex = 0;
+    extractedPostsData = null;
+
+    try {
+        const result = await autoAnalysis(urls, role, goal);
+
+        if (!result.success) {
+            throw new Error(result.error || 'Auto-analysis failed');
+        }
+
+        showStatus('Analysis complete!', 100);
+
+        // Store research context
+        window.currentResearchContext = {
+            researchQuestion: researchQuestion || '',
+            role,
+            goal
+        };
+
+        // Display results using existing display function (compatible format)
+        displayCombinedResults(result, role, goal);
+
+    } catch (error) {
+        console.error('Auto-analyze error:', error);
+        showError(error.message || 'Analysis failed');
+    }
+}
+
+/**
+ * Re-analyze with only the selected posts from the collapsed list
+ */
+async function reanalyzeSelectedPosts() {
+    if (topicSelectedPosts.size === 0) {
+        showError('Please select at least one post to analyze');
+        return;
+    }
+
+    const selectedUrls = currentTopicResults
+        .filter(post => topicSelectedPosts.has(post.id))
+        .map(post => post.url);
+
+    const researchContext = window.currentResearchContext || {};
+    const role = researchContext.role || null;
+    const goal = researchContext.goal || null;
+
+    await runAutoAnalyze(selectedUrls, role, goal, researchContext.researchQuestion);
 }
 
 /**
@@ -424,7 +440,77 @@ function updateTopicSelectedCount() {
 }
 
 /**
- * Analyze selected topic posts
+ * Toggle the collapsed posts analyzed section
+ */
+function togglePostsAnalyzedSection() {
+    const section = document.getElementById('postsAnalyzedSection');
+    if (section) {
+        section.classList.toggle('collapsed');
+    }
+}
+
+/**
+ * Toggle a post in the auto-analyzed posts list
+ */
+function toggleAutoPost(postId) {
+    if (topicSelectedPosts.has(postId)) {
+        topicSelectedPosts.delete(postId);
+    } else {
+        topicSelectedPosts.add(postId);
+    }
+
+    const item = document.getElementById(`auto-post-${postId}`);
+    if (item) {
+        item.classList.toggle('selected', topicSelectedPosts.has(postId));
+    }
+
+    updateAutoSelectedCount();
+}
+
+/**
+ * Select all posts in the analyzed list
+ */
+function selectAllAnalyzedPosts() {
+    currentTopicResults.forEach(post => {
+        topicSelectedPosts.add(post.id);
+        const item = document.getElementById(`auto-post-${post.id}`);
+        if (item) {
+            item.classList.add('selected');
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = true;
+        }
+    });
+    updateAutoSelectedCount();
+}
+
+/**
+ * Deselect all posts in the analyzed list
+ */
+function deselectAllAnalyzedPosts() {
+    currentTopicResults.forEach(post => {
+        topicSelectedPosts.delete(post.id);
+        const item = document.getElementById(`auto-post-${post.id}`);
+        if (item) {
+            item.classList.remove('selected');
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = false;
+        }
+    });
+    updateAutoSelectedCount();
+}
+
+/**
+ * Update the auto-analyzed posts selected count
+ */
+function updateAutoSelectedCount() {
+    const countEl = document.getElementById('autoSelectedCount');
+    if (countEl) {
+        countEl.textContent = `${topicSelectedPosts.size} of ${currentTopicResults.length} posts selected`;
+    }
+}
+
+/**
+ * Analyze selected topic posts (uses auto-analyze with map-reduce)
  */
 async function analyzeTopicSelectedPosts() {
     if (topicSelectedPosts.size === 0) {
@@ -440,7 +526,8 @@ async function analyzeTopicSelectedPosts() {
     updateResultsCollapsedSummary(currentTopicResults.length, topicSelectedPosts.size);
     collapseSection('topicResultsSection');
 
-    await analyzeMultiplePosts(selectedUrls);
+    const researchContext = window.currentResearchContext || {};
+    await runAutoAnalyze(selectedUrls, researchContext.role, researchContext.goal, researchContext.researchQuestion);
 }
 
 /**
@@ -664,6 +751,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             <div class="analysis-header-content">
                 <h1 class="analysis-title">Insight Analysis</h1>
                 <span class="analysis-badge">Based on ${posts.length} selected sources</span>
+                ${result.meta?.analysisMethod === 'map_reduce' ? `<span class="analysis-badge" style="background: rgba(139, 92, 246, 0.2); color: #a78bfa;">Map-Reduce Analysis</span>` : ''}
             </div>
             <div class="analysis-meta">
                 <span>Topic: <strong>${window.currentResearchContext?.researchQuestion || window.currentResearchContext?.topic || 'Reddit Analysis'}</strong></span>
@@ -675,6 +763,53 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             </div>
         </div>
     `;
+
+    // Collapsed Posts Analyzed section (shows which posts were analyzed, with checkboxes)
+    if (currentTopicResults.length > 0) {
+        html += `
+            <div class="posts-analyzed-section collapsed" id="postsAnalyzedSection">
+                <div class="posts-analyzed-header" onclick="togglePostsAnalyzedSection()">
+                    <div class="posts-analyzed-summary">
+                        <span class="posts-analyzed-count">${posts.length} posts analyzed</span>
+                        <span class="posts-analyzed-hint">Click to view/modify selection</span>
+                    </div>
+                    <span class="posts-analyzed-toggle">&#9660;</span>
+                </div>
+                <div class="posts-analyzed-body">
+                    <div class="posts-analyzed-actions-bar">
+                        <span id="autoSelectedCount">${topicSelectedPosts.size} of ${currentTopicResults.length} posts selected</span>
+                        <div>
+                            <button class="btn-small" onclick="selectAllAnalyzedPosts()">Select All</button>
+                            <button class="btn-small" onclick="deselectAllAnalyzedPosts()">Deselect All</button>
+                            <button class="btn-small btn-primary" onclick="reanalyzeSelectedPosts()">Re-analyze Selected</button>
+                        </div>
+                    </div>
+                    <div class="posts-analyzed-list">
+                        ${currentTopicResults.map(post => {
+                            const isSelected = topicSelectedPosts.has(post.id);
+                            return `
+                                <div class="post-analyzed-item ${isSelected ? 'selected' : ''}" id="auto-post-${post.id}">
+                                    <label class="post-analyzed-label" onclick="event.stopPropagation();">
+                                        <input type="checkbox" ${isSelected ? 'checked' : ''}
+                                            onchange="toggleAutoPost('${post.id}')">
+                                        <div class="post-analyzed-info">
+                                            <span class="post-analyzed-title">${escapeHtml(post.title || post.extractedData?.post?.title || 'Untitled')}</span>
+                                            <span class="post-analyzed-meta">
+                                                r/${post.subreddit || post.extractedData?.post?.subreddit || '?'}
+                                                ${post.score ? ` | ${post.score} upvotes` : ''}
+                                                ${post.num_comments ? ` | ${post.num_comments} comments` : ''}
+                                                ${post.relevanceScore ? ` | Relevance: ${post.relevanceScore}/5` : ''}
+                                            </span>
+                                        </div>
+                                    </label>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 
     // Check if we have structured data
     if (structured) {

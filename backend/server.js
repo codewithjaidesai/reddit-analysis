@@ -29,8 +29,10 @@ app.get('/', (req, res) => {
       analyze_extract: 'POST /api/analyze/extract',
       analyze_insights: 'POST /api/analyze/insights',
       analyze_full: 'POST /api/analyze/full',
+      analyze_auto: 'POST /api/analyze/auto',
       search_topic: 'POST /api/search/topic',
-      search_subreddit: 'POST /api/search/subreddit'
+      search_subreddit: 'POST /api/search/subreddit',
+      search_prescreen: 'POST /api/search/prescreen'
     }
   });
 });

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { searchRedditByTopic, searchSubredditTopPosts } = require('../services/search');
+const { preScreenPosts } = require('../services/mapReduceAnalysis');
 
 /**
  * POST /api/search/topic
@@ -70,6 +71,48 @@ router.post('/subreddit', async (req, res) => {
 
   } catch (error) {
     console.error('Subreddit search error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/search/prescreen
+ * AI pre-screen posts for relevance to research topic
+ */
+router.post('/prescreen', async (req, res) => {
+  try {
+    const { posts, topic, role, goal } = req.body;
+
+    if (!posts || !Array.isArray(posts) || posts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Posts array is required'
+      });
+    }
+
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        error: 'Topic is required for pre-screening'
+      });
+    }
+
+    console.log(`Pre-screening ${posts.length} posts for topic: "${topic}"`);
+
+    const screenedPosts = await preScreenPosts(posts, topic, role, goal);
+
+    res.json({
+      success: true,
+      originalCount: posts.length,
+      screenedCount: screenedPosts.length,
+      posts: screenedPosts
+    });
+
+  } catch (error) {
+    console.error('Pre-screen error:', error);
     res.status(500).json({
       success: false,
       error: error.message

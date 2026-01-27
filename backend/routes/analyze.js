@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { extractRedditData } = require('../services/reddit');
 const { generateAIInsights, generateCombinedInsights, generateContent } = require('../services/insights');
+const { batchExtractPosts, runMapReduceAnalysis } = require('../services/mapReduceAnalysis');
 
 /**
  * POST /api/analyze/extract
@@ -192,6 +193,71 @@ router.post('/combined', async (req, res) => {
 
   } catch (error) {
     console.error('Combined analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/analyze/auto
+ * Auto-analyze: batched extraction + map-reduce analysis
+ * Used for the automated flow where posts are pre-screened and analyzed without manual selection
+ */
+router.post('/auto', async (req, res) => {
+  try {
+    const { urls, role, goal } = req.body;
+
+    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'URLs array is required'
+      });
+    }
+
+    console.log(`\n=== AUTO-ANALYZE: ${urls.length} posts ===`);
+    if (role) console.log('User role:', role);
+    if (goal) console.log('User goal:', goal);
+
+    // Step 1: Batch extract comments (rate-limit safe)
+    console.log('Step 1: Batched extraction...');
+    const { postsData, failures } = await batchExtractPosts(urls);
+
+    if (postsData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'All extractions failed',
+        failures
+      });
+    }
+
+    console.log(`Extraction complete: ${postsData.length} posts, ${failures.length} failures`);
+
+    // Step 2: Run map-reduce analysis
+    console.log('Step 2: Map-reduce analysis...');
+    const combinedInsights = await runMapReduceAnalysis(postsData, role, goal);
+
+    // Format response to match /combined endpoint for frontend compatibility
+    const posts = postsData.map(data => ({ extractedData: data }));
+
+    res.json({
+      success: true,
+      combinedAnalysis: combinedInsights,
+      posts,
+      failures: failures.length > 0 ? failures : undefined,
+      meta: {
+        analysisMethod: 'map_reduce',
+        totalPosts: postsData.length,
+        totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0),
+        chunksProcessed: combinedInsights.chunksProcessed || 1,
+        mapModel: combinedInsights.mapModel,
+        reduceModel: combinedInsights.reduceModel
+      }
+    });
+
+  } catch (error) {
+    console.error('Auto-analyze error:', error);
     res.status(500).json({
       success: false,
       error: error.message
