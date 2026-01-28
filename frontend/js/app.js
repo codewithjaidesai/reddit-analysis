@@ -697,6 +697,11 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
 
     console.log('displayCombinedResults - structured:', structured ? 'exists' : 'null');
 
+    // Log analysis method for debugging
+    if (result.meta) {
+        console.log(`Analysis method: ${result.meta.analysisMethod} | Chunks: ${result.meta.chunksProcessed} | Model: ${result.meta.reduceModel || result.meta.mapModel || 'standard'}`);
+    }
+
     // Store extracted posts for re-analysis (only on fresh analysis)
     if (!isReanalyze && !isSwitching) {
         extractedPostsData = posts.map(p => p.extractedData);

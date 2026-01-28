@@ -241,18 +241,26 @@ router.post('/auto', async (req, res) => {
     // Format response to match /combined endpoint for frontend compatibility
     const posts = postsData.map(data => ({ extractedData: data }));
 
+    // Determine which analysis method was actually used
+    let analysisMethod = 'map_reduce';
+    if (combinedInsights.model === 'fallback_from_chunks') {
+      analysisMethod = 'map_reduce_partial';
+    } else if (!combinedInsights.mapModel) {
+      analysisMethod = 'single_call';
+    }
+
     res.json({
       success: true,
       combinedAnalysis: combinedInsights,
       posts,
       failures: failures.length > 0 ? failures : undefined,
       meta: {
-        analysisMethod: 'map_reduce',
+        analysisMethod,
         totalPosts: postsData.length,
         totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0),
         chunksProcessed: combinedInsights.chunksProcessed || 1,
-        mapModel: combinedInsights.mapModel,
-        reduceModel: combinedInsights.reduceModel
+        mapModel: combinedInsights.mapModel || null,
+        reduceModel: combinedInsights.reduceModel || null
       }
     });
 
