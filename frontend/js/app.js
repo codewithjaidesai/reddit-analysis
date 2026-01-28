@@ -342,7 +342,10 @@ async function handleSearchByTopic() {
         // Get URLs for analysis
         const urls = postsToAnalyze.map(post => post.url);
 
-        // === STEP 3: Auto-analyze (extraction + map-reduce) ===
+        // === STEP 3: Auto-analyze (extraction + single-call analysis) ===
+        // Estimate: ~1.5s per post extraction + ~20s for AI analysis
+        const estimatedSeconds = Math.round(urls.length * 1.5) + 20;
+        setEstimatedTime(estimatedSeconds);
         showStatus(`Analyzing ${urls.length} posts (extracting comments & running AI analysis)...`, 40);
 
         // Auto-scroll to status section
@@ -772,11 +775,12 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
     `;
 
     // Header section
+    const elapsedTime = getLastElapsedTime();
     html += `
         <div class="analysis-header">
             <div class="analysis-header-content">
                 <h1 class="analysis-title">Insight Analysis</h1>
-                <span class="analysis-badge">Based on ${posts.length} selected sources</span>
+                <span class="analysis-badge">Based on ${posts.length} sources${elapsedTime ? ` • Completed in ${elapsedTime}` : ''}</span>
             </div>
             <div class="analysis-meta">
                 <span>Topic: <strong>${window.currentResearchContext?.researchQuestion || window.currentResearchContext?.topic || 'Reddit Analysis'}</strong></span>

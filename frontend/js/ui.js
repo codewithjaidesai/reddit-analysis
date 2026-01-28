@@ -93,6 +93,8 @@ function toggleSearchMethod() {
 // Timer state for elapsed time display
 let statusTimer = null;
 let statusStartTime = null;
+let statusEstimatedSeconds = null;
+let lastElapsedTime = null; // Store for showing with results
 
 /**
  * Reset the status timer (call before starting a new operation)
@@ -103,10 +105,37 @@ function resetStatusTimer() {
         statusTimer = null;
     }
     statusStartTime = null;
+    statusEstimatedSeconds = null;
+    lastElapsedTime = null;
 }
 
 /**
- * Show status message with elapsed time counter
+ * Set estimated time for the current operation
+ * @param {number} seconds - Estimated seconds to complete
+ */
+function setEstimatedTime(seconds) {
+    statusEstimatedSeconds = seconds;
+}
+
+/**
+ * Get the last elapsed time (for showing with results)
+ * @returns {string|null} Formatted time string or null
+ */
+function getLastElapsedTime() {
+    return lastElapsedTime;
+}
+
+/**
+ * Format seconds into a readable string
+ */
+function formatTime(totalSeconds) {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+}
+
+/**
+ * Show status message with elapsed time counter and optional estimated time
  */
 function showStatus(message, progress) {
     hideAll();
@@ -120,29 +149,34 @@ function showStatus(message, progress) {
             statusStartTime = Date.now();
             statusTimer = setInterval(() => {
                 const elapsed = Math.floor((Date.now() - statusStartTime) / 1000);
-                const mins = Math.floor(elapsed / 60);
-                const secs = elapsed % 60;
-                const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-                statusText.textContent = `${message} (${timeStr})`;
+                const elapsedStr = formatTime(elapsed);
+                let timeDisplay = elapsedStr;
+                if (statusEstimatedSeconds) {
+                    const estStr = formatTime(statusEstimatedSeconds);
+                    timeDisplay = `${elapsedStr} / ~${estStr} est`;
+                }
+                statusText.textContent = `${message} (${timeDisplay})`;
             }, 1000);
         }
         // Update message but keep timer running
         const elapsed = Math.floor((Date.now() - statusStartTime) / 1000);
-        const mins = Math.floor(elapsed / 60);
-        const secs = elapsed % 60;
-        const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-        statusText.textContent = statusStartTime ? `${message} (${timeStr})` : message;
+        const elapsedStr = formatTime(elapsed);
+        let timeDisplay = elapsedStr;
+        if (statusEstimatedSeconds) {
+            const estStr = formatTime(statusEstimatedSeconds);
+            timeDisplay = `${elapsedStr} / ~${estStr} est`;
+        }
+        statusText.textContent = statusStartTime ? `${message} (${timeDisplay})` : message;
     } else {
         // Completion - stop timer and show final time
         if (statusTimer) {
             clearInterval(statusTimer);
             const elapsed = Math.floor((Date.now() - statusStartTime) / 1000);
-            const mins = Math.floor(elapsed / 60);
-            const secs = elapsed % 60;
-            const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-            statusText.textContent = `${message} (took ${timeStr})`;
+            lastElapsedTime = formatTime(elapsed);
+            statusText.textContent = `${message} (took ${lastElapsedTime})`;
             statusTimer = null;
             statusStartTime = null;
+            statusEstimatedSeconds = null;
         } else {
             statusText.textContent = message;
         }
