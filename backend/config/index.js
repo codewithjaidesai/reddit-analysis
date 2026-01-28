@@ -32,7 +32,7 @@ module.exports = {
 
   // Map-Reduce Analysis Configuration
   mapReduce: {
-    chunkSize: parseInt(process.env.MAP_REDUCE_CHUNK_SIZE) || 5,       // Posts per chunk for map step
+    chunkSize: parseInt(process.env.MAP_REDUCE_CHUNK_SIZE) || 2,       // Posts per chunk for map step
     mapModel: process.env.MAP_MODEL || 'gemini-2.5-flash',             // Fast model for map steps + pre-screening
     reduceModel: process.env.REDUCE_MODEL || null,                     // null = use primary gemini.model for reduce
     commentCapPerPost: parseInt(process.env.COMMENT_CAP_PER_POST) || 100, // Max comments per post in map-reduce

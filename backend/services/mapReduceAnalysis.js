@@ -578,11 +578,11 @@ async function runMapReduceAnalysis(postsData, role = null, goal = null) {
   }
   console.log(`Split into ${chunks.length} chunks`);
 
-  // Step 2: MAP - Analyze chunks in staggered batches to avoid flooding API
-  // Process 2 chunks at a time with a small delay between batches
-  const MAP_CONCURRENCY = 2;
-  const MAP_BATCH_DELAY = 1500; // ms between map batches
-  console.log(`Starting MAP phase: ${chunks.length} chunks (concurrency: ${MAP_CONCURRENCY})...`);
+  // Step 2: MAP - Analyze chunks sequentially to avoid API quota exhaustion
+  // Running one at a time with delays ensures the reduce step has quota available
+  const MAP_CONCURRENCY = 1;
+  const MAP_BATCH_DELAY = 2000; // ms between map calls
+  console.log(`Starting MAP phase: ${chunks.length} chunks (sequential with ${MAP_BATCH_DELAY}ms delays)...`);
 
   const chunkResults = new Array(chunks.length).fill(null);
   for (let i = 0; i < chunks.length; i += MAP_CONCURRENCY) {
@@ -695,6 +695,11 @@ function buildFallbackFromChunks(chunkResults, role, goal, metadata) {
 
   const totalComments = validChunks.reduce((sum, c) => sum + (c.commentsAnalyzed || 0), 0);
 
+  // Confidence is based on actual data volume, not chunk survival rate
+  const confidenceLevel = metadata.totalPosts >= 15 && metadata.subreddits.length >= 5 ? 'high'
+    : metadata.totalPosts >= 8 && metadata.subreddits.length >= 3 ? 'medium'
+    : 'low';
+
   // Build structured response matching the reduce output format
   const structured = {
     executiveSummary: `Analysis of ${metadata.totalPosts} posts across ${metadata.subreddits.length} subreddits found ${mergedThemes.length} key themes. ${allGoalFindings.length > 0 ? allGoalFindings[0] : 'Multiple perspectives emerged from the discussion.'}`,
@@ -710,8 +715,8 @@ function buildFallbackFromChunks(chunkResults, role, goal, metadata) {
     })),
     forYourGoal: allGoalFindings,
     confidence: {
-      level: validChunks.length >= 3 ? 'medium' : 'low',
-      reason: `Based on ${metadata.totalPosts} posts, ~${totalComments} comments across ${metadata.subreddits.length} subreddits (synthesized from ${validChunks.length} analysis chunks without full reduction)`
+      level: confidenceLevel,
+      reason: `Based on ${metadata.totalPosts} posts, ~${totalComments} comments across ${metadata.subreddits.length} subreddits (synthesized from ${validChunks.length} analysis chunk${validChunks.length !== 1 ? 's' : ''})`
     },
     quantitativeInsights: {
       topicsDiscussed: mergedThemes.map(t => ({
@@ -757,8 +762,8 @@ function buildFallbackFromChunks(chunkResults, role, goal, metadata) {
         }))
       },
       nuances: allContradictions.map(c => `${c.point}: ${c.sideA} vs ${c.sideB}`).slice(0, 3),
-      confidenceLevel: validChunks.length >= 3 ? 'medium' : 'low',
-      confidenceReason: 'Synthesized from map chunks without full AI reduction'
+      confidenceLevel: confidenceLevel,
+      confidenceReason: `Based on ${metadata.totalPosts} posts across ${metadata.subreddits.length} subreddits`
     }
   };
 
