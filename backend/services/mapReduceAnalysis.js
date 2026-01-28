@@ -580,41 +580,36 @@ async function runMapReduceAnalysis(postsData, role = null, goal = null) {
   }
   console.log(`Split into ${chunks.length} chunks`);
 
-  // Step 2: MAP - Analyze chunks sequentially to avoid API quota exhaustion
-  // Running one at a time with delays ensures the reduce step has quota available
-  const MAP_CONCURRENCY = 1;
-  const MAP_BATCH_DELAY = 3000; // ms between map calls (generous for free API tier)
-  console.log(`Starting MAP phase: ${chunks.length} chunks (sequential with ${MAP_BATCH_DELAY/1000}s delays)...`);
+  // Step 2: MAP — Use "canary" approach: test first chunk, if it fails fall back immediately
+  const MAP_BATCH_DELAY = 3000; // ms between map calls
+  console.log(`Starting MAP phase: ${chunks.length} chunks...`);
 
+  // Try the first chunk as a canary — if API can't handle it, don't waste quota on 12 more
+  console.log(`MAP canary: testing first chunk...`);
+  const canaryResult = await mapAnalyzeChunk(chunks[0], role, goal, 0, chunks.length);
+
+  if (canaryResult === null) {
+    // First chunk failed — API can't handle map calls right now
+    // Fall back to single-call analysis immediately instead of burning more quota
+    console.log('MAP canary failed — API cannot handle chunked analysis.');
+    console.log('Falling back to single-call analysis (pre-map-reduce approach)...');
+    await sleep(3000); // Brief pause for API recovery
+    const { generateCombinedInsights } = require('./insights');
+    return generateCombinedInsights(postsData, role, goal);
+  }
+
+  console.log('MAP canary succeeded — continuing with remaining chunks...');
   const chunkResults = new Array(chunks.length).fill(null);
-  for (let i = 0; i < chunks.length; i += MAP_CONCURRENCY) {
-    const batch = chunks.slice(i, i + MAP_CONCURRENCY);
-    const batchPromises = batch.map((chunk, batchIdx) =>
-      mapAnalyzeChunk(chunk, role, goal, i + batchIdx, chunks.length)
-    );
-    const batchResults = await Promise.all(batchPromises);
-    batchResults.forEach((result, batchIdx) => {
-      chunkResults[i + batchIdx] = result;
-    });
+  chunkResults[0] = canaryResult;
 
-    // Delay between map batches to avoid rate limits
-    if (i + MAP_CONCURRENCY < chunks.length) {
-      console.log(`MAP batch complete. Waiting ${MAP_BATCH_DELAY}ms before next batch...`);
-      await sleep(MAP_BATCH_DELAY);
-    }
+  // Process remaining chunks sequentially
+  for (let i = 1; i < chunks.length; i++) {
+    await sleep(MAP_BATCH_DELAY);
+    chunkResults[i] = await mapAnalyzeChunk(chunks[i], role, goal, i, chunks.length);
   }
 
   const successfulChunks = chunkResults.filter(c => c !== null);
   console.log(`MAP phase complete: ${successfulChunks.length}/${chunks.length} chunks succeeded`);
-
-  if (successfulChunks.length === 0) {
-    // All map chunks failed — fall back to single-call analysis as last resort
-    console.log('All map chunks failed. Falling back to single-call analysis...');
-    console.log('Waiting 5s for API quota to recover before fallback...');
-    await sleep(5000);
-    const { generateCombinedInsights } = require('./insights');
-    return generateCombinedInsights(postsData, role, goal);
-  }
 
   // Delay between map and reduce to let API quota recover
   const REDUCE_DELAY = 3000;
