@@ -1,5 +1,5 @@
 const config = require('../config');
-const { analyzeWithGemini, analyzeWithModel } = require('./gemini');
+const { analyzeWithGemini, analyzeWithModel, callGeminiWithRetry } = require('./gemini');
 const { extractRedditData } = require('./reddit');
 
 /**
@@ -289,10 +289,12 @@ async function mapAnalyzeChunk(chunkData, role, goal, chunkIndex, totalChunks) {
 
   console.log(`MAP chunk ${chunkIndex + 1}/${totalChunks}: ${chunkData.length} posts, prompt ${prompt.length} chars`);
 
-  const result = await analyzeWithModel(prompt, mapModel);
+  // Use callGeminiWithRetry directly — do NOT cascade through all fallback models.
+  // Each failed chunk cascading through 4+ models (12 API calls) is what exhausts the quota.
+  const result = await callGeminiWithRetry(mapModel, prompt, 2);
 
   if (!result.success) {
-    console.error(`MAP chunk ${chunkIndex + 1} failed: ${result.error}`);
+    console.error(`MAP chunk ${chunkIndex + 1} failed (${result.code || 'unknown'}): ${result.error}`);
     return null;
   }
 
@@ -581,8 +583,8 @@ async function runMapReduceAnalysis(postsData, role = null, goal = null) {
   // Step 2: MAP - Analyze chunks sequentially to avoid API quota exhaustion
   // Running one at a time with delays ensures the reduce step has quota available
   const MAP_CONCURRENCY = 1;
-  const MAP_BATCH_DELAY = 2000; // ms between map calls
-  console.log(`Starting MAP phase: ${chunks.length} chunks (sequential with ${MAP_BATCH_DELAY}ms delays)...`);
+  const MAP_BATCH_DELAY = 3000; // ms between map calls (generous for free API tier)
+  console.log(`Starting MAP phase: ${chunks.length} chunks (sequential with ${MAP_BATCH_DELAY/1000}s delays)...`);
 
   const chunkResults = new Array(chunks.length).fill(null);
   for (let i = 0; i < chunks.length; i += MAP_CONCURRENCY) {
@@ -606,7 +608,12 @@ async function runMapReduceAnalysis(postsData, role = null, goal = null) {
   console.log(`MAP phase complete: ${successfulChunks.length}/${chunks.length} chunks succeeded`);
 
   if (successfulChunks.length === 0) {
-    throw new Error('All map chunks failed - cannot proceed to reduce step');
+    // All map chunks failed — fall back to single-call analysis as last resort
+    console.log('All map chunks failed. Falling back to single-call analysis...');
+    console.log('Waiting 5s for API quota to recover before fallback...');
+    await sleep(5000);
+    const { generateCombinedInsights } = require('./insights');
+    return generateCombinedInsights(postsData, role, goal);
   }
 
   // Delay between map and reduce to let API quota recover
