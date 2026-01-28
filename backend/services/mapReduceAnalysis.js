@@ -203,22 +203,13 @@ function buildMapPrompt(chunkData, role, goal, chunkIndex, totalChunks) {
   const totalComments = chunkData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
   const subreddits = [...new Set(chunkData.map(p => p.post?.subreddit).filter(Boolean))];
 
-  // Cap comments per post in the map prompt to keep prompt size manageable
-  // 5 posts × 30 comments × 250 chars ≈ 37K chars (vs 150K+ uncapped)
-  const MAP_COMMENTS_PER_POST = 30;
-  const MAP_COMMENT_CHARS = 250;
-
   const postsContent = chunkData.map((data, idx) => {
     const post = data.post;
-    const allComments = data.valuableComments || [];
-    // Take top comments by score for the prompt
-    const comments = allComments
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
-      .slice(0, MAP_COMMENTS_PER_POST);
+    const comments = data.valuableComments || [];
     return `
 POST: "${post.title}"
-r/${post.subreddit} | ${post.score} upvotes | ${allComments.length} quality comments (showing top ${comments.length})
-${comments.map(c => `[${c.score} pts] ${c.body.substring(0, MAP_COMMENT_CHARS)}`).join('\n')}`;
+r/${post.subreddit} | ${post.score} upvotes | ${comments.length} quality comments
+${comments.map(c => `[${c.score} pts] ${c.body.substring(0, 300)}`).join('\n')}`;
   }).join('\n---\n');
 
   return `You are analyzing Reddit data (chunk ${chunkIndex + 1} of ${totalChunks}) for a ${role || 'researcher'}.
