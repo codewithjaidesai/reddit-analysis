@@ -90,14 +90,63 @@ function toggleSearchMethod() {
     }
 }
 
+// Timer state for elapsed time display
+let statusTimer = null;
+let statusStartTime = null;
+
 /**
- * Show status message
+ * Reset the status timer (call before starting a new operation)
+ */
+function resetStatusTimer() {
+    if (statusTimer) {
+        clearInterval(statusTimer);
+        statusTimer = null;
+    }
+    statusStartTime = null;
+}
+
+/**
+ * Show status message with elapsed time counter
  */
 function showStatus(message, progress) {
     hideAll();
-    document.getElementById('statusText').textContent = message;
+    const statusText = document.getElementById('statusText');
     document.getElementById('progressBar').style.width = progress + '%';
     document.getElementById('statusSection').style.display = 'block';
+
+    // Start timer on first status call (progress < 100), stop on completion
+    if (progress < 100) {
+        if (!statusStartTime) {
+            statusStartTime = Date.now();
+            statusTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - statusStartTime) / 1000);
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                statusText.textContent = `${message} (${timeStr})`;
+            }, 1000);
+        }
+        // Update message but keep timer running
+        const elapsed = Math.floor((Date.now() - statusStartTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        statusText.textContent = statusStartTime ? `${message} (${timeStr})` : message;
+    } else {
+        // Completion - stop timer and show final time
+        if (statusTimer) {
+            clearInterval(statusTimer);
+            const elapsed = Math.floor((Date.now() - statusStartTime) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+            statusText.textContent = `${message} (took ${timeStr})`;
+            statusTimer = null;
+            statusStartTime = null;
+        } else {
+            statusText.textContent = message;
+        }
+    }
 }
 
 /**
