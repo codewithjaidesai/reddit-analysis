@@ -36,8 +36,8 @@ module.exports = {
     mapModel: process.env.MAP_MODEL || 'gemini-2.5-flash',             // Fast model for map steps + pre-screening
     reduceModel: process.env.REDUCE_MODEL || null,                     // null = use primary gemini.model for reduce
     commentCapPerPost: parseInt(process.env.COMMENT_CAP_PER_POST) || 100, // Max comments per post in map-reduce
-    extractionBatchSize: parseInt(process.env.EXTRACTION_BATCH_SIZE) || 15, // Concurrent Reddit API calls per batch
-    extractionBatchDelay: parseInt(process.env.EXTRACTION_BATCH_DELAY) || 2000, // ms between batches
+    extractionBatchSize: parseInt(process.env.EXTRACTION_BATCH_SIZE) || 30, // Concurrent Reddit API calls per batch
+    extractionBatchDelay: parseInt(process.env.EXTRACTION_BATCH_DELAY) || 0, // ms between batches (0 = no delay)
     preScreenThreshold: parseFloat(process.env.PRESCREEN_THRESHOLD) || 3  // Min relevance score (1-5) to keep a post
   },
 

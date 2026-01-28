@@ -270,6 +270,7 @@ async function handleSearchByTopic() {
     // Reset
     hideAll();
     topicSelectedPosts.clear();
+    resetStatusTimer(); // Reset elapsed time counter
 
     // Collapse input section immediately
     updateInputCollapsedSummary(researchQuestion, goal);
@@ -304,13 +305,18 @@ async function handleSearchByTopic() {
 
         let postsToAnalyze = result.posts;
 
+        // Track other relevant posts not selected for AI analysis
+        let otherRelevantPosts = [];
+
         // Only pre-screen if we have more posts than the limit
         if (result.posts.length > limit) {
             try {
                 const screenResult = await preScreenPosts(result.posts, researchQuestion, role, goal);
                 if (screenResult.success && screenResult.posts.length > 0) {
                     postsToAnalyze = screenResult.posts.slice(0, limit);
-                    console.log(`Pre-screening: ${screenResult.screenedCount}/${screenResult.originalCount} relevant, taking top ${postsToAnalyze.length}`);
+                    // Keep the remaining relevant posts for display
+                    otherRelevantPosts = screenResult.posts.slice(limit);
+                    console.log(`Pre-screening: ${screenResult.screenedCount}/${screenResult.originalCount} relevant, taking top ${postsToAnalyze.length}, ${otherRelevantPosts.length} other relevant`);
                 } else {
                     // Pre-screening failed or returned nothing, use engagement-sorted posts
                     postsToAnalyze = result.posts.slice(0, limit);
@@ -326,6 +332,8 @@ async function handleSearchByTopic() {
 
         // Store all results and the ones being analyzed
         currentTopicResults = postsToAnalyze;
+        // Store other relevant posts globally for later access
+        window.otherRelevantPosts = otherRelevantPosts;
 
         // Select all posts for analysis by default
         topicSelectedPosts.clear();
@@ -445,6 +453,16 @@ function updateTopicSelectedCount() {
  */
 function togglePostsAnalyzedSection() {
     const section = document.getElementById('postsAnalyzedSection');
+    if (section) {
+        section.classList.toggle('collapsed');
+    }
+}
+
+/**
+ * Toggle the Other Relevant Posts section
+ */
+function toggleOtherRelevantSection() {
+    const section = document.getElementById('otherRelevantSection');
     if (section) {
         section.classList.toggle('collapsed');
     }
@@ -812,6 +830,43 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                 </div>
                             `;
                         }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Other Relevant Posts section (posts that passed pre-screening but weren't in top N)
+    const otherRelevant = window.otherRelevantPosts || [];
+    if (otherRelevant.length > 0) {
+        html += `
+            <div class="other-relevant-section collapsed" id="otherRelevantSection">
+                <div class="other-relevant-header" onclick="toggleOtherRelevantSection()">
+                    <div class="other-relevant-summary">
+                        <span class="other-relevant-count">${otherRelevant.length} other relevant posts</span>
+                        <span class="other-relevant-hint">Passed relevance filter but not analyzed - click to view</span>
+                    </div>
+                    <span class="other-relevant-toggle">&#9660;</span>
+                </div>
+                <div class="other-relevant-body">
+                    <div class="other-relevant-info">
+                        <p>These posts were found relevant to your search but weren't included in the top ${posts.length} for AI analysis. You can manually analyze any of these by clicking on them.</p>
+                    </div>
+                    <div class="other-relevant-list">
+                        ${otherRelevant.map(post => `
+                            <div class="other-relevant-item" onclick="window.open('${post.url}', '_blank')">
+                                <div class="other-relevant-item-info">
+                                    <span class="other-relevant-title">${escapeHtml(post.title || 'Untitled')}</span>
+                                    <span class="other-relevant-meta">
+                                        r/${post.subreddit || '?'}
+                                        ${post.score ? ` | ${post.score} upvotes` : ''}
+                                        ${post.num_comments ? ` | ${post.num_comments} comments` : ''}
+                                        ${post.relevanceScore ? ` | Relevance: ${post.relevanceScore}/5` : ''}
+                                    </span>
+                                </div>
+                                <span class="other-relevant-link">↗</span>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             </div>

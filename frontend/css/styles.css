@@ -3454,3 +3454,130 @@ footer a {
 .btn-small.btn-danger:hover {
     background: rgba(239, 68, 68, 0.25);
 }
+
+/* ===================================
+   Other Relevant Posts Section
+   =================================== */
+.other-relevant-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.other-relevant-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.other-relevant-header:hover {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.other-relevant-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.other-relevant-count {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.other-relevant-hint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.other-relevant-toggle {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    transition: transform 0.3s;
+}
+
+.other-relevant-section.collapsed .other-relevant-toggle {
+    transform: rotate(-90deg);
+}
+
+.other-relevant-body {
+    border-top: 1px solid var(--border);
+    padding: 16px 20px;
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.other-relevant-section.collapsed .other-relevant-body {
+    display: none;
+}
+
+.other-relevant-info {
+    background: rgba(59, 130, 246, 0.08);
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.other-relevant-info p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.other-relevant-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.other-relevant-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+}
+
+.other-relevant-item:hover {
+    background: var(--bg-hover);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.other-relevant-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.other-relevant-title {
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.other-relevant-meta {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.other-relevant-link {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-left: 10px;
+}
