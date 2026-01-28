@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { extractRedditData } = require('../services/reddit');
 const { generateAIInsights, generateCombinedInsights, generateContent } = require('../services/insights');
-const { batchExtractPosts, runMapReduceAnalysis } = require('../services/mapReduceAnalysis');
+const { batchExtractPosts } = require('../services/mapReduceAnalysis');
 
 /**
  * POST /api/analyze/extract
@@ -234,20 +234,12 @@ router.post('/auto', async (req, res) => {
 
     console.log(`Extraction complete: ${postsData.length} posts, ${failures.length} failures`);
 
-    // Step 2: Run map-reduce analysis
-    console.log('Step 2: Map-reduce analysis...');
-    const combinedInsights = await runMapReduceAnalysis(postsData, role, goal);
+    // Step 2: Single-call analysis (simpler and faster than map-reduce for free tier)
+    console.log('Step 2: Single-call analysis...');
+    const combinedInsights = await generateCombinedInsights(postsData, role, goal);
 
     // Format response to match /combined endpoint for frontend compatibility
     const posts = postsData.map(data => ({ extractedData: data }));
-
-    // Determine which analysis method was actually used
-    let analysisMethod = 'map_reduce';
-    if (combinedInsights.model === 'fallback_from_chunks') {
-      analysisMethod = 'map_reduce_partial';
-    } else if (!combinedInsights.mapModel) {
-      analysisMethod = 'single_call';
-    }
 
     res.json({
       success: true,
@@ -255,12 +247,9 @@ router.post('/auto', async (req, res) => {
       posts,
       failures: failures.length > 0 ? failures : undefined,
       meta: {
-        analysisMethod,
+        analysisMethod: 'single_call',
         totalPosts: postsData.length,
-        totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0),
-        chunksProcessed: combinedInsights.chunksProcessed || 1,
-        mapModel: combinedInsights.mapModel || null,
-        reduceModel: combinedInsights.reduceModel || null
+        totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0)
       }
     });
 

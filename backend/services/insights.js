@@ -247,6 +247,13 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
   }
 }
 
+ANALYSIS APPROACH (think through these phases before producing output):
+1. SCAN: Read through ALL comments to identify recurring themes and patterns
+2. GROUP: Mentally cluster comments by topic/sentiment - note which themes appear across multiple posts
+3. DEPTH: For each major theme, identify the nuances, conditions, and contradictions
+4. OUTLIERS: Find the non-obvious insights that most people would miss
+5. SYNTHESIZE: Connect the dots across themes to form your final analysis
+
 RULES:
 1. topQuotes: Pick 4-6 most impactful REAL quotes from the comments. Include subreddit name.
 2. keyInsights: 3-5 insights. Title should be catchy. Focus on what matters for their GOAL.
