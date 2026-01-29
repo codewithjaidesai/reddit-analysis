@@ -3,6 +3,7 @@
 // State management
 let topicSelectedPosts = new Set();
 let subredditSelectedPosts = new Set();
+let otherRelevantSelectedPosts = new Set(); // Track selected "other relevant" posts for re-analysis
 let currentTopicResults = [];
 let currentSubredditResults = [];
 
@@ -401,23 +402,37 @@ async function runAutoAnalyze(urls, role, goal, researchQuestion) {
 }
 
 /**
- * Re-analyze with only the selected posts from the collapsed list
+ * Re-analyze with selected posts from both analyzed and other relevant lists
  */
 async function reanalyzeSelectedPosts() {
-    if (topicSelectedPosts.size === 0) {
+    // Get URLs from selected analyzed posts
+    const analyzedUrls = currentTopicResults
+        .filter(post => topicSelectedPosts.has(post.id))
+        .map(post => post.url);
+
+    // Get URLs from selected other relevant posts
+    const otherRelevant = window.otherRelevantPosts || [];
+    const otherUrls = otherRelevant
+        .filter((post, idx) => otherRelevantSelectedPosts.has(String(post.id || idx)))
+        .map(post => post.url);
+
+    const allUrls = [...analyzedUrls, ...otherUrls];
+
+    if (allUrls.length === 0) {
         showError('Please select at least one post to analyze');
         return;
     }
-
-    const selectedUrls = currentTopicResults
-        .filter(post => topicSelectedPosts.has(post.id))
-        .map(post => post.url);
 
     const researchContext = window.currentResearchContext || {};
     const role = researchContext.role || null;
     const goal = researchContext.goal || null;
 
-    await runAutoAnalyze(selectedUrls, role, goal, researchContext.researchQuestion);
+    // Show what we're doing
+    const newPostsCount = otherUrls.length;
+    const totalPosts = allUrls.length;
+    console.log(`Re-analyzing ${totalPosts} posts (${analyzedUrls.length} previously analyzed + ${newPostsCount} new)`);
+
+    await runAutoAnalyze(allUrls, role, goal, researchContext.researchQuestion);
 }
 
 /**
@@ -528,6 +543,100 @@ function updateAutoSelectedCount() {
     const countEl = document.getElementById('autoSelectedCount');
     if (countEl) {
         countEl.textContent = `${topicSelectedPosts.size} of ${currentTopicResults.length} posts selected`;
+    }
+}
+
+/**
+ * Toggle selection of an "other relevant" post
+ */
+function toggleOtherRelevantPost(postId, url) {
+    const MAX_ADDITIONAL = 25;
+
+    if (otherRelevantSelectedPosts.has(postId)) {
+        otherRelevantSelectedPosts.delete(postId);
+    } else {
+        // Check if we're at the limit
+        if (otherRelevantSelectedPosts.size >= MAX_ADDITIONAL) {
+            alert(`You can select up to ${MAX_ADDITIONAL} additional posts. Deselect some to add more.`);
+            // Uncheck the checkbox
+            const item = document.getElementById(`other-post-${postId}`);
+            if (item) {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = false;
+            }
+            return;
+        }
+        otherRelevantSelectedPosts.add(postId);
+    }
+
+    const item = document.getElementById(`other-post-${postId}`);
+    if (item) {
+        item.classList.toggle('selected', otherRelevantSelectedPosts.has(postId));
+    }
+
+    updateOtherRelevantSelectedCount();
+}
+
+/**
+ * Select first N other relevant posts
+ */
+function selectAllOtherRelevant(maxCount) {
+    const otherRelevant = window.otherRelevantPosts || [];
+    otherRelevantSelectedPosts.clear();
+
+    otherRelevant.slice(0, maxCount).forEach((post, idx) => {
+        const postId = post.id || idx;
+        otherRelevantSelectedPosts.add(String(postId));
+        const item = document.getElementById(`other-post-${postId}`);
+        if (item) {
+            item.classList.add('selected');
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = true;
+        }
+    });
+
+    // Uncheck any beyond maxCount
+    otherRelevant.slice(maxCount).forEach((post, idx) => {
+        const postId = post.id || (maxCount + idx);
+        const item = document.getElementById(`other-post-${postId}`);
+        if (item) {
+            item.classList.remove('selected');
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = false;
+        }
+    });
+
+    updateOtherRelevantSelectedCount();
+}
+
+/**
+ * Deselect all other relevant posts
+ */
+function deselectAllOtherRelevant() {
+    const otherRelevant = window.otherRelevantPosts || [];
+    otherRelevantSelectedPosts.clear();
+
+    otherRelevant.forEach((post, idx) => {
+        const postId = post.id || idx;
+        const item = document.getElementById(`other-post-${postId}`);
+        if (item) {
+            item.classList.remove('selected');
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = false;
+        }
+    });
+
+    updateOtherRelevantSelectedCount();
+}
+
+/**
+ * Update the other relevant posts selected count
+ */
+function updateOtherRelevantSelectedCount() {
+    const otherRelevant = window.otherRelevantPosts || [];
+    const countEl = document.getElementById('otherRelevantSelectedCount');
+    if (countEl) {
+        countEl.textContent = `${otherRelevantSelectedPosts.size} of ${otherRelevant.length} selected`;
     }
 }
 
@@ -842,33 +951,47 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
 
     // Other Relevant Posts section (posts that passed pre-screening but weren't in top N)
     const otherRelevant = window.otherRelevantPosts || [];
+    // Clear previous selections for other relevant posts
+    otherRelevantSelectedPosts.clear();
+
     if (otherRelevant.length > 0) {
+        const maxAdditional = 25; // Cap at 25 additional posts
         html += `
             <div class="other-relevant-section collapsed" id="otherRelevantSection">
                 <div class="other-relevant-header" onclick="toggleOtherRelevantSection()">
                     <div class="other-relevant-summary">
                         <span class="other-relevant-count">${otherRelevant.length} other relevant posts</span>
-                        <span class="other-relevant-hint">Passed relevance filter but not analyzed - click to view</span>
+                        <span class="other-relevant-hint">Select to include in re-analysis (max ${maxAdditional} additional)</span>
                     </div>
                     <span class="other-relevant-toggle">&#9660;</span>
                 </div>
                 <div class="other-relevant-body">
                     <div class="other-relevant-info">
-                        <p>These posts were found relevant to your search but weren't included in the top ${posts.length} for AI analysis. You can manually analyze any of these by clicking on them.</p>
+                        <p>These posts passed the relevance filter but weren't in the top ${posts.length}. Select any to include them in your next analysis.</p>
+                    </div>
+                    <div class="other-relevant-actions-bar">
+                        <span id="otherRelevantSelectedCount">0 of ${otherRelevant.length} selected</span>
+                        <div>
+                            <button class="btn-small" onclick="selectAllOtherRelevant(${maxAdditional})">Select First ${maxAdditional}</button>
+                            <button class="btn-small" onclick="deselectAllOtherRelevant()">Deselect All</button>
+                        </div>
                     </div>
                     <div class="other-relevant-list">
-                        ${otherRelevant.map(post => `
-                            <div class="other-relevant-item" onclick="window.open('${post.url}', '_blank')">
-                                <div class="other-relevant-item-info">
-                                    <span class="other-relevant-title">${escapeHtml(post.title || 'Untitled')}</span>
-                                    <span class="other-relevant-meta">
-                                        r/${post.subreddit || '?'}
-                                        ${post.score ? ` | ${post.score} upvotes` : ''}
-                                        ${post.num_comments ? ` | ${post.num_comments} comments` : ''}
-                                        ${post.relevanceScore ? ` | Relevance: ${post.relevanceScore}/5` : ''}
-                                    </span>
-                                </div>
-                                <span class="other-relevant-link">↗</span>
+                        ${otherRelevant.map((post, idx) => `
+                            <div class="other-relevant-item" id="other-post-${post.id || idx}">
+                                <label class="other-relevant-label" onclick="event.stopPropagation();">
+                                    <input type="checkbox" onchange="toggleOtherRelevantPost('${post.id || idx}', '${post.url}')">
+                                    <div class="other-relevant-item-info">
+                                        <span class="other-relevant-title">${escapeHtml(post.title || 'Untitled')}</span>
+                                        <span class="other-relevant-meta">
+                                            r/${post.subreddit || '?'}
+                                            ${post.score ? ` | ${post.score} upvotes` : ''}
+                                            ${post.num_comments ? ` | ${post.num_comments} comments` : ''}
+                                            ${post.relevanceScore ? ` | Relevance: ${post.relevanceScore}/5` : ''}
+                                        </span>
+                                    </div>
+                                </label>
+                                <a href="${post.url}" target="_blank" class="other-relevant-link" onclick="event.stopPropagation();">↗</a>
                             </div>
                         `).join('')}
                     </div>
@@ -980,6 +1103,10 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
 
         // CONFIDENCE
         if (structured.confidence) {
+            const subredditCount = subreddits.length;
+            const scopeLabel = totalComments > 0
+                ? `Based on ${totalComments.toLocaleString()} comments across ${subredditCount} subreddit${subredditCount !== 1 ? 's' : ''}`
+                : '';
             html += `
                 <div class="analysis-section">
                     <h2 class="section-title">Confidence</h2>
@@ -987,6 +1114,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                         <span class="confidence-level">${(structured.confidence.level || 'medium').toUpperCase()}</span>
                         <span class="confidence-reason">${escapeHtml(structured.confidence.reason || '')}</span>
                     </div>
+                    ${scopeLabel ? `<p class="confidence-scope">${scopeLabel}</p>` : ''}
                 </div>
             `;
         }
