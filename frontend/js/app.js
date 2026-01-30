@@ -441,9 +441,10 @@ async function reanalyzeSelectedPosts() {
 
     // Get URLs from selected other relevant posts
     const otherRelevant = window.otherRelevantPosts || [];
-    const otherUrls = otherRelevant
-        .filter((post, idx) => otherRelevantSelectedPosts.has(String(post.id || idx)))
-        .map(post => post.url);
+    const selectedOtherIds = new Set(otherRelevantSelectedPosts);
+    const selectedOtherPosts = otherRelevant
+        .filter((post, idx) => selectedOtherIds.has(String(post.id || idx)));
+    const otherUrls = selectedOtherPosts.map(post => post.url);
 
     const allUrls = [...analyzedUrls, ...otherUrls];
 
@@ -460,6 +461,13 @@ async function reanalyzeSelectedPosts() {
     const newPostsCount = otherUrls.length;
     const totalPosts = allUrls.length;
     console.log(`Re-analyzing ${totalPosts} posts (${analyzedUrls.length} previously analyzed + ${newPostsCount} new)`);
+
+    // Remove selected posts from "other relevant" list since they're being analyzed now
+    if (selectedOtherPosts.length > 0) {
+        window.otherRelevantPosts = otherRelevant.filter((post, idx) =>
+            !selectedOtherIds.has(String(post.id || idx))
+        );
+    }
 
     await runAutoAnalyze(allUrls, role, goal, researchContext.researchQuestion);
 }
