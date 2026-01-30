@@ -279,7 +279,9 @@ async function handleSearchByTopic() {
 
     try {
         // === STEP 1: Search Reddit ===
+        resetStatusTimer();
         showStatus('Searching Reddit...', 10);
+        setStatusDetails('Finding discussions matching your research topic');
 
         console.log('\n=== AUTO-ANALYZE FLOW ===');
         console.log('Research Question:', researchQuestion);
@@ -302,7 +304,8 @@ async function handleSearchByTopic() {
         }
 
         // === STEP 2: Pre-screen for relevance ===
-        showStatus(`Filtering ${result.posts.length} posts for relevance...`, 25);
+        showStatus(`Found ${result.posts.length} posts`, 20);
+        setStatusDetails('AI is scoring each post for relevance to your research question...');
 
         let postsToAnalyze = result.posts;
 
@@ -318,6 +321,10 @@ async function handleSearchByTopic() {
                     // Keep the remaining relevant posts for display
                     otherRelevantPosts = screenResult.posts.slice(limit);
                     console.log(`Pre-screening: ${screenResult.screenedCount}/${screenResult.originalCount} relevant, taking top ${postsToAnalyze.length}, ${otherRelevantPosts.length} other relevant`);
+
+                    // Update status with screening results
+                    showStatus(`Selected ${postsToAnalyze.length} most relevant posts`, 30);
+                    setStatusDetails(`${screenResult.screenedCount} posts passed relevance filter, ${otherRelevantPosts.length} additional posts saved`);
                 } else {
                     // Pre-screening failed or returned nothing, use engagement-sorted posts
                     postsToAnalyze = result.posts.slice(0, limit);
@@ -347,7 +354,8 @@ async function handleSearchByTopic() {
         // Estimate: ~1.5s per post extraction + ~20s for AI analysis
         const estimatedSeconds = Math.round(urls.length * 1.5) + 20;
         setEstimatedTime(estimatedSeconds);
-        showStatus(`Analyzing ${urls.length} posts (extracting comments & running AI analysis)...`, 40);
+        showStatus(`Extracting comments from ${urls.length} posts...`, 40);
+        setStatusDetails('Reading through discussions and extracting valuable insights');
 
         // Auto-scroll to status section
         document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -365,7 +373,8 @@ async function handleSearchByTopic() {
  */
 async function runAutoAnalyze(urls, role, goal, researchQuestion) {
     hideAll();
-    showStatus(`Analyzing ${urls.length} posts (extracting comments & running AI analysis)...`, 40);
+    showStatus(`Extracting comments from ${urls.length} posts...`, 40);
+    setStatusDetails('Reading through discussions and extracting valuable insights');
 
     // Auto-scroll to status section
     document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -376,8 +385,26 @@ async function runAutoAnalyze(urls, role, goal, researchQuestion) {
     extractedPostsData = null;
     generatedContents = [];
 
+    // Simulated progress updates while waiting for API
+    const progressUpdates = [
+        { delay: 3000, message: `Processing ${urls.length} posts...`, detail: 'Extracting comments from Reddit discussions', progress: 50 },
+        { delay: 8000, message: 'Running AI analysis...', detail: 'Identifying patterns and insights across all posts', progress: 60 },
+        { delay: 15000, message: 'Synthesizing insights...', detail: 'Connecting themes and generating comprehensive analysis', progress: 75 },
+        { delay: 25000, message: 'Finalizing analysis...', detail: 'Preparing your personalized insights report', progress: 85 }
+    ];
+
+    const progressTimers = progressUpdates.map(update =>
+        setTimeout(() => {
+            showStatus(update.message, update.progress);
+            setStatusDetails(update.detail);
+        }, update.delay)
+    );
+
     try {
         const result = await autoAnalysis(urls, role, goal);
+
+        // Clear progress timers
+        progressTimers.forEach(timer => clearTimeout(timer));
 
         if (!result.success) {
             throw new Error(result.error || 'Auto-analysis failed');
@@ -396,6 +423,8 @@ async function runAutoAnalyze(urls, role, goal, researchQuestion) {
         displayCombinedResults(result, role, goal);
 
     } catch (error) {
+        // Clear progress timers on error
+        progressTimers.forEach(timer => clearTimeout(timer));
         console.error('Auto-analyze error:', error);
         showError(error.message || 'Analysis failed');
     }
@@ -630,13 +659,19 @@ function deselectAllOtherRelevant() {
 }
 
 /**
- * Update the other relevant posts selected count
+ * Update the other relevant posts selected count and show/hide re-analyze button
  */
 function updateOtherRelevantSelectedCount() {
     const otherRelevant = window.otherRelevantPosts || [];
     const countEl = document.getElementById('otherRelevantSelectedCount');
     if (countEl) {
         countEl.textContent = `${otherRelevantSelectedPosts.size} of ${otherRelevant.length} selected`;
+    }
+
+    // Show/hide re-analyze button based on selection
+    const reanalyzeBtn = document.getElementById('reanalyzeOtherBtn');
+    if (reanalyzeBtn) {
+        reanalyzeBtn.style.display = otherRelevantSelectedPosts.size > 0 ? 'inline-block' : 'none';
     }
 }
 
@@ -974,6 +1009,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                         <div>
                             <button class="btn-small" onclick="selectAllOtherRelevant(${maxAdditional})">Select First ${maxAdditional}</button>
                             <button class="btn-small" onclick="deselectAllOtherRelevant()">Deselect All</button>
+                            <button class="btn-small btn-primary" id="reanalyzeOtherBtn" onclick="reanalyzeSelectedPosts()" style="display: none;">Re-analyze with Selection</button>
                         </div>
                     </div>
                     <div class="other-relevant-list">

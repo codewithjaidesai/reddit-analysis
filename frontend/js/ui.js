@@ -95,6 +95,23 @@ let statusTimer = null;
 let statusStartTime = null;
 let statusEstimatedSeconds = null;
 let lastElapsedTime = null; // Store for showing with results
+let tipTimer = null;
+let currentTipIndex = 0;
+let currentStatusMessage = '';
+
+// Tips to show during analysis
+const analysisTips = [
+    "Reddit has 52+ million daily active users sharing opinions",
+    "We're reading through hundreds of comments to find the best insights",
+    "AI analysis considers context, sentiment, and patterns across posts",
+    "Higher relevance scores mean posts closely match your research topic",
+    "Comments are ranked by engagement and insight value",
+    "We filter out low-quality content automatically",
+    "Each post can have thousands of comments - we extract the valuable ones",
+    "Analysis considers the persona and goal you specified",
+    "Contradicting opinions are highlighted to show the full picture",
+    "We look for patterns that appear across multiple discussions"
+];
 
 /**
  * Reset the status timer (call before starting a new operation)
@@ -104,9 +121,20 @@ function resetStatusTimer() {
         clearInterval(statusTimer);
         statusTimer = null;
     }
+    if (tipTimer) {
+        clearInterval(tipTimer);
+        tipTimer = null;
+    }
     statusStartTime = null;
     statusEstimatedSeconds = null;
     lastElapsedTime = null;
+    currentTipIndex = 0;
+    currentStatusMessage = '';
+    // Clear tip and details
+    const tipEl = document.getElementById('statusTip');
+    const detailsEl = document.getElementById('statusDetails');
+    if (tipEl) tipEl.textContent = '';
+    if (detailsEl) detailsEl.textContent = '';
 }
 
 /**
@@ -135,18 +163,31 @@ function formatTime(totalSeconds) {
 }
 
 /**
+ * Update status details text (sub-status line)
+ */
+function setStatusDetails(details) {
+    const detailsEl = document.getElementById('statusDetails');
+    if (detailsEl) {
+        detailsEl.textContent = details;
+    }
+}
+
+/**
  * Show status message with elapsed time counter and optional estimated time
  */
 function showStatus(message, progress) {
     hideAll();
     const statusText = document.getElementById('statusText');
+    const tipEl = document.getElementById('statusTip');
     document.getElementById('progressBar').style.width = progress + '%';
     document.getElementById('statusSection').style.display = 'block';
+    currentStatusMessage = message;
 
     // Start timer on first status call (progress < 100), stop on completion
     if (progress < 100) {
         if (!statusStartTime) {
             statusStartTime = Date.now();
+            // Start the main timer
             statusTimer = setInterval(() => {
                 const elapsed = Math.floor((Date.now() - statusStartTime) / 1000);
                 const elapsedStr = formatTime(elapsed);
@@ -155,10 +196,27 @@ function showStatus(message, progress) {
                     const estStr = formatTime(statusEstimatedSeconds);
                     timeDisplay = `${elapsedStr} / ~${estStr} est`;
                 }
-                statusText.textContent = `${message} (${timeDisplay})`;
+                statusText.textContent = `${currentStatusMessage} (${timeDisplay})`;
             }, 1000);
+
+            // Start tip rotation (every 4 seconds)
+            currentTipIndex = Math.floor(Math.random() * analysisTips.length);
+            if (tipEl) {
+                tipEl.textContent = analysisTips[currentTipIndex];
+            }
+            tipTimer = setInterval(() => {
+                currentTipIndex = (currentTipIndex + 1) % analysisTips.length;
+                if (tipEl) {
+                    tipEl.style.opacity = '0';
+                    setTimeout(() => {
+                        tipEl.textContent = analysisTips[currentTipIndex];
+                        tipEl.style.opacity = '1';
+                    }, 300);
+                }
+            }, 4000);
         }
         // Update message but keep timer running
+        currentStatusMessage = message;
         const elapsed = Math.floor((Date.now() - statusStartTime) / 1000);
         const elapsedStr = formatTime(elapsed);
         let timeDisplay = elapsedStr;
@@ -180,6 +238,14 @@ function showStatus(message, progress) {
         } else {
             statusText.textContent = message;
         }
+        // Stop tips on completion
+        if (tipTimer) {
+            clearInterval(tipTimer);
+            tipTimer = null;
+        }
+        if (tipEl) tipEl.textContent = '';
+        const detailsEl = document.getElementById('statusDetails');
+        if (detailsEl) detailsEl.textContent = '';
     }
 }
 
