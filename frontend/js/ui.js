@@ -193,8 +193,14 @@ function showStatus(message, progress) {
                 const elapsedStr = formatTime(elapsed);
                 let timeDisplay = elapsedStr;
                 if (statusEstimatedSeconds) {
-                    const estStr = formatTime(statusEstimatedSeconds);
-                    timeDisplay = `${elapsedStr} / ~${estStr} est`;
+                    if (elapsed <= statusEstimatedSeconds) {
+                        // Normal: show elapsed / estimated
+                        const estStr = formatTime(statusEstimatedSeconds);
+                        timeDisplay = `${elapsedStr} / ~${estStr} est`;
+                    } else {
+                        // Exceeded estimate: just show elapsed, no estimate
+                        timeDisplay = elapsedStr;
+                    }
                 }
                 statusText.textContent = `${currentStatusMessage} (${timeDisplay})`;
             }, 1000);
@@ -221,8 +227,11 @@ function showStatus(message, progress) {
         const elapsedStr = formatTime(elapsed);
         let timeDisplay = elapsedStr;
         if (statusEstimatedSeconds) {
-            const estStr = formatTime(statusEstimatedSeconds);
-            timeDisplay = `${elapsedStr} / ~${estStr} est`;
+            if (elapsed <= statusEstimatedSeconds) {
+                const estStr = formatTime(statusEstimatedSeconds);
+                timeDisplay = `${elapsedStr} / ~${estStr} est`;
+            }
+            // If elapsed > estimated, just show elapsed (no estimate)
         }
         statusText.textContent = statusStartTime ? `${message} (${timeDisplay})` : message;
     } else {
