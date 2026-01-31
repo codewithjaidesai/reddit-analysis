@@ -3,6 +3,8 @@ const router = express.Router();
 const { extractRedditData } = require('../services/reddit');
 const { generateAIInsights, generateCombinedInsights, generateContent } = require('../services/insights');
 const { batchExtractPosts } = require('../services/mapReduceAnalysis');
+const { analyzeCommunityPulse, extractPostComments } = require('../services/communityPulse');
+const { fetchTimeBucketedPosts, getSubredditInfo } = require('../services/search');
 
 /**
  * POST /api/analyze/extract
@@ -337,6 +339,103 @@ router.post('/generate', async (req, res) => {
 
   } catch (error) {
     console.error('Content generation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/analyze/community-pulse
+ * Full Community Pulse analysis - fetches posts, analyzes trends, generates insights
+ */
+router.post('/community-pulse', async (req, res) => {
+  try {
+    const { subreddit, depth, role } = req.body;
+
+    if (!subreddit) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subreddit name is required'
+      });
+    }
+
+    // Clean subreddit name
+    const cleanSubreddit = subreddit.replace(/^r\//, '').trim();
+
+    console.log(`\n=== COMMUNITY PULSE: r/${cleanSubreddit} ===`);
+    console.log('Depth:', depth || 'full');
+    console.log('Role:', role || 'not specified');
+
+    // Step 1: Get subreddit info
+    console.log('\nStep 1: Getting subreddit info...');
+    const subredditInfo = await getSubredditInfo(cleanSubreddit);
+
+    if (!subredditInfo.success) {
+      return res.status(404).json({
+        success: false,
+        error: subredditInfo.error || 'Subreddit not found',
+        message: subredditInfo.message
+      });
+    }
+
+    // Step 2: Fetch time-bucketed posts
+    console.log('\nStep 2: Fetching time-bucketed posts...');
+    const bucketedPosts = await fetchTimeBucketedPosts(cleanSubreddit, depth || 'full');
+
+    if (!bucketedPosts.success) {
+      return res.status(400).json({
+        success: false,
+        error: bucketedPosts.error,
+        message: bucketedPosts.message
+      });
+    }
+
+    if (bucketedPosts.totalPosts < 5) {
+      return res.status(400).json({
+        success: false,
+        error: 'Insufficient data',
+        message: `r/${cleanSubreddit} has too few posts for meaningful analysis (found ${bucketedPosts.totalPosts})`
+      });
+    }
+
+    console.log(`Found ${bucketedPosts.totalPosts} posts across ${bucketedPosts.buckets.length} time buckets`);
+
+    // Step 3: Run Community Pulse analysis
+    console.log('\nStep 3: Running AI analysis...');
+    const pulseAnalysis = await analyzeCommunityPulse(bucketedPosts, role, subredditInfo);
+
+    if (!pulseAnalysis.success) {
+      return res.status(500).json({
+        success: false,
+        error: pulseAnalysis.error,
+        message: pulseAnalysis.message
+      });
+    }
+
+    // Combine all data for response
+    res.json({
+      success: true,
+      subreddit: cleanSubreddit,
+      subredditInfo: {
+        title: subredditInfo.title,
+        description: subredditInfo.description,
+        subscribers: subredditInfo.subscribers,
+        activeUsers: subredditInfo.activeUsers,
+        postsPerDay: subredditInfo.postsPerDay,
+        activityLevel: subredditInfo.activityLevel
+      },
+      depth: depth || 'full',
+      role: role || 'custom',
+      totalPostsAnalyzed: pulseAnalysis.totalPostsAnalyzed,
+      bucketSummary: pulseAnalysis.bucketSummary,
+      analysis: pulseAnalysis.analysis,
+      meta: pulseAnalysis.meta
+    });
+
+  } catch (error) {
+    console.error('Community pulse error:', error);
     res.status(500).json({
       success: false,
       error: error.message

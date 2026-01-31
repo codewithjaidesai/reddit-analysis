@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { searchRedditByTopic, searchSubredditTopPosts } = require('../services/search');
+const { searchRedditByTopic, searchSubredditTopPosts, getSubredditInfo, fetchTimeBucketedPosts } = require('../services/search');
 const { preScreenPosts } = require('../services/mapReduceAnalysis');
 
 /**
@@ -113,6 +113,72 @@ router.post('/prescreen', async (req, res) => {
 
   } catch (error) {
     console.error('Pre-screen error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/search/subreddit-info
+ * Get subreddit info and activity level for Community Pulse
+ */
+router.post('/subreddit-info', async (req, res) => {
+  try {
+    const { subreddit } = req.body;
+
+    if (!subreddit) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subreddit name is required'
+      });
+    }
+
+    // Clean subreddit name (remove r/ if present)
+    const cleanSubreddit = subreddit.replace(/^r\//, '').trim();
+
+    console.log('Getting subreddit info for:', cleanSubreddit);
+
+    const result = await getSubredditInfo(cleanSubreddit);
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Subreddit info error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/search/community-posts
+ * Fetch time-bucketed posts for Community Pulse analysis
+ */
+router.post('/community-posts', async (req, res) => {
+  try {
+    const { subreddit, depth } = req.body;
+
+    if (!subreddit) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subreddit name is required'
+      });
+    }
+
+    // Clean subreddit name
+    const cleanSubreddit = subreddit.replace(/^r\//, '').trim();
+
+    console.log('Fetching community posts for:', cleanSubreddit, 'Depth:', depth);
+
+    const result = await fetchTimeBucketedPosts(cleanSubreddit, depth || 'full');
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Community posts error:', error);
     res.status(500).json({
       success: false,
       error: error.message

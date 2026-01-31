@@ -7,6 +7,11 @@ let otherRelevantSelectedPosts = new Set(); // Track selected "other relevant" p
 let currentTopicResults = [];
 let currentSubredditResults = [];
 
+// Community Pulse state
+let subredditInfoCache = null;
+let activityCheckTimer = null;
+let currentCommunityPulseResults = null;
+
 // Analysis history state
 let analysisHistory = [];
 let currentAnalysisIndex = 0;
@@ -800,6 +805,445 @@ async function analyzeSubredditSelectedPosts() {
 
     await analyzeMultiplePosts(selectedUrls);
 }
+
+// ============================================
+// COMMUNITY PULSE FUNCTIONS
+// ============================================
+
+/**
+ * Handle subreddit input for activity detection (debounced)
+ */
+function handleSubredditInput() {
+    const subreddit = document.getElementById('subredditName').value.trim();
+
+    // Clear previous timer
+    if (activityCheckTimer) {
+        clearTimeout(activityCheckTimer);
+    }
+
+    // Hide activity indicator if input is empty
+    if (!subreddit) {
+        document.getElementById('subredditActivityIndicator').style.display = 'none';
+        subredditInfoCache = null;
+        return;
+    }
+
+    // Debounce: wait 500ms after user stops typing
+    activityCheckTimer = setTimeout(async () => {
+        await checkSubredditActivity(subreddit);
+    }, 500);
+}
+
+/**
+ * Check subreddit activity level
+ */
+async function checkSubredditActivity(subreddit) {
+    const indicator = document.getElementById('subredditActivityIndicator');
+    const levelEl = document.getElementById('subredditActivityLevel');
+    const statsEl = document.getElementById('subredditActivityStats');
+
+    // Show indicator with loading state
+    indicator.style.display = 'block';
+    levelEl.textContent = 'Checking activity...';
+    levelEl.className = 'activity-level';
+    statsEl.textContent = '';
+
+    try {
+        const result = await getSubredditInfo(subreddit);
+
+        if (!result.success) {
+            levelEl.textContent = result.error || 'Subreddit not found';
+            levelEl.className = 'activity-level';
+            statsEl.textContent = 'Please check the subreddit name';
+            subredditInfoCache = null;
+            return;
+        }
+
+        // Cache the info
+        subredditInfoCache = result;
+
+        // Display activity level
+        const activityLabels = {
+            'high': 'High Activity',
+            'medium': 'Medium Activity',
+            'low': 'Low Activity'
+        };
+
+        levelEl.textContent = activityLabels[result.activityLevel] || 'Unknown';
+        levelEl.className = `activity-level ${result.activityLevel}`;
+
+        // Format stats
+        const statsText = [];
+        if (result.postsPerDay) {
+            statsText.push(`~${result.postsPerDay} posts/day`);
+        }
+        if (result.subscribers) {
+            statsText.push(`${formatNumber(result.subscribers)} members`);
+        }
+        statsEl.textContent = statsText.join(' · ');
+
+    } catch (error) {
+        console.error('Activity check error:', error);
+        levelEl.textContent = 'Could not check activity';
+        levelEl.className = 'activity-level';
+        statsEl.textContent = 'Network error';
+        subredditInfoCache = null;
+    }
+}
+
+/**
+ * Format large numbers (e.g., 1500000 -> 1.5M)
+ */
+function formatNumber(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    }
+    if (num >= 1000) {
+        return (num / 1000).toFixed(0) + 'K';
+    }
+    return num.toString();
+}
+
+/**
+ * Handle Community Pulse analysis
+ */
+async function handleCommunityPulse() {
+    const subreddit = document.getElementById('subredditName').value.trim();
+
+    if (!subreddit) {
+        showError('Please enter a subreddit name');
+        return;
+    }
+
+    // Get selected depth
+    const depthRadio = document.querySelector('input[name="analysisDepth"]:checked');
+    const depth = depthRadio ? depthRadio.value : 'full';
+
+    // Get selected role
+    const role = document.getElementById('subredditUserRole').value || 'custom';
+
+    // Hide all sections and show status
+    hideAll();
+    document.getElementById('communityPulseResults').style.display = 'none';
+
+    // Estimate time based on depth
+    const estimatedSeconds = depth === 'full' ? 45 : 25;
+    setEstimatedTime(estimatedSeconds);
+
+    // Show engaging status messages
+    showStatus('Connecting to Reddit...', 10);
+    setStatusDetails(`Preparing to explore r/${subreddit}`);
+
+    // Auto-scroll to status section
+    document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Progress updates while waiting
+    const progressUpdates = [
+        { delay: 2000, message: 'Gathering community data...', detail: 'Fetching posts from different time periods', progress: 20 },
+        { delay: 5000, message: 'Analyzing community patterns...', detail: 'Identifying themes and topics across discussions', progress: 35 },
+        { delay: 10000, message: 'Detecting trends...', detail: 'Comparing recent activity with historical patterns', progress: 50 },
+        { delay: 18000, message: 'Extracting language patterns...', detail: 'Understanding how the community communicates', progress: 65 },
+        { delay: 28000, message: 'Generating insights...', detail: 'Building your personalized community report', progress: 80 },
+        { delay: 38000, message: 'Finalizing report...', detail: 'Almost there!', progress: 90 }
+    ];
+
+    const progressTimers = progressUpdates.map(update =>
+        setTimeout(() => {
+            showStatus(update.message, update.progress);
+            setStatusDetails(update.detail);
+        }, update.delay)
+    );
+
+    try {
+        const result = await analyzeCommunityPulse(subreddit, depth, role);
+
+        // Clear progress timers
+        progressTimers.forEach(timer => clearTimeout(timer));
+
+        if (!result.success) {
+            throw new Error(result.error || 'Analysis failed');
+        }
+
+        showStatus('Analysis complete!', 100);
+        setStatusDetails(`Analyzed ${result.totalPostsAnalyzed} posts from r/${subreddit}`);
+
+        // Store results
+        currentCommunityPulseResults = result;
+
+        // Brief delay to show completion
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Display the report
+        hideAll();
+        displayCommunityPulseReport(result);
+
+    } catch (error) {
+        // Clear progress timers on error
+        progressTimers.forEach(timer => clearTimeout(timer));
+        console.error('Community Pulse error:', error);
+        showError(error.message || 'Analysis failed. Please try again.');
+    }
+}
+
+/**
+ * Display Community Pulse report
+ */
+function displayCommunityPulseReport(result) {
+    const container = document.getElementById('communityPulseResults');
+    const analysis = result.analysis;
+    const subredditInfo = result.subredditInfo;
+
+    // Format persona label
+    const personaLabels = {
+        'product_manager': 'Product Manager',
+        'marketer': 'Marketer / Copywriter',
+        'content_creator': 'Content Creator',
+        'custom': 'General Explorer'
+    };
+    const personaLabel = personaLabels[result.role] || 'Researcher';
+
+    // Build the report HTML
+    let html = `
+        <div class="community-pulse-report">
+            <!-- Header -->
+            <div class="pulse-header">
+                <h2>r/${result.subreddit} Community Pulse</h2>
+                <div class="pulse-meta">
+                    <span class="pulse-meta-item">
+                        <span class="meta-icon">📊</span>
+                        ${result.totalPostsAnalyzed} posts analyzed
+                    </span>
+                    <span class="pulse-meta-item">
+                        <span class="meta-icon">👥</span>
+                        ${subredditInfo?.subscribers ? formatNumber(subredditInfo.subscribers) + ' members' : 'Unknown size'}
+                    </span>
+                    <span class="pulse-meta-item">
+                        <span class="meta-icon">📅</span>
+                        ${result.depth === 'full' ? '1 year analysis' : 'Last 30 days'}
+                    </span>
+                    <span class="pulse-meta-item">
+                        <span class="meta-icon">⚡</span>
+                        ${subredditInfo?.activityLevel ? capitalize(subredditInfo.activityLevel) + ' activity' : ''}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Community Snapshot -->
+            <div class="pulse-section">
+                <h3><span class="section-icon">🎯</span> Community Snapshot</h3>
+                <div class="community-snapshot">
+                    ${analysis.communitySnapshot || 'A community focused on shared interests and discussions.'}
+                </div>
+            </div>
+
+            <!-- Top Themes -->
+            <div class="pulse-section">
+                <h3><span class="section-icon">📊</span> Top Themes</h3>
+                <div class="theme-list">
+                    ${(analysis.topThemes || []).map(theme => `
+                        <div class="theme-item">
+                            <div class="theme-main">
+                                <span class="theme-icon">${getThemeIcon(theme.name)}</span>
+                                <div class="theme-info">
+                                    <div class="theme-name">${theme.name}</div>
+                                    <div class="theme-percentage">${theme.percentage}% of discussions${theme.description ? ' · ' + theme.description : ''}</div>
+                                </div>
+                            </div>
+                            <div class="theme-bar">
+                                <div class="theme-bar-fill" style="width: ${Math.min(theme.percentage * 2, 100)}%"></div>
+                            </div>
+                            <span class="theme-trend ${theme.trend || 'stable'}">
+                                ${getTrendIcon(theme.trend)} ${capitalize(theme.trend || 'stable')}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Trend Analysis (for full depth) -->
+            ${result.depth === 'full' && analysis.trendAnalysis ? `
+            <div class="pulse-section">
+                <h3><span class="section-icon">📈</span> What's Changing</h3>
+                <div class="trend-cards">
+                    ${analysis.trendAnalysis.emerging && analysis.trendAnalysis.emerging.length > 0 ? `
+                    <div class="trend-card">
+                        <div class="trend-card-header">
+                            <span class="trend-icon">🔥</span>
+                            <h4>Emerging Topics</h4>
+                        </div>
+                        <ul>
+                            ${analysis.trendAnalysis.emerging.map(item => `
+                                <li><strong>${item.topic}</strong> - ${item.evidence || item.opportunityNote || ''}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+
+                    ${analysis.trendAnalysis.consistent && analysis.trendAnalysis.consistent.length > 0 ? `
+                    <div class="trend-card">
+                        <div class="trend-card-header">
+                            <span class="trend-icon">📌</span>
+                            <h4>Always Discussed</h4>
+                        </div>
+                        <ul>
+                            ${analysis.trendAnalysis.consistent.map(item => `
+                                <li><strong>${item.topic}</strong>${item.note ? ' - ' + item.note : ''}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+
+                    ${analysis.trendAnalysis.declining && analysis.trendAnalysis.declining.length > 0 ? `
+                    <div class="trend-card">
+                        <div class="trend-card-header">
+                            <span class="trend-icon">📉</span>
+                            <h4>Declining Interest</h4>
+                        </div>
+                        <ul>
+                            ${analysis.trendAnalysis.declining.map(item => `
+                                <li><strong>${item.topic}</strong>${item.evidence ? ' - ' + item.evidence : ''}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Language Patterns -->
+            ${analysis.languagePatterns ? `
+            <div class="pulse-section">
+                <h3><span class="section-icon">💬</span> Community Language</h3>
+                <div class="language-grid">
+                    ${analysis.languagePatterns.commonPhrases && analysis.languagePatterns.commonPhrases.length > 0 ? `
+                    <div class="language-group">
+                        <h4>Common Phrases</h4>
+                        <div class="phrase-tags">
+                            ${analysis.languagePatterns.commonPhrases.map(phrase => `
+                                <span class="phrase-tag">"${phrase}"</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${analysis.languagePatterns.emotionalTriggers && analysis.languagePatterns.emotionalTriggers.length > 0 ? `
+                    <div class="language-group">
+                        <h4>Emotional Triggers</h4>
+                        <div class="phrase-tags">
+                            ${analysis.languagePatterns.emotionalTriggers.map(trigger => `
+                                <span class="phrase-tag">${trigger}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${analysis.languagePatterns.communitySlang && analysis.languagePatterns.communitySlang.length > 0 ? `
+                    <div class="language-group">
+                        <h4>Community Slang</h4>
+                        <div class="phrase-tags">
+                            ${analysis.languagePatterns.communitySlang.map(term => `
+                                <span class="phrase-tag">${term}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Persona-specific Insights -->
+            ${analysis.forYourPersona ? `
+            <div class="pulse-section">
+                <h3><span class="section-icon">🎯</span> For You as a ${personaLabel}</h3>
+                <div class="persona-insights-box">
+                    <h4>Key Insights</h4>
+                    <ul>
+                        ${(analysis.forYourPersona.keyInsights || []).map(insight => `
+                            <li>${insight}</li>
+                        `).join('')}
+                    </ul>
+
+                    ${analysis.forYourPersona.actionableOpportunities && analysis.forYourPersona.actionableOpportunities.length > 0 ? `
+                    <h4 style="margin-top: 16px;">Actionable Opportunities</h4>
+                    <ul>
+                        ${analysis.forYourPersona.actionableOpportunities.map(opp => `
+                            <li>${opp}</li>
+                        `).join('')}
+                    </ul>
+                    ` : ''}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Top Engaging Topics -->
+            ${analysis.topEngagingTopics && analysis.topEngagingTopics.length > 0 ? `
+            <div class="pulse-section">
+                <h3><span class="section-icon">⚡</span> High-Engagement Topics</h3>
+                <div class="trend-cards">
+                    ${analysis.topEngagingTopics.map(topic => `
+                        <div class="trend-card">
+                            <div class="trend-card-header">
+                                <span class="trend-icon">🎯</span>
+                                <h4>${topic.topic}</h4>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">
+                                ${topic.whyItWorks || ''}
+                            </p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+
+    // Scroll to results
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * Get icon for theme based on name
+ */
+function getThemeIcon(themeName) {
+    const name = (themeName || '').toLowerCase();
+    if (name.includes('pain') || name.includes('problem') || name.includes('frustrat')) return '😤';
+    if (name.includes('success') || name.includes('win') || name.includes('achieve')) return '🏆';
+    if (name.includes('question') || name.includes('help') || name.includes('advice')) return '❓';
+    if (name.includes('recommend') || name.includes('suggest')) return '💡';
+    if (name.includes('review') || name.includes('experience')) return '📝';
+    if (name.includes('health') || name.includes('wellness') || name.includes('fitness')) return '💪';
+    if (name.includes('money') || name.includes('finance') || name.includes('budget')) return '💰';
+    if (name.includes('tech') || name.includes('software') || name.includes('app')) return '💻';
+    if (name.includes('relation') || name.includes('social')) return '👥';
+    if (name.includes('work') || name.includes('career') || name.includes('job')) return '💼';
+    return '📌';
+}
+
+/**
+ * Get trend icon
+ */
+function getTrendIcon(trend) {
+    switch (trend) {
+        case 'rising': return '↗';
+        case 'declining': return '↘';
+        default: return '→';
+    }
+}
+
+/**
+ * Capitalize first letter
+ */
+function capitalize(str) {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// ============================================
+// END COMMUNITY PULSE FUNCTIONS
+// ============================================
 
 /**
  * Analyze multiple posts with combined analysis (single AI call)
@@ -2450,7 +2894,32 @@ function updateRecentSearchesDropdown() {
 document.addEventListener('DOMContentLoaded', function() {
     updateRecentSearchesDropdown();
     updateSavedContentDropdown();
+
+    // Initialize depth toggle visual selection
+    initializeDepthToggle();
 });
+
+/**
+ * Initialize depth toggle radio button visual selection
+ */
+function initializeDepthToggle() {
+    const depthOptions = document.querySelectorAll('.depth-option input[type="radio"]');
+    depthOptions.forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Update visual selection on all depth cards
+            document.querySelectorAll('.depth-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            // Add selected class to the checked option's card
+            if (this.checked) {
+                const card = this.nextElementSibling;
+                if (card && card.classList.contains('depth-card')) {
+                    card.classList.add('selected');
+                }
+            }
+        });
+    });
+}
 
 // ============================================
 // SAVED GENERATED CONTENT (localStorage)

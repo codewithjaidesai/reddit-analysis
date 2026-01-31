@@ -31,7 +31,7 @@
                     Topic Search
                 </button>
                 <button class="tab-btn" onclick="switchTab('subreddit')">
-                    Subreddit Analysis
+                    Community Pulse
                 </button>
             </div>
 
@@ -310,130 +310,117 @@
                 </div>
             </div>
 
-            <!-- Tab 3: Subreddit Analysis -->
+            <!-- Tab 3: Community Pulse -->
             <div id="subredditTab" class="tab-content" style="display: none;">
                 <div class="input-section">
-                    <h2>Analyze Subreddit Top Posts</h2>
+                    <h2>Community Pulse</h2>
+                    <p class="tab-subtitle">Explore what a subreddit community cares about - themes, trends, and language patterns</p>
+
                     <div class="input-group">
                         <label for="subredditName" class="context-label">
-                            Which subreddit?
+                            Which community?
                         </label>
                         <input
                             type="text"
                             id="subredditName"
-                            placeholder="e.g., productivity, startups, fitness"
+                            placeholder="e.g., menopause, weightgain, productivity"
                             class="research-input"
                             style="font-size: 1rem;"
+                            oninput="handleSubredditInput()"
                         />
                         <p class="hint">Enter subreddit name without r/</p>
                     </div>
 
-                    <!-- Research Goal Section (PROMINENT) -->
+                    <!-- Activity Indicator (shown after subreddit entered) -->
+                    <div id="subredditActivityIndicator" class="activity-indicator" style="display: none;">
+                        <div class="activity-content">
+                            <span class="activity-icon">📊</span>
+                            <div class="activity-details">
+                                <span id="subredditActivityLevel" class="activity-level">Checking activity...</span>
+                                <span id="subredditActivityStats" class="activity-stats"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Persona Selection (simplified - no outcomes) -->
                     <div class="research-goal-section">
-                        <h3 class="section-label">Research Goal</h3>
+                        <h3 class="section-label">I'm exploring as a...</h3>
 
                         <div class="persona-outcome-container">
-                            <!-- Persona Selection -->
                             <div class="persona-selection">
-                                <label class="selection-label">SELECT PERSONA</label>
                                 <div class="persona-cards" id="subredditPersonaCards">
                                     <div class="persona-card" data-persona="product_manager" onclick="selectPersona('subreddit', 'product_manager')">
                                         <span class="persona-icon">PM</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Product Manager</span>
-                                            <span class="persona-desc">Find market gaps & validate features</span>
+                                            <span class="persona-desc">Find pain points & opportunities</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="marketer" onclick="selectPersona('subreddit', 'marketer')">
                                         <span class="persona-icon">MK</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Marketer / Copywriter</span>
-                                            <span class="persona-desc">Find hooks & customer language</span>
+                                            <span class="persona-desc">Understand community voice</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="content_creator" onclick="selectPersona('subreddit', 'content_creator')">
                                         <span class="persona-icon">CC</span>
                                         <div class="persona-info">
                                             <span class="persona-name">Content Creator</span>
-                                            <span class="persona-desc">Find video ideas & trending topics</span>
+                                            <span class="persona-desc">Find trending topics & ideas</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="custom" onclick="selectPersona('subreddit', 'custom')">
                                         <span class="persona-icon">+</span>
                                         <div class="persona-info">
-                                            <span class="persona-name">Custom / Other</span>
-                                            <span class="persona-desc">Define your own research parameters</span>
+                                            <span class="persona-name">General Explorer</span>
+                                            <span class="persona-desc">Understand the community</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Outcome Selection -->
-                            <div class="outcome-selection" id="subredditOutcomeSelection" style="display: none;">
-                                <label class="selection-label" id="subredditOutcomeLabel">SELECT SPECIFIC OUTCOME</label>
-                                <div class="outcome-options" id="subredditOutcomeOptions">
-                                    <!-- Options populated by JS based on persona -->
-                                </div>
-                            </div>
                         </div>
                     </div>
 
-                    <!-- Hidden fields to store role/goal values -->
+                    <!-- Hidden fields to store role value -->
                     <input type="hidden" id="subredditUserRole" />
-                    <input type="hidden" id="subredditUserGoal" />
+                    <input type="hidden" id="subredditUserGoal" value="community_exploration" />
 
-                    <!-- Advanced Options (subtle) -->
-                    <div class="advanced-options">
-                        <div class="advanced-options-row">
-                            <div class="option-group">
-                                <label>Time</label>
-                                <select id="subredditTimeRange" class="subtle-select">
-                                    <option value="day">24 hours</option>
-                                    <option value="week">Week</option>
-                                    <option value="month">Month</option>
-                                    <option value="year" selected>Year</option>
-                                </select>
-                            </div>
-                            <div class="option-group">
-                                <label>Results</label>
-                                <select id="subredditLimit" class="subtle-select">
-                                    <option value="10">10</option>
-                                    <option value="15" selected>15</option>
-                                    <option value="25">25</option>
-                                    <option value="50">50</option>
-                                </select>
-                            </div>
+                    <!-- Analysis Depth Selection -->
+                    <div class="analysis-depth-section">
+                        <h3 class="section-label">Analysis Depth</h3>
+                        <div class="depth-options">
+                            <label class="depth-option">
+                                <input type="radio" name="analysisDepth" value="quick" />
+                                <div class="depth-card">
+                                    <span class="depth-icon">⚡</span>
+                                    <div class="depth-info">
+                                        <span class="depth-name">Quick Snapshot</span>
+                                        <span class="depth-desc">Recent 30 days • Fast overview</span>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="depth-option">
+                                <input type="radio" name="analysisDepth" value="full" checked />
+                                <div class="depth-card selected">
+                                    <span class="depth-icon">📈</span>
+                                    <div class="depth-info">
+                                        <span class="depth-name">Full Trend Analysis</span>
+                                        <span class="depth-desc">1 year data • Emerging vs declining trends</span>
+                                    </div>
+                                </div>
+                            </label>
                         </div>
                     </div>
 
-                    <button class="analyze-btn start-research-btn" onclick="handleSearchSubreddit()">
-                        Start Research →
+                    <button class="analyze-btn start-research-btn" onclick="handleCommunityPulse()" id="communityPulseBtn">
+                        Explore Community →
                     </button>
                 </div>
 
-                <!-- Subreddit Search Results -->
-                <div id="subredditResults" style="display: none;">
-                    <div class="results-header">
-                        <h3 id="subredditResultsTitle">Top Posts</h3>
-                        <div id="subredditResultsSummary"></div>
-                    </div>
-                    <div id="subredditSelectedActions" style="display: none;">
-                        <div class="selected-summary">
-                            <span id="subredditSelectedCount">0 posts selected</span>
-                            <button class="analyze-btn" onclick="analyzeSubredditSelectedPosts()">
-                                Analyze Selected →
-                            </button>
-                        </div>
-                    </div>
-                    <div id="subredditPostsList"></div>
-                    <div id="subredditSelectedActionsBottom" style="display: none;">
-                        <div class="selected-summary">
-                            <span id="subredditSelectedCountBottom">0 posts selected</span>
-                            <button class="analyze-btn" onclick="analyzeSubredditSelectedPosts()">
-                                Analyze Selected →
-                            </button>
-                        </div>
-                    </div>
+                <!-- Community Pulse Results -->
+                <div id="communityPulseResults" style="display: none;">
+                    <!-- Results populated by JS -->
                 </div>
             </div>
 
