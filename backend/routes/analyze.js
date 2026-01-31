@@ -414,7 +414,7 @@ router.post('/community-pulse', async (req, res) => {
       });
     }
 
-    // Combine all data for response
+    // Combine all data for response - include source posts for transparency
     res.json({
       success: true,
       subreddit: cleanSubreddit,
@@ -430,6 +430,16 @@ router.post('/community-pulse', async (req, res) => {
       role: role || 'custom',
       totalPostsAnalyzed: pulseAnalysis.totalPostsAnalyzed,
       bucketSummary: pulseAnalysis.bucketSummary,
+      // Include source posts for the Source Data section
+      sourcePosts: bucketedPosts.buckets,
+      // Methodology metadata
+      methodology: {
+        totalFetched: 100, // We fetch up to 100 from Reddit API
+        qualityFiltered: bucketedPosts.totalPosts,
+        filterCriteria: 'Posts with 10+ upvotes, 5+ comments, non-video, non-stickied',
+        timePeriod: depth === 'quick' ? 'Last 30 days' : 'Last 12 months',
+        bucketStrategy: depth === 'quick' ? '1 time period' : '4 time periods for trend comparison'
+      },
       analysis: pulseAnalysis.analysis,
       meta: pulseAnalysis.meta
     });

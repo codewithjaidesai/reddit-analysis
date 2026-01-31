@@ -824,6 +824,8 @@ function handleSubredditInput() {
     // Hide activity indicator if input is empty
     if (!subreddit) {
         document.getElementById('subredditActivityIndicator').style.display = 'none';
+        const nextStepEl = document.getElementById('activityNextStep');
+        if (nextStepEl) nextStepEl.style.display = 'none';
         subredditInfoCache = null;
         return;
     }
@@ -882,12 +884,31 @@ async function checkSubredditActivity(subreddit) {
         }
         statsEl.textContent = statsText.join(' · ');
 
+        // Show next step prompt
+        const nextStepEl = document.getElementById('activityNextStep');
+        if (nextStepEl) {
+            nextStepEl.style.display = 'flex';
+        }
+
+        // Highlight persona section briefly
+        const personaSection = document.getElementById('pulsePersonaSection');
+        if (personaSection) {
+            personaSection.classList.add('highlight-section');
+            setTimeout(() => personaSection.classList.remove('highlight-section'), 2000);
+        }
+
     } catch (error) {
         console.error('Activity check error:', error);
         levelEl.textContent = 'Could not check activity';
         levelEl.className = 'activity-level';
         statsEl.textContent = 'Network error';
         subredditInfoCache = null;
+
+        // Hide next step on error
+        const nextStepEl = document.getElementById('activityNextStep');
+        if (nextStepEl) {
+            nextStepEl.style.display = 'none';
+        }
     }
 }
 
@@ -986,12 +1007,14 @@ async function handleCommunityPulse() {
 }
 
 /**
- * Display Community Pulse report
+ * Display Community Pulse report with tabs
  */
 function displayCommunityPulseReport(result) {
     const container = document.getElementById('communityPulseResults');
     const analysis = result.analysis;
     const subredditInfo = result.subredditInfo;
+    const methodology = result.methodology;
+    const sourcePosts = result.sourcePosts || [];
 
     // Format persona label
     const personaLabels = {
@@ -1002,16 +1025,31 @@ function displayCommunityPulseReport(result) {
     };
     const personaLabel = personaLabels[result.role] || 'Researcher';
 
-    // Build the report HTML
+    // Trend explanations for tooltips
+    const trendExplanations = {
+        'rising': 'This topic appears more frequently in recent posts (last 3 months) compared to older posts (6-12 months ago).',
+        'stable': 'This topic has been consistently discussed throughout the year with no significant change.',
+        'declining': 'This topic was discussed more frequently 6-12 months ago and has decreased in recent posts.'
+    };
+
+    // Build the report HTML with tabs
     let html = `
         <div class="community-pulse-report">
             <!-- Header -->
             <div class="pulse-header">
                 <h2>r/${result.subreddit} Community Pulse</h2>
                 <div class="pulse-meta">
-                    <span class="pulse-meta-item">
+                    <span class="pulse-meta-item info-tooltip">
                         <span class="meta-icon">📊</span>
                         ${result.totalPostsAnalyzed} posts analyzed
+                        <span class="info-tooltip-icon">ⓘ</span>
+                        <span class="info-tooltip-content">
+                            <strong>How we selected posts:</strong><br>
+                            • Fetched top 100 posts from Reddit<br>
+                            • Filtered to ${result.totalPostsAnalyzed} quality posts<br>
+                            • Criteria: ${methodology?.filterCriteria || '10+ upvotes, 5+ comments'}<br>
+                            • Period: ${methodology?.timePeriod || '1 year'}
+                        </span>
                     </span>
                     <span class="pulse-meta-item">
                         <span class="meta-icon">👥</span>
@@ -1028,172 +1066,320 @@ function displayCommunityPulseReport(result) {
                 </div>
             </div>
 
-            <!-- Community Snapshot -->
-            <div class="pulse-section">
-                <h3><span class="section-icon">🎯</span> Community Snapshot</h3>
-                <div class="community-snapshot">
-                    ${analysis.communitySnapshot || 'A community focused on shared interests and discussions.'}
-                </div>
+            <!-- Tabs -->
+            <div class="pulse-tabs">
+                <button class="pulse-tab active" onclick="switchPulseTab('insights')">Insights</button>
+                <button class="pulse-tab" onclick="switchPulseTab('data')">Data Analysis</button>
+                <button class="pulse-tab" onclick="switchPulseTab('sources')">Source Posts</button>
             </div>
 
-            <!-- Top Themes -->
-            <div class="pulse-section">
-                <h3><span class="section-icon">📊</span> Top Themes</h3>
-                <div class="theme-list">
-                    ${(analysis.topThemes || []).map(theme => `
-                        <div class="theme-item">
-                            <div class="theme-main">
-                                <span class="theme-icon">${getThemeIcon(theme.name)}</span>
-                                <div class="theme-info">
-                                    <div class="theme-name">${theme.name}</div>
-                                    <div class="theme-percentage">${theme.percentage}% of discussions${theme.description ? ' · ' + theme.description : ''}</div>
+            <!-- Tab: Insights -->
+            <div id="pulse-tab-insights" class="pulse-tab-content active">
+                <!-- Community Snapshot -->
+                <div class="pulse-section">
+                    <h3><span class="section-icon">🎯</span> Community Snapshot</h3>
+                    <div class="community-snapshot">
+                        ${analysis.communitySnapshot || 'A community focused on shared interests and discussions.'}
+                    </div>
+                </div>
+
+                <!-- Top Themes -->
+                <div class="pulse-section">
+                    <h3><span class="section-icon">📊</span> Top Themes</h3>
+                    <div class="theme-list">
+                        ${(analysis.topThemes || []).map(theme => `
+                            <div class="theme-item">
+                                <div class="theme-main">
+                                    <span class="theme-icon">${getThemeIcon(theme.name)}</span>
+                                    <div class="theme-info">
+                                        <div class="theme-name">${theme.name}</div>
+                                        <div class="theme-percentage">${theme.percentage}% of discussions${theme.description ? ' · ' + theme.description : ''}</div>
+                                    </div>
                                 </div>
+                                <span class="theme-trend ${theme.trend || 'stable'}">
+                                    ${getTrendIcon(theme.trend)} ${capitalize(theme.trend || 'stable')}
+                                    <span class="theme-trend-tooltip">
+                                        ${trendExplanations[theme.trend] || trendExplanations['stable']}
+                                        ${theme.trendNote ? '<br><br>' + theme.trendNote : ''}
+                                    </span>
+                                </span>
                             </div>
-                            <div class="theme-bar">
-                                <div class="theme-bar-fill" style="width: ${Math.min(theme.percentage * 2, 100)}%"></div>
-                            </div>
-                            <span class="theme-trend ${theme.trend || 'stable'}">
-                                ${getTrendIcon(theme.trend)} ${capitalize(theme.trend || 'stable')}
-                            </span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-
-            <!-- Trend Analysis (for full depth) -->
-            ${result.depth === 'full' && analysis.trendAnalysis ? `
-            <div class="pulse-section">
-                <h3><span class="section-icon">📈</span> What's Changing</h3>
-                <div class="trend-cards">
-                    ${analysis.trendAnalysis.emerging && analysis.trendAnalysis.emerging.length > 0 ? `
-                    <div class="trend-card">
-                        <div class="trend-card-header">
-                            <span class="trend-icon">🔥</span>
-                            <h4>Emerging Topics</h4>
-                        </div>
-                        <ul>
-                            ${analysis.trendAnalysis.emerging.map(item => `
-                                <li><strong>${item.topic}</strong> - ${item.evidence || item.opportunityNote || ''}</li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                    ` : ''}
-
-                    ${analysis.trendAnalysis.consistent && analysis.trendAnalysis.consistent.length > 0 ? `
-                    <div class="trend-card">
-                        <div class="trend-card-header">
-                            <span class="trend-icon">📌</span>
-                            <h4>Always Discussed</h4>
-                        </div>
-                        <ul>
-                            ${analysis.trendAnalysis.consistent.map(item => `
-                                <li><strong>${item.topic}</strong>${item.note ? ' - ' + item.note : ''}</li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                    ` : ''}
-
-                    ${analysis.trendAnalysis.declining && analysis.trendAnalysis.declining.length > 0 ? `
-                    <div class="trend-card">
-                        <div class="trend-card-header">
-                            <span class="trend-icon">📉</span>
-                            <h4>Declining Interest</h4>
-                        </div>
-                        <ul>
-                            ${analysis.trendAnalysis.declining.map(item => `
-                                <li><strong>${item.topic}</strong>${item.evidence ? ' - ' + item.evidence : ''}</li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                    ` : ''}
-                </div>
-            </div>
-            ` : ''}
-
-            <!-- Language Patterns -->
-            ${analysis.languagePatterns ? `
-            <div class="pulse-section">
-                <h3><span class="section-icon">💬</span> Community Language</h3>
-                <div class="language-grid">
-                    ${analysis.languagePatterns.commonPhrases && analysis.languagePatterns.commonPhrases.length > 0 ? `
-                    <div class="language-group">
-                        <h4>Common Phrases</h4>
-                        <div class="phrase-tags">
-                            ${analysis.languagePatterns.commonPhrases.map(phrase => `
-                                <span class="phrase-tag">"${phrase}"</span>
-                            `).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${analysis.languagePatterns.emotionalTriggers && analysis.languagePatterns.emotionalTriggers.length > 0 ? `
-                    <div class="language-group">
-                        <h4>Emotional Triggers</h4>
-                        <div class="phrase-tags">
-                            ${analysis.languagePatterns.emotionalTriggers.map(trigger => `
-                                <span class="phrase-tag">${trigger}</span>
-                            `).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${analysis.languagePatterns.communitySlang && analysis.languagePatterns.communitySlang.length > 0 ? `
-                    <div class="language-group">
-                        <h4>Community Slang</h4>
-                        <div class="phrase-tags">
-                            ${analysis.languagePatterns.communitySlang.map(term => `
-                                <span class="phrase-tag">${term}</span>
-                            `).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-                </div>
-            </div>
-            ` : ''}
-
-            <!-- Persona-specific Insights -->
-            ${analysis.forYourPersona ? `
-            <div class="pulse-section">
-                <h3><span class="section-icon">🎯</span> For You as a ${personaLabel}</h3>
-                <div class="persona-insights-box">
-                    <h4>Key Insights</h4>
-                    <ul>
-                        ${(analysis.forYourPersona.keyInsights || []).map(insight => `
-                            <li>${insight}</li>
                         `).join('')}
-                    </ul>
-
-                    ${analysis.forYourPersona.actionableOpportunities && analysis.forYourPersona.actionableOpportunities.length > 0 ? `
-                    <h4 style="margin-top: 16px;">Actionable Opportunities</h4>
-                    <ul>
-                        ${analysis.forYourPersona.actionableOpportunities.map(opp => `
-                            <li>${opp}</li>
-                        `).join('')}
-                    </ul>
-                    ` : ''}
+                    </div>
                 </div>
-            </div>
-            ` : ''}
 
-            <!-- Top Engaging Topics -->
-            ${analysis.topEngagingTopics && analysis.topEngagingTopics.length > 0 ? `
-            <div class="pulse-section">
-                <h3><span class="section-icon">⚡</span> High-Engagement Topics</h3>
-                <div class="trend-cards">
-                    ${analysis.topEngagingTopics.map(topic => `
+                <!-- Trend Analysis (for full depth) -->
+                ${result.depth === 'full' && analysis.trendAnalysis ? `
+                <div class="pulse-section">
+                    <h3><span class="section-icon">📈</span> What's Changing</h3>
+                    <div class="trend-cards">
+                        ${analysis.trendAnalysis.emerging && analysis.trendAnalysis.emerging.length > 0 ? `
                         <div class="trend-card">
                             <div class="trend-card-header">
-                                <span class="trend-icon">🎯</span>
-                                <h4>${topic.topic}</h4>
+                                <span class="trend-icon">🔥</span>
+                                <h4>Emerging Topics</h4>
                             </div>
-                            <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">
-                                ${topic.whyItWorks || ''}
-                            </p>
+                            <ul>
+                                ${analysis.trendAnalysis.emerging.map(item => `
+                                    <li><strong>${item.topic}</strong> - ${item.evidence || item.opportunityNote || ''}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+
+                        ${analysis.trendAnalysis.consistent && analysis.trendAnalysis.consistent.length > 0 ? `
+                        <div class="trend-card">
+                            <div class="trend-card-header">
+                                <span class="trend-icon">📌</span>
+                                <h4>Always Discussed</h4>
+                            </div>
+                            <ul>
+                                ${analysis.trendAnalysis.consistent.map(item => `
+                                    <li><strong>${item.topic}</strong>${item.note ? ' - ' + item.note : ''}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+
+                        ${analysis.trendAnalysis.declining && analysis.trendAnalysis.declining.length > 0 ? `
+                        <div class="trend-card">
+                            <div class="trend-card-header">
+                                <span class="trend-icon">📉</span>
+                                <h4>Declining Interest</h4>
+                            </div>
+                            <ul>
+                                ${analysis.trendAnalysis.declining.map(item => `
+                                    <li><strong>${item.topic}</strong>${item.evidence ? ' - ' + item.evidence : ''}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Language Patterns -->
+                ${analysis.languagePatterns ? `
+                <div class="pulse-section">
+                    <h3><span class="section-icon">💬</span> Community Language</h3>
+                    <div class="language-grid">
+                        ${analysis.languagePatterns.commonPhrases && analysis.languagePatterns.commonPhrases.length > 0 ? `
+                        <div class="language-group">
+                            <h4>Common Phrases</h4>
+                            <div class="phrase-tags">
+                                ${analysis.languagePatterns.commonPhrases.map(phrase => `
+                                    <span class="phrase-tag">"${phrase}"</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        ${analysis.languagePatterns.emotionalTriggers && analysis.languagePatterns.emotionalTriggers.length > 0 ? `
+                        <div class="language-group">
+                            <h4>Emotional Triggers</h4>
+                            <div class="phrase-tags">
+                                ${analysis.languagePatterns.emotionalTriggers.map(trigger => `
+                                    <span class="phrase-tag">${trigger}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        ${analysis.languagePatterns.communitySlang && analysis.languagePatterns.communitySlang.length > 0 ? `
+                        <div class="language-group">
+                            <h4>Community Slang</h4>
+                            <div class="phrase-tags">
+                                ${analysis.languagePatterns.communitySlang.map(term => `
+                                    <span class="phrase-tag">${term}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Persona-specific Insights -->
+                ${analysis.forYourPersona ? `
+                <div class="pulse-section">
+                    <h3><span class="section-icon">🎯</span> For You as a ${personaLabel}</h3>
+                    <div class="persona-insights-box">
+                        <h4>Key Insights</h4>
+                        <ul>
+                            ${(analysis.forYourPersona.keyInsights || []).map(insight => `
+                                <li>${insight}</li>
+                            `).join('')}
+                        </ul>
+
+                        ${analysis.forYourPersona.actionableOpportunities && analysis.forYourPersona.actionableOpportunities.length > 0 ? `
+                        <h4 style="margin-top: 16px;">Actionable Opportunities</h4>
+                        <ul>
+                            ${analysis.forYourPersona.actionableOpportunities.map(opp => `
+                                <li>${opp}</li>
+                            `).join('')}
+                        </ul>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Top Engaging Topics -->
+                ${analysis.topEngagingTopics && analysis.topEngagingTopics.length > 0 ? `
+                <div class="pulse-section">
+                    <h3><span class="section-icon">⚡</span> High-Engagement Topics</h3>
+                    <div class="trend-cards">
+                        ${analysis.topEngagingTopics.map(topic => `
+                            <div class="trend-card">
+                                <div class="trend-card-header">
+                                    <span class="trend-icon">🎯</span>
+                                    <h4>${topic.topic}</h4>
+                                </div>
+                                <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">
+                                    ${topic.whyItWorks || ''}
+                                </p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+
+            <!-- Tab: Data Analysis -->
+            <div id="pulse-tab-data" class="pulse-tab-content">
+                <div class="pulse-section">
+                    <h3><span class="section-icon">📊</span> Data Breakdown</h3>
+                    <div class="data-analysis-grid">
+                        <!-- Posts by Time Period -->
+                        <div class="data-card">
+                            <div class="data-card-header">
+                                <span class="data-icon">📅</span>
+                                <h4>Posts by Time Period</h4>
+                            </div>
+                            ${sourcePosts.map(bucket => {
+                                const maxPosts = Math.max(...sourcePosts.map(b => b.postCount || 0));
+                                const percentage = maxPosts > 0 ? ((bucket.postCount || 0) / maxPosts * 100) : 0;
+                                return `
+                                <div class="data-bucket-bar">
+                                    <span class="data-bucket-label">${bucket.label || bucket.name}</span>
+                                    <div class="data-bucket-bar-container">
+                                        <div class="data-bucket-bar-fill" style="width: ${percentage}%"></div>
+                                    </div>
+                                    <span class="data-bucket-count">${bucket.postCount || 0}</span>
+                                </div>
+                            `}).join('')}
+                        </div>
+
+                        <!-- Analysis Summary -->
+                        <div class="data-card">
+                            <div class="data-card-header">
+                                <span class="data-icon">📈</span>
+                                <h4>Analysis Summary</h4>
+                            </div>
+                            <div class="data-stat">
+                                <span class="data-stat-label">Total Posts Analyzed</span>
+                                <span class="data-stat-value">${result.totalPostsAnalyzed}</span>
+                            </div>
+                            <div class="data-stat">
+                                <span class="data-stat-label">Time Period</span>
+                                <span class="data-stat-value">${methodology?.timePeriod || (result.depth === 'full' ? '12 months' : '30 days')}</span>
+                            </div>
+                            <div class="data-stat">
+                                <span class="data-stat-label">Community Size</span>
+                                <span class="data-stat-value">${subredditInfo?.subscribers ? formatNumber(subredditInfo.subscribers) : 'Unknown'}</span>
+                            </div>
+                            <div class="data-stat">
+                                <span class="data-stat-label">Activity Level</span>
+                                <span class="data-stat-value">${subredditInfo?.postsPerDay ? '~' + subredditInfo.postsPerDay + ' posts/day' : 'Unknown'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Theme Distribution -->
+                        <div class="data-card">
+                            <div class="data-card-header">
+                                <span class="data-icon">🎯</span>
+                                <h4>Theme Distribution</h4>
+                            </div>
+                            ${(analysis.topThemes || []).slice(0, 5).map(theme => `
+                                <div class="data-bucket-bar">
+                                    <span class="data-bucket-label" style="min-width: 120px;">${theme.name.length > 15 ? theme.name.substring(0, 15) + '...' : theme.name}</span>
+                                    <div class="data-bucket-bar-container">
+                                        <div class="data-bucket-bar-fill" style="width: ${theme.percentage}%"></div>
+                                    </div>
+                                    <span class="data-bucket-count">${theme.percentage}%</span>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <!-- Methodology -->
+                        <div class="data-card">
+                            <div class="data-card-header">
+                                <span class="data-icon">⚙️</span>
+                                <h4>Methodology</h4>
+                            </div>
+                            <div class="data-stat">
+                                <span class="data-stat-label">Posts Fetched</span>
+                                <span class="data-stat-value">${methodology?.totalFetched || 100}</span>
+                            </div>
+                            <div class="data-stat">
+                                <span class="data-stat-label">After Quality Filter</span>
+                                <span class="data-stat-value">${methodology?.qualityFiltered || result.totalPostsAnalyzed}</span>
+                            </div>
+                            <div class="data-stat">
+                                <span class="data-stat-label">Filter Criteria</span>
+                                <span class="data-stat-value" style="font-size: 0.75rem;">${methodology?.filterCriteria || '10+ upvotes, 5+ comments'}</span>
+                            </div>
+                            <div class="data-stat">
+                                <span class="data-stat-label">Bucket Strategy</span>
+                                <span class="data-stat-value" style="font-size: 0.75rem;">${methodology?.bucketStrategy || '4 time periods'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Source Posts -->
+            <div id="pulse-tab-sources" class="pulse-tab-content">
+                <div class="pulse-section source-posts-section">
+                    <h3><span class="section-icon">📝</span> Source Posts Analyzed</h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
+                        These are the actual Reddit posts used to generate the analysis above. Click to view on Reddit.
+                    </p>
+                    ${sourcePosts.map(bucket => `
+                        <div class="source-bucket" id="bucket-${bucket.name}">
+                            <div class="source-bucket-header" onclick="toggleSourceBucket('${bucket.name}')">
+                                <div>
+                                    <span class="source-bucket-title">${bucket.label || bucket.name}</span>
+                                    <span class="source-bucket-count">${bucket.postCount || (bucket.posts?.length || 0)} posts</span>
+                                </div>
+                                <span class="source-bucket-toggle">▼</span>
+                            </div>
+                            <div class="source-posts-list">
+                                ${(bucket.posts || []).slice(0, 15).map(post => `
+                                    <div class="source-post-item">
+                                        <div class="source-post-score">
+                                            <span class="score-value">${formatNumber(post.score)}</span>
+                                            <span class="score-label">pts</span>
+                                        </div>
+                                        <div class="source-post-content">
+                                            <div class="source-post-title">
+                                                <a href="${post.url}" target="_blank" rel="noopener">${post.title}</a>
+                                            </div>
+                                            <div class="source-post-meta">
+                                                ${post.num_comments} comments · ${post.ageDays || Math.round((Date.now()/1000 - post.created_utc) / 86400)} days ago
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                ${(bucket.posts?.length || 0) > 15 ? `
+                                    <div style="text-align: center; padding: 12px; color: var(--text-muted); font-size: 0.85rem;">
+                                        + ${bucket.posts.length - 15} more posts
+                                    </div>
+                                ` : ''}
+                            </div>
                         </div>
                     `).join('')}
                 </div>
             </div>
-            ` : ''}
         </div>
     `;
 
@@ -1202,6 +1388,38 @@ function displayCommunityPulseReport(result) {
 
     // Scroll to results
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * Switch between pulse report tabs
+ */
+function switchPulseTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.pulse-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.textContent.toLowerCase().includes(tabName.substring(0, 4))) {
+            tab.classList.add('active');
+        }
+    });
+
+    // Update tab content
+    document.querySelectorAll('.pulse-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    const activeContent = document.getElementById(`pulse-tab-${tabName}`);
+    if (activeContent) {
+        activeContent.classList.add('active');
+    }
+}
+
+/**
+ * Toggle source bucket collapse
+ */
+function toggleSourceBucket(bucketName) {
+    const bucket = document.getElementById(`bucket-${bucketName}`);
+    if (bucket) {
+        bucket.classList.toggle('collapsed');
+    }
 }
 
 /**
