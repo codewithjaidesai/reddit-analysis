@@ -2894,7 +2894,32 @@ function updateRecentSearchesDropdown() {
 document.addEventListener('DOMContentLoaded', function() {
     updateRecentSearchesDropdown();
     updateSavedContentDropdown();
+
+    // Initialize depth toggle visual selection
+    initializeDepthToggle();
 });
+
+/**
+ * Initialize depth toggle radio button visual selection
+ */
+function initializeDepthToggle() {
+    const depthOptions = document.querySelectorAll('.depth-option input[type="radio"]');
+    depthOptions.forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Update visual selection on all depth cards
+            document.querySelectorAll('.depth-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            // Add selected class to the checked option's card
+            if (this.checked) {
+                const card = this.nextElementSibling;
+                if (card && card.classList.contains('depth-card')) {
+                    card.classList.add('selected');
+                }
+            }
+        });
+    });
+}
 
 // ============================================
 // SAVED GENERATED CONTENT (localStorage)
