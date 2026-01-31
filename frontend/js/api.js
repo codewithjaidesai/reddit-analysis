@@ -129,3 +129,21 @@ async function autoAnalysis(urls, role = null, goal = null) {
 async function generateContent(params) {
     return await callAPI(API_CONFIG.endpoints.generate, params);
 }
+
+/**
+ * Get subreddit info for activity detection (Community Pulse)
+ */
+async function getSubredditInfo(subreddit) {
+    return await callAPI('/api/search/subreddit-info', { subreddit });
+}
+
+/**
+ * Run full Community Pulse analysis
+ */
+async function analyzeCommunityPulse(subreddit, depth, role) {
+    return await callAPI('/api/analyze/community-pulse', {
+        subreddit,
+        depth,
+        role
+    });
+}

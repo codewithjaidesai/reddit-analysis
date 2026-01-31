@@ -517,5 +517,232 @@ module.exports = {
   enhanceQueryWithTemplate,
   extractKeywords,
   suggestSubreddits,
-  formatSearchQuery
+  formatSearchQuery,
+  getSubredditInfo,
+  fetchTimeBucketedPosts
 };
+
+/**
+ * Get subreddit info for activity detection
+ * @param {string} subreddit - Subreddit name (without r/)
+ * @returns {Promise<object>} Subreddit info with activity level
+ */
+async function getSubredditInfo(subreddit) {
+  console.log('Getting subreddit info for:', subreddit);
+
+  try {
+    const accessToken = await getRedditAccessToken();
+
+    // Fetch subreddit about info
+    const aboutUrl = `https://oauth.reddit.com/r/${subreddit}/about`;
+    const aboutResponse = await axios.get(aboutUrl, {
+      headers: {
+        'Authorization': `bearer ${accessToken}`,
+        'User-Agent': config.reddit.userAgent
+      }
+    });
+
+    if (aboutResponse.status !== 200) {
+      throw new Error(`Reddit API returned ${aboutResponse.status}`);
+    }
+
+    const subredditData = aboutResponse.data.data;
+
+    // Fetch recent posts to estimate activity
+    const newUrl = `https://oauth.reddit.com/r/${subreddit}/new`;
+    const newResponse = await axios.get(newUrl, {
+      params: {
+        limit: 25,
+        raw_json: 1
+      },
+      headers: {
+        'Authorization': `bearer ${accessToken}`,
+        'User-Agent': config.reddit.userAgent
+      }
+    });
+
+    const recentPosts = newResponse.data.data.children.map(child => child.data);
+
+    // Calculate posts per day based on timestamps
+    let postsPerDay = 0;
+    let activityLevel = 'low';
+
+    if (recentPosts.length >= 2) {
+      const oldestPost = recentPosts[recentPosts.length - 1];
+      const newestPost = recentPosts[0];
+      const timeDiffHours = (newestPost.created_utc - oldestPost.created_utc) / 3600;
+
+      if (timeDiffHours > 0) {
+        postsPerDay = (recentPosts.length / timeDiffHours) * 24;
+      }
+    }
+
+    // Determine activity level
+    if (postsPerDay >= 50) {
+      activityLevel = 'high';
+    } else if (postsPerDay >= 5) {
+      activityLevel = 'medium';
+    } else {
+      activityLevel = 'low';
+    }
+
+    // Calculate recommended time range based on activity
+    let recommendedTimeRange = 'year';
+    if (activityLevel === 'high') {
+      recommendedTimeRange = 'month';
+    } else if (activityLevel === 'medium') {
+      recommendedTimeRange = 'month';
+    }
+
+    return {
+      success: true,
+      subreddit: subredditData.display_name,
+      title: subredditData.title,
+      description: subredditData.public_description || subredditData.description,
+      subscribers: subredditData.subscribers,
+      activeUsers: subredditData.accounts_active || 0,
+      created: subredditData.created_utc,
+      postsPerDay: Math.round(postsPerDay * 10) / 10,
+      activityLevel,
+      recommendedTimeRange
+    };
+
+  } catch (error) {
+    console.error('Subreddit info error:', error.message);
+
+    // Check if it's a 404 (subreddit not found)
+    if (error.response && error.response.status === 404) {
+      return {
+        success: false,
+        error: 'Subreddit not found',
+        message: `r/${subreddit} does not exist or is private`
+      };
+    }
+
+    return {
+      success: false,
+      error: error.message,
+      message: 'Failed to get subreddit info: ' + error.message
+    };
+  }
+}
+
+/**
+ * Fetch posts with time bucketing for trend analysis
+ * @param {string} subreddit - Subreddit name (without r/)
+ * @param {string} depth - Analysis depth: 'quick' (30 days) or 'full' (1 year)
+ * @returns {Promise<object>} Posts organized by time buckets
+ */
+async function fetchTimeBucketedPosts(subreddit, depth = 'full') {
+  console.log('Fetching time-bucketed posts for:', subreddit, 'Depth:', depth);
+
+  try {
+    const accessToken = await getRedditAccessToken();
+    const now = Date.now() / 1000; // Current time in seconds
+
+    // Define time buckets based on depth
+    let buckets;
+    if (depth === 'quick') {
+      // Quick: Just recent 30 days
+      buckets = [
+        { name: 'recent', label: 'Last 30 Days', startDays: 0, endDays: 30, posts: [] }
+      ];
+    } else {
+      // Full: 1 year with multiple buckets
+      buckets = [
+        { name: 'recent', label: 'Last 30 Days', startDays: 0, endDays: 30, posts: [] },
+        { name: 'month1to3', label: '1-3 Months Ago', startDays: 30, endDays: 90, posts: [] },
+        { name: 'month3to6', label: '3-6 Months Ago', startDays: 90, endDays: 180, posts: [] },
+        { name: 'month6to12', label: '6-12 Months Ago', startDays: 180, endDays: 365, posts: [] }
+      ];
+    }
+
+    // Fetch top posts from the past year
+    const timeRange = depth === 'quick' ? 'month' : 'year';
+    const url = `https://oauth.reddit.com/r/${subreddit}/top`;
+
+    const response = await axios.get(url, {
+      params: {
+        t: timeRange,
+        limit: 100,
+        raw_json: 1
+      },
+      headers: {
+        'Authorization': `bearer ${accessToken}`,
+        'User-Agent': config.reddit.userAgent
+      }
+    });
+
+    if (response.status !== 200) {
+      throw new Error(`Reddit API returned ${response.status}`);
+    }
+
+    const allPosts = response.data.data.children.map(child => child.data);
+    console.log(`Fetched ${allPosts.length} posts from r/${subreddit}`);
+
+    // Filter posts with minimum engagement
+    const qualityPosts = allPosts.filter(post => {
+      return post.score >= 10 &&
+             post.num_comments >= 5 &&
+             !post.is_video &&
+             !post.stickied;
+    });
+
+    console.log(`${qualityPosts.length} posts passed quality filter`);
+
+    // Sort posts into buckets
+    for (const post of qualityPosts) {
+      const postAgeSeconds = now - post.created_utc;
+      const postAgeDays = postAgeSeconds / (24 * 60 * 60);
+
+      for (const bucket of buckets) {
+        if (postAgeDays >= bucket.startDays && postAgeDays < bucket.endDays) {
+          bucket.posts.push({
+            id: post.id,
+            title: post.title,
+            selftext: post.selftext ? post.selftext.substring(0, 500) : '',
+            score: post.score,
+            num_comments: post.num_comments,
+            upvote_ratio: post.upvote_ratio,
+            created_utc: post.created_utc,
+            url: 'https://www.reddit.com' + post.permalink,
+            ageDays: Math.round(postAgeDays)
+          });
+          break;
+        }
+      }
+    }
+
+    // Sort each bucket by score and limit to top 25
+    const postsPerBucket = depth === 'quick' ? 50 : 25;
+    for (const bucket of buckets) {
+      bucket.posts = bucket.posts
+        .sort((a, b) => b.score - a.score)
+        .slice(0, postsPerBucket);
+    }
+
+    // Calculate total posts for analysis
+    const totalPosts = buckets.reduce((sum, b) => sum + b.posts.length, 0);
+
+    return {
+      success: true,
+      subreddit,
+      depth,
+      totalPosts,
+      buckets: buckets.map(b => ({
+        name: b.name,
+        label: b.label,
+        postCount: b.posts.length,
+        posts: b.posts
+      }))
+    };
+
+  } catch (error) {
+    console.error('Time-bucketed fetch error:', error.message);
+    return {
+      success: false,
+      error: error.message,
+      message: 'Failed to fetch posts: ' + error.message
+    };
+  }
+}
