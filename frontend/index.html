@@ -340,10 +340,15 @@
                                 <span id="subredditActivityStats" class="activity-stats"></span>
                             </div>
                         </div>
+                        <!-- Next step prompt -->
+                        <div id="activityNextStep" class="activity-next-step" style="display: none;">
+                            <span class="next-step-arrow">↓</span>
+                            <span class="next-step-text">Great! Now select your perspective below and explore</span>
+                        </div>
                     </div>
 
                     <!-- Persona Selection (simplified - no outcomes) -->
-                    <div class="research-goal-section">
+                    <div class="research-goal-section" id="pulsePersonaSection">
                         <h3 class="section-label">I'm exploring as a...</h3>
 
                         <div class="persona-outcome-container">
@@ -410,6 +415,19 @@
                                     </div>
                                 </div>
                             </label>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Options -->
+                    <div class="advanced-options">
+                        <div class="advanced-options-row">
+                            <div class="option-group">
+                                <label>Time Period</label>
+                                <select id="pulseTimeRange" class="subtle-select">
+                                    <option value="month">1 Month</option>
+                                    <option value="year" selected>1 Year</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
