@@ -2236,6 +2236,116 @@ main {
     margin-bottom: 20px;
 }
 
+/* Community Voice Section */
+.section-subtitle {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+}
+
+.community-voice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.voice-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+}
+
+.voice-card.recommendations {
+    border-left: 3px solid #10B981;
+}
+
+.voice-card.pain-points {
+    border-left: 3px solid #EF4444;
+}
+
+.voice-card.success {
+    border-left: 3px solid #8B5CF6;
+}
+
+.voice-card.warnings {
+    border-left: 3px solid #F59E0B;
+}
+
+.voice-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.voice-icon {
+    font-size: 1.2rem;
+}
+
+.voice-card-header h4 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.voice-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.voice-list li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.voice-list li:last-child {
+    border-bottom: none;
+}
+
+.voice-list li strong {
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.voice-context {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.voice-sentiment {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.voice-sentiment.positive {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+}
+
+.voice-sentiment.mixed {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-secondary);
+}
+
+.voice-sentiment.cautionary {
+    background: rgba(245, 158, 11, 0.15);
+    color: #F59E0B;
+}
+
 /* Engagement Metrics */
 .engagement-metrics-grid {
     display: grid;
@@ -2345,6 +2455,10 @@ main {
 
     .engagement-metrics-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .community-voice-grid {
+        grid-template-columns: 1fr;
     }
 
     .info-tooltip-content {

@@ -519,7 +519,9 @@ module.exports = {
   suggestSubreddits,
   formatSearchQuery,
   getSubredditInfo,
-  fetchTimeBucketedPosts
+  fetchTimeBucketedPosts,
+  samplePostsForComments,
+  fetchCommentsForPosts
 };
 
 /**
@@ -745,4 +747,117 @@ async function fetchTimeBucketedPosts(subreddit, depth = 'full') {
       message: 'Failed to fetch posts: ' + error.message
     };
   }
+}
+
+/**
+ * Sample top posts from each time bucket for comment analysis
+ * @param {object} bucketedData - Data from fetchTimeBucketedPosts
+ * @param {number} postsPerBucket - Number of posts to sample per bucket (default 12)
+ * @returns {Array} Array of sampled posts with bucket info
+ */
+function samplePostsForComments(bucketedData, postsPerBucket = 12) {
+  const sampledPosts = [];
+
+  for (const bucket of bucketedData.buckets) {
+    // Sort by engagement score (score × num_comments)
+    const sortedPosts = [...bucket.posts].sort((a, b) => {
+      const engagementA = (a.score || 0) * Math.log(1 + (a.num_comments || 0));
+      const engagementB = (b.score || 0) * Math.log(1 + (b.num_comments || 0));
+      return engagementB - engagementA;
+    });
+
+    // Take top N posts from this bucket
+    const selected = sortedPosts.slice(0, postsPerBucket);
+
+    // Add bucket info to each post
+    for (const post of selected) {
+      sampledPosts.push({
+        ...post,
+        bucketName: bucket.name,
+        bucketLabel: bucket.label
+      });
+    }
+  }
+
+  console.log(`Sampled ${sampledPosts.length} posts for comment analysis`);
+  return sampledPosts;
+}
+
+/**
+ * Fetch comments for multiple posts with rate limiting
+ * Reuses existing reddit.js functions
+ * @param {Array} posts - Array of posts to fetch comments for
+ * @param {Function} progressCallback - Optional callback for progress updates
+ * @returns {Promise<Array>} Posts with their comments
+ */
+async function fetchCommentsForPosts(posts, progressCallback = null) {
+  const { extractRedditData } = require('./reddit');
+
+  const postsWithComments = [];
+  const concurrencyLimit = 5; // Fetch 5 at a time to respect rate limits
+  const delayBetweenBatches = 1000; // 1 second between batches
+
+  console.log(`Fetching comments for ${posts.length} posts...`);
+
+  // Process in batches
+  for (let i = 0; i < posts.length; i += concurrencyLimit) {
+    const batch = posts.slice(i, i + concurrencyLimit);
+
+    // Fetch comments for this batch in parallel
+    const batchPromises = batch.map(async (post) => {
+      try {
+        const result = await extractRedditData(post.url);
+
+        if (result.success && result.data) {
+          return {
+            ...post,
+            comments: result.data.valuableComments || [],
+            commentStats: result.data.extractionStats || {}
+          };
+        } else {
+          console.warn(`Failed to fetch comments for post ${post.id}: ${result.error}`);
+          return {
+            ...post,
+            comments: [],
+            commentStats: { error: result.error }
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching comments for post ${post.id}:`, error.message);
+        return {
+          ...post,
+          comments: [],
+          commentStats: { error: error.message }
+        };
+      }
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    postsWithComments.push(...batchResults);
+
+    // Progress update
+    const progress = Math.round(((i + batch.length) / posts.length) * 100);
+    console.log(`Comment fetch progress: ${progress}% (${i + batch.length}/${posts.length})`);
+
+    if (progressCallback) {
+      progressCallback({
+        current: i + batch.length,
+        total: posts.length,
+        percentage: progress
+      });
+    }
+
+    // Delay before next batch (except for last batch)
+    if (i + concurrencyLimit < posts.length) {
+      await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+    }
+  }
+
+  // Calculate total comments fetched
+  const totalComments = postsWithComments.reduce(
+    (sum, p) => sum + (p.comments?.length || 0), 0
+  );
+  console.log(`Fetched ${totalComments} comments from ${postsWithComments.length} posts`);
+
+  return postsWithComments;
 }

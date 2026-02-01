@@ -4,7 +4,7 @@ const { extractRedditData } = require('../services/reddit');
 const { generateAIInsights, generateCombinedInsights, generateContent } = require('../services/insights');
 const { batchExtractPosts } = require('../services/mapReduceAnalysis');
 const { analyzeCommunityPulse, extractPostComments } = require('../services/communityPulse');
-const { fetchTimeBucketedPosts, getSubredditInfo } = require('../services/search');
+const { fetchTimeBucketedPosts, getSubredditInfo, samplePostsForComments, fetchCommentsForPosts } = require('../services/search');
 
 /**
  * POST /api/analyze/extract
@@ -403,9 +403,21 @@ router.post('/community-pulse', async (req, res) => {
 
     console.log(`Found ${bucketedPosts.totalPosts} posts across ${bucketedPosts.buckets.length} time buckets`);
 
-    // Step 3: Run Community Pulse analysis
-    console.log('\nStep 3: Running AI analysis...');
-    const pulseAnalysis = await analyzeCommunityPulse(bucketedPosts, role, subredditInfo, customFocus);
+    // Step 3: Sample posts and fetch comments
+    console.log('\nStep 3: Sampling posts for deep comment analysis...');
+    const postsPerBucket = 12;
+    const sampledPosts = samplePostsForComments(bucketedPosts, postsPerBucket);
+
+    console.log(`\nStep 4: Fetching comments for ${sampledPosts.length} posts...`);
+    const postsWithComments = await fetchCommentsForPosts(sampledPosts);
+
+    // Calculate comment stats
+    const totalComments = postsWithComments.reduce((sum, p) => sum + (p.comments?.length || 0), 0);
+    console.log(`Fetched ${totalComments} valuable comments`);
+
+    // Step 5: Run Community Pulse analysis with comments
+    console.log('\nStep 5: Running AI analysis with comments...');
+    const pulseAnalysis = await analyzeCommunityPulse(bucketedPosts, role, subredditInfo, customFocus, postsWithComments);
 
     if (!pulseAnalysis.success) {
       return res.status(500).json({
@@ -440,7 +452,9 @@ router.post('/community-pulse', async (req, res) => {
         qualityFiltered: bucketedPosts.totalPosts,
         filterCriteria: 'Posts with 10+ upvotes, 5+ comments, non-video, non-stickied',
         timePeriod: depth === 'quick' ? 'Last 30 days' : 'Last 12 months',
-        bucketStrategy: depth === 'quick' ? '1 time period' : '4 time periods for trend comparison'
+        bucketStrategy: depth === 'quick' ? '1 time period' : '4 time periods for trend comparison',
+        postsWithComments: sampledPosts.length,
+        totalCommentsAnalyzed: totalComments
       },
       analysis: pulseAnalysis.analysis,
       meta: pulseAnalysis.meta

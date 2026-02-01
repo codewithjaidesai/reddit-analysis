@@ -950,25 +950,26 @@ async function handleCommunityPulse() {
     hideAll();
     document.getElementById('communityPulseResults').style.display = 'none';
 
-    // Estimate time based on depth
-    const estimatedSeconds = depth === 'full' ? 45 : 25;
+    // Estimate time based on depth (longer now due to comment fetching)
+    const estimatedSeconds = depth === 'full' ? 90 : 45;
     setEstimatedTime(estimatedSeconds);
 
     // Show engaging status messages
-    showStatus('Connecting to Reddit...', 10);
+    showStatus('Connecting to Reddit...', 5);
     setStatusDetails(`Preparing to explore r/${subreddit}`);
 
     // Auto-scroll to status section
     document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Progress updates while waiting
+    // Progress updates while waiting (extended timing for comment fetching)
     const progressUpdates = [
-        { delay: 2000, message: 'Gathering community data...', detail: 'Fetching posts from different time periods', progress: 20 },
-        { delay: 5000, message: 'Analyzing community patterns...', detail: 'Identifying themes and topics across discussions', progress: 35 },
-        { delay: 10000, message: 'Detecting trends...', detail: 'Comparing recent activity with historical patterns', progress: 50 },
-        { delay: 18000, message: 'Extracting language patterns...', detail: 'Understanding how the community communicates', progress: 65 },
-        { delay: 28000, message: 'Generating insights...', detail: 'Building your personalized community report', progress: 80 },
-        { delay: 38000, message: 'Finalizing report...', detail: 'Almost there!', progress: 90 }
+        { delay: 2000, message: 'Gathering community data...', detail: 'Fetching posts from different time periods', progress: 10 },
+        { delay: 6000, message: 'Sampling top discussions...', detail: 'Selecting most engaged posts for deep analysis', progress: 20 },
+        { delay: 12000, message: 'Fetching community comments...', detail: 'Reading what members are saying in discussions', progress: 35 },
+        { delay: 25000, message: 'Analyzing community voice...', detail: 'Extracting recommendations, pain points, and insights', progress: 50 },
+        { delay: 40000, message: 'Detecting trends...', detail: 'Comparing recent activity with historical patterns', progress: 65 },
+        { delay: 55000, message: 'Generating insights...', detail: 'Building your personalized community report', progress: 80 },
+        { delay: 70000, message: 'Finalizing report...', detail: 'Almost there!', progress: 90 }
     ];
 
     const progressTimers = progressUpdates.map(update =>
@@ -1208,6 +1209,79 @@ function displayCommunityPulseReport(result) {
                                 </p>
                             </div>
                         `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Community Voice (from comments) -->
+                ${analysis.communityVoice ? `
+                <div class="pulse-section">
+                    <h3><span class="section-icon">💬</span> Community Voice</h3>
+                    <p class="section-subtitle">Insights extracted from community discussions and comments</p>
+
+                    <div class="community-voice-grid">
+                        ${analysis.communityVoice.topRecommendations && analysis.communityVoice.topRecommendations.length > 0 ? `
+                        <div class="voice-card recommendations">
+                            <div class="voice-card-header">
+                                <span class="voice-icon">👍</span>
+                                <h4>Top Recommendations</h4>
+                            </div>
+                            <ul class="voice-list">
+                                ${analysis.communityVoice.topRecommendations.map(rec => `
+                                    <li>
+                                        <strong>${rec.item}</strong>
+                                        ${rec.context ? `<span class="voice-context">${rec.context}</span>` : ''}
+                                        ${rec.sentiment ? `<span class="voice-sentiment ${rec.sentiment}">${rec.sentiment}</span>` : ''}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+
+                        ${analysis.communityVoice.commonPainPoints && analysis.communityVoice.commonPainPoints.length > 0 ? `
+                        <div class="voice-card pain-points">
+                            <div class="voice-card-header">
+                                <span class="voice-icon">😤</span>
+                                <h4>Common Pain Points</h4>
+                            </div>
+                            <ul class="voice-list">
+                                ${analysis.communityVoice.commonPainPoints.map(pp => `
+                                    <li>
+                                        <strong>${pp.painPoint}</strong>
+                                        ${pp.communityResponse ? `<span class="voice-context">Response: ${pp.communityResponse}</span>` : ''}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+
+                        ${analysis.communityVoice.successStories && analysis.communityVoice.successStories.length > 0 ? `
+                        <div class="voice-card success">
+                            <div class="voice-card-header">
+                                <span class="voice-icon">🎉</span>
+                                <h4>Success Stories</h4>
+                            </div>
+                            <ul class="voice-list">
+                                ${analysis.communityVoice.successStories.map(story => `
+                                    <li>${story}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+
+                        ${analysis.communityVoice.warnings && analysis.communityVoice.warnings.length > 0 ? `
+                        <div class="voice-card warnings">
+                            <div class="voice-card-header">
+                                <span class="voice-icon">⚠️</span>
+                                <h4>Community Warnings</h4>
+                            </div>
+                            <ul class="voice-list">
+                                ${analysis.communityVoice.warnings.map(warning => `
+                                    <li>${warning}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
                 ` : ''}
