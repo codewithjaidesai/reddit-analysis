@@ -221,7 +221,200 @@ A good Community Pulse analysis should:
 
 ## Open Questions
 
-1. Should "Deep Analysis" with comments be opt-in (user toggle) or default?
-2. How many posts per bucket is optimal? (10? 12? 15?)
-3. Should we cache results for repeat analysis of same subreddit?
-4. How to handle very low-activity subreddits?
+### ✅ Resolved Decisions
+1. **Comment analysis**: Default (not opt-in toggle)
+2. **Posts per bucket**: 10-12 posts per time bucket
+3. **Caching**: Yes, cache results for repeat analysis of same subreddit
+4. **Low-activity subreddits**: Use Quick Snapshot mode with adjusted expectations
+
+---
+
+## Future Feature: Continuous Feed
+
+### Overview
+Automated periodic analysis that delivers curated updates about community activity via email or notification. Think of it as a "community digest" that surfaces what's new and trending.
+
+### User Value
+- Stay updated on communities without manual checking
+- Discover new trending content automatically
+- Get personalized alerts based on interests/focus areas
+
+### Example Use Cases
+
+| Community Type | What Continuous Feed Delivers |
+|----------------|------------------------------|
+| r/recipes | New highly-liked recipes, trending ingredients, seasonal dishes |
+| r/menopause | New product recommendations, emerging treatments, viral success stories |
+| r/programming | New tools gaining traction, trending frameworks, common pain points |
+| r/personalfinance | New strategies being discussed, market sentiment, tax tips |
+
+### Proposed Architecture
+
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│  Scheduler      │────▶│  Worker      │────▶│  Notification   │
+│  (Cron/Queue)   │     │  (Analysis)  │     │  (Email/Push)   │
+└─────────────────┘     └──────────────┘     └─────────────────┘
+        │                      │                      │
+        ▼                      ▼                      ▼
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│  User Prefs     │     │  Cache/DB    │     │  Delivery       │
+│  (Frequency,    │     │  (Previous   │     │  Service        │
+│   Focus Areas)  │     │   Results)   │     │  (SendGrid etc) │
+└─────────────────┘     └──────────────┘     └─────────────────┘
+```
+
+### Key Components
+
+**1. Subscription Management**
+- User subscribes to subreddits with preferences:
+  - Frequency: Daily / Weekly / Based on activity level
+  - Focus areas: Optional topic filters
+  - Delivery: Email / In-app notification / Both
+
+**2. Scheduler**
+- Determines when to run analysis based on:
+  - User-selected frequency
+  - Subreddit activity level (high activity = more frequent)
+  - Last analysis timestamp
+
+**3. Differential Analysis**
+- Compare new analysis with cached previous analysis
+- Identify what's NEW or CHANGED:
+  - New trending posts since last digest
+  - Rising themes that weren't rising before
+  - New product recommendations mentioned
+  - Significant engagement spikes
+
+**4. Digest Generation**
+- AI-generated summary of changes
+- Highlight most interesting new content
+- Personalized based on user's focus areas
+
+**5. Delivery**
+- Email template with digest content
+- Direct links to interesting posts
+- Quick actions (view full analysis, adjust preferences)
+
+### Frequency Logic
+
+```javascript
+function determineFrequency(subreddit, userPreference) {
+  if (userPreference === 'manual') return null;
+
+  const activity = subreddit.postsPerDay;
+
+  if (userPreference === 'auto') {
+    if (activity > 50) return 'daily';
+    if (activity > 10) return 'twice_weekly';
+    if (activity > 2) return 'weekly';
+    return 'biweekly';
+  }
+
+  return userPreference; // 'daily', 'weekly', etc.
+}
+```
+
+### Digest Content Structure
+
+```markdown
+# Your Weekly Digest: r/recipes
+
+## 🔥 Trending This Week
+- **One-pot pasta dishes** - 3 viral posts, 2.5K+ combined upvotes
+- **Air fryer recipes** - Continued strong interest
+
+## 🆕 New & Notable
+1. "Budget meal prep for family of 4" - 1.2K upvotes, 234 comments
+2. "Finally perfected homemade ramen" - 890 upvotes, 156 comments
+
+## 💡 Community Recommendations
+- **Most mentioned ingredient**: Gochujang (Korean chili paste)
+- **Popular technique**: Reverse searing for steaks
+
+## 📈 Rising Interest
+- "Sheet pan dinners" - up 40% from last week
+
+[View Full Analysis] [Manage Preferences]
+```
+
+### Technical Considerations
+
+**Storage Requirements**
+- User subscriptions table
+- Previous analysis cache (per subreddit)
+- Delivery history/logs
+
+**API Rate Limits**
+- Batch analysis jobs during off-peak hours
+- Respect Reddit API limits (queue with delays)
+- Cache aggressively to minimize re-fetching
+
+**Cost Considerations**
+- AI API costs for periodic analysis
+- Email delivery costs (SendGrid, etc.)
+- Consider tiered pricing for heavy users
+
+### Implementation Phases
+
+**Phase 1: Foundation**
+- Caching infrastructure for analysis results
+- Differential comparison logic
+- Basic subscription model
+
+**Phase 2: MVP**
+- Simple email digest (weekly only)
+- Manual subscription management
+- Basic "what's new" detection
+
+**Phase 3: Full Feature**
+- Flexible frequency options
+- Focus area filtering
+- Rich email templates
+- In-app notifications
+- Subscription management UI
+
+### Database Schema (Proposed)
+
+```sql
+-- User subscriptions
+CREATE TABLE community_subscriptions (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  subreddit VARCHAR(255) NOT NULL,
+  frequency ENUM('daily', 'twice_weekly', 'weekly', 'biweekly', 'auto'),
+  focus_areas TEXT[], -- Optional topic filters
+  persona VARCHAR(50),
+  delivery_method ENUM('email', 'push', 'both'),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+
+-- Cached analysis results
+CREATE TABLE analysis_cache (
+  id UUID PRIMARY KEY,
+  subreddit VARCHAR(255) NOT NULL,
+  analysis_data JSONB,
+  analyzed_at TIMESTAMP,
+  expires_at TIMESTAMP,
+  UNIQUE(subreddit)
+);
+
+-- Digest history
+CREATE TABLE digest_history (
+  id UUID PRIMARY KEY,
+  subscription_id UUID REFERENCES community_subscriptions(id),
+  digest_content JSONB,
+  sent_at TIMESTAMP,
+  opened_at TIMESTAMP,
+  clicked_links INTEGER DEFAULT 0
+);
+```
+
+### Open Questions for Continuous Feed
+1. What's the MVP scope for first release?
+2. Email service provider preference?
+3. Should this be a premium feature or free?
+4. How to handle user authentication/accounts?
+

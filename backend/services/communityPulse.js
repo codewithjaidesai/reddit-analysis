@@ -30,13 +30,14 @@ function getPersonaLabel(role) {
  * @param {string} role - User's persona role
  * @param {object} subredditInfo - Subreddit metadata
  * @param {string} customFocus - Optional custom analysis focus
+ * @param {Array} postsWithComments - Sampled posts with their comments
  * @returns {string} Analysis prompt
  */
-function buildCommunityPulsePrompt(data, role, subredditInfo, customFocus = null) {
+function buildCommunityPulsePrompt(data, role, subredditInfo, customFocus = null, postsWithComments = []) {
   const { buckets, subreddit, depth } = data;
   const isFullAnalysis = depth === 'full';
 
-  // Format posts from each bucket
+  // Format posts from each bucket (titles only for overview)
   let postsContent = '';
   for (const bucket of buckets) {
     if (bucket.posts.length > 0) {
@@ -45,6 +46,44 @@ function buildCommunityPulsePrompt(data, role, subredditInfo, customFocus = null
         postsContent += `- [${post.score} pts, ${post.num_comments} comments] "${post.title}"\n`;
         if (post.selftext) {
           postsContent += `  Preview: ${post.selftext.substring(0, 150)}...\n`;
+        }
+      }
+    }
+  }
+
+  // Format posts with comments (deep analysis)
+  let commentsContent = '';
+  if (postsWithComments.length > 0) {
+    commentsContent = '\n\n=== COMMUNITY VOICE: POSTS WITH TOP COMMENTS ===\n';
+    commentsContent += 'These are the most engaged discussions with their top comments. Use these to understand:\n';
+    commentsContent += '- What solutions/products the community actually recommends\n';
+    commentsContent += '- Real pain points expressed in their own words\n';
+    commentsContent += '- Community consensus and disagreements\n';
+    commentsContent += '- Specific advice patterns\n\n';
+
+    // Group by bucket for context
+    const byBucket = {};
+    for (const post of postsWithComments) {
+      const bucketKey = post.bucketLabel || 'Unknown';
+      if (!byBucket[bucketKey]) byBucket[bucketKey] = [];
+      byBucket[bucketKey].push(post);
+    }
+
+    for (const [bucketLabel, posts] of Object.entries(byBucket)) {
+      commentsContent += `\n### ${bucketLabel}\n`;
+      for (const post of posts.slice(0, 8)) { // Limit per bucket
+        commentsContent += `\n**POST: "${post.title}"** [${post.score} pts, ${post.num_comments} comments]\n`;
+        if (post.selftext) {
+          commentsContent += `OP says: ${post.selftext.substring(0, 300)}${post.selftext.length > 300 ? '...' : ''}\n`;
+        }
+
+        // Include top comments
+        if (post.comments && post.comments.length > 0) {
+          commentsContent += `Top comments:\n`;
+          for (const comment of post.comments.slice(0, 5)) {
+            const commentText = comment.body.substring(0, 250);
+            commentsContent += `  - [${comment.score} pts] "${commentText}${comment.body.length > 250 ? '...' : ''}"\n`;
+          }
         }
       }
     }
@@ -123,6 +162,7 @@ ${customFocusInstructions}
 
 === POST DATA BY TIME PERIOD ===
 ${postsContent}
+${commentsContent}
 
 === OUTPUT INSTRUCTIONS ===
 
@@ -192,7 +232,30 @@ Return a JSON object with this EXACT structure (no markdown, just valid JSON):
       "topic": "Topic that gets high engagement",
       "whyItWorks": "What makes this resonate"
     }
-  ]
+  ],
+
+  "communityVoice": {
+    "topRecommendations": [
+      {
+        "item": "Specific product/solution/advice frequently recommended",
+        "context": "When/why community recommends this",
+        "sentiment": "positive" | "mixed" | "cautionary"
+      }
+    ],
+    "commonPainPoints": [
+      {
+        "painPoint": "Specific frustration expressed",
+        "frequency": "how often mentioned",
+        "communityResponse": "How others respond to this"
+      }
+    ],
+    "successStories": [
+      "Brief summary of success/solution that worked"
+    ],
+    "warnings": [
+      "Things the community warns against"
+    ]
+  }
 }
 
 IMPORTANT:
@@ -200,7 +263,8 @@ IMPORTANT:
 - Keep descriptions concise (1-2 sentences max)
 - Include 4-6 top themes with percentages that roughly sum to 100
 - If this is a quick analysis (not full), skip detailed trend analysis
-- Be specific to THIS community, not generic observations`;
+- Be specific to THIS community, not generic observations
+- Use the COMMENTS data to populate communityVoice with real recommendations and pain points`;
 
   return prompt;
 }
@@ -211,19 +275,21 @@ IMPORTANT:
  * @param {string} role - User's persona role
  * @param {object} subredditInfo - Subreddit metadata
  * @param {string} customFocus - Optional custom analysis focus
+ * @param {Array} postsWithComments - Sampled posts with their comments
  * @returns {Promise<object>} Community pulse analysis
  */
-async function analyzeCommunityPulse(bucketedData, role, subredditInfo, customFocus = null) {
+async function analyzeCommunityPulse(bucketedData, role, subredditInfo, customFocus = null, postsWithComments = []) {
   console.log('=== COMMUNITY PULSE ANALYSIS ===');
   console.log('Subreddit:', bucketedData.subreddit);
   console.log('Depth:', bucketedData.depth);
   console.log('Total posts:', bucketedData.totalPosts);
+  console.log('Posts with comments:', postsWithComments.length);
   console.log('Role:', role);
   console.log('Custom Focus:', customFocus || 'none');
 
   try {
     // Build the analysis prompt
-    const prompt = buildCommunityPulsePrompt(bucketedData, role, subredditInfo, customFocus);
+    const prompt = buildCommunityPulsePrompt(bucketedData, role, subredditInfo, customFocus, postsWithComments);
     console.log('Prompt length:', prompt.length, 'characters');
 
     // Call Gemini API
