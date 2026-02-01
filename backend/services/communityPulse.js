@@ -29,9 +29,10 @@ function getPersonaLabel(role) {
  * @param {object} data - Bucketed posts data
  * @param {string} role - User's persona role
  * @param {object} subredditInfo - Subreddit metadata
+ * @param {string} customFocus - Optional custom analysis focus
  * @returns {string} Analysis prompt
  */
-function buildCommunityPulsePrompt(data, role, subredditInfo) {
+function buildCommunityPulsePrompt(data, role, subredditInfo, customFocus = null) {
   const { buckets, subreddit, depth } = data;
   const isFullAnalysis = depth === 'full';
 
@@ -96,7 +97,16 @@ Compare themes across time periods to identify:
 - CONSISTENT: Topics that appear across all time periods
 - DECLINING: Topics that were discussed more in older posts
 
-For each major theme, indicate if it's: ↗ Rising | → Stable | ↘ Declining` : '';
+For each major theme, indicate if it's: ↗ Rising | → Ongoing | ↘ Declining` : '';
+
+  // Build custom focus instructions
+  const customFocusInstructions = customFocus ? `
+CUSTOM ANALYSIS FOCUS:
+The user wants you to focus the analysis specifically on: "${customFocus}"
+- Prioritize insights related to this focus area
+- In topThemes, highlight themes that relate to this focus
+- In forYourPersona section, provide insights specific to this focus
+- Still provide general community overview, but weight the analysis toward this focus topic` : '';
 
   const prompt = `You are analyzing the r/${subreddit} community to understand what members care about.
 
@@ -109,6 +119,7 @@ ANALYSIS PERIOD: ${isFullAnalysis ? '1 year (with trend analysis)' : 'Last 30 da
 TOTAL POSTS ANALYZED: ${totalPosts}
 ${personaInstructions}
 ${trendInstructions}
+${customFocusInstructions}
 
 === POST DATA BY TIME PERIOD ===
 ${postsContent}
@@ -199,18 +210,20 @@ IMPORTANT:
  * @param {object} bucketedData - Posts organized by time buckets
  * @param {string} role - User's persona role
  * @param {object} subredditInfo - Subreddit metadata
+ * @param {string} customFocus - Optional custom analysis focus
  * @returns {Promise<object>} Community pulse analysis
  */
-async function analyzeCommunityPulse(bucketedData, role, subredditInfo) {
+async function analyzeCommunityPulse(bucketedData, role, subredditInfo, customFocus = null) {
   console.log('=== COMMUNITY PULSE ANALYSIS ===');
   console.log('Subreddit:', bucketedData.subreddit);
   console.log('Depth:', bucketedData.depth);
   console.log('Total posts:', bucketedData.totalPosts);
   console.log('Role:', role);
+  console.log('Custom Focus:', customFocus || 'none');
 
   try {
     // Build the analysis prompt
-    const prompt = buildCommunityPulsePrompt(bucketedData, role, subredditInfo);
+    const prompt = buildCommunityPulsePrompt(bucketedData, role, subredditInfo, customFocus);
     console.log('Prompt length:', prompt.length, 'characters');
 
     // Call Gemini API
