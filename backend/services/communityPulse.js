@@ -237,34 +237,49 @@ Return a JSON object with this EXACT structure (no markdown, just valid JSON):
   "communityVoice": {
     "topRecommendations": [
       {
-        "item": "Specific product/solution/advice frequently recommended",
+        "item": "EXACT name of product/tool/solution mentioned (e.g., 'Notion', 'therapy', 'meal prep')",
+        "quote": "Short quote from actual comment mentioning this",
         "context": "When/why community recommends this",
         "sentiment": "positive" | "mixed" | "cautionary"
       }
     ],
     "commonPainPoints": [
       {
-        "painPoint": "Specific frustration expressed",
-        "frequency": "how often mentioned",
+        "painPoint": "Specific issue in their words (e.g., 'insurance denying claims', 'doctors not listening')",
+        "quote": "Short quote from actual comment expressing this pain",
+        "frequency": "how often mentioned (e.g., '5+ comments')",
         "communityResponse": "How others respond to this"
       }
     ],
     "successStories": [
-      "Brief summary of success/solution that worked"
+      {
+        "story": "Specific success described (e.g., 'Got diagnosis after switching doctors')",
+        "quote": "Short quote from comment"
+      }
     ],
     "warnings": [
-      "Things the community warns against"
+      {
+        "warning": "Specific thing warned against (e.g., 'Avoid Dr. X clinic')",
+        "reason": "Why community warns against this"
+      }
     ]
   }
 }
 
-IMPORTANT:
+CRITICAL INSTRUCTIONS:
 - Return ONLY valid JSON, no markdown code blocks
 - Keep descriptions concise (1-2 sentences max)
 - Include 4-6 top themes with percentages that roughly sum to 100
 - If this is a quick analysis (not full), skip detailed trend analysis
 - Be specific to THIS community, not generic observations
-- Use the COMMENTS data to populate communityVoice with real recommendations and pain points`;
+
+COMMENT ANALYSIS REQUIREMENTS:
+- The communityVoice section MUST contain specific details extracted from the COMMENTS section above
+- Include actual product names, specific advice, exact pain points mentioned
+- Include short quotes (5-15 words) from real comments to support each insight
+- Do NOT use generic descriptions like "members recommend various tools" - NAME the actual tools
+- If comments mention specific brands, products, doctors, clinics, apps, books, or solutions - include them by name
+- The goal is actionable intelligence, not summaries`;
 
   return prompt;
 }
