@@ -2346,6 +2346,27 @@ main {
     color: #F59E0B;
 }
 
+.voice-quote {
+    display: block;
+    font-style: italic;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 6px 0;
+    padding-left: 12px;
+    border-left: 2px solid var(--border);
+    line-height: 1.4;
+}
+
+.voice-frequency {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(99, 102, 241, 0.15);
+    color: #818CF8;
+    margin-left: 8px;
+}
+
 /* Engagement Metrics */
 .engagement-metrics-grid {
     display: grid;
@@ -3008,10 +3029,23 @@ footer a {
     font-size: 1.2rem;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.source-posts-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 16px;
+}
+
+.source-posts-header .btn-export {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .source-post-item {

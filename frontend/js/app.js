@@ -1217,7 +1217,7 @@ function displayCommunityPulseReport(result) {
                 ${analysis.communityVoice ? `
                 <div class="pulse-section">
                     <h3><span class="section-icon">💬</span> Community Voice</h3>
-                    <p class="section-subtitle">Insights extracted from community discussions and comments</p>
+                    <p class="section-subtitle">Specific insights extracted from ${methodology?.totalCommentsAnalyzed || 'community'} comments</p>
 
                     <div class="community-voice-grid">
                         ${analysis.communityVoice.topRecommendations && analysis.communityVoice.topRecommendations.length > 0 ? `
@@ -1230,6 +1230,7 @@ function displayCommunityPulseReport(result) {
                                 ${analysis.communityVoice.topRecommendations.map(rec => `
                                     <li>
                                         <strong>${rec.item}</strong>
+                                        ${rec.quote ? `<span class="voice-quote">"${rec.quote}"</span>` : ''}
                                         ${rec.context ? `<span class="voice-context">${rec.context}</span>` : ''}
                                         ${rec.sentiment ? `<span class="voice-sentiment ${rec.sentiment}">${rec.sentiment}</span>` : ''}
                                     </li>
@@ -1248,6 +1249,8 @@ function displayCommunityPulseReport(result) {
                                 ${analysis.communityVoice.commonPainPoints.map(pp => `
                                     <li>
                                         <strong>${pp.painPoint}</strong>
+                                        ${pp.quote ? `<span class="voice-quote">"${pp.quote}"</span>` : ''}
+                                        ${pp.frequency ? `<span class="voice-frequency">${pp.frequency}</span>` : ''}
                                         ${pp.communityResponse ? `<span class="voice-context">Response: ${pp.communityResponse}</span>` : ''}
                                     </li>
                                 `).join('')}
@@ -1263,7 +1266,12 @@ function displayCommunityPulseReport(result) {
                             </div>
                             <ul class="voice-list">
                                 ${analysis.communityVoice.successStories.map(story => `
-                                    <li>${story}</li>
+                                    <li>
+                                        ${typeof story === 'object' ? `
+                                            <strong>${story.story}</strong>
+                                            ${story.quote ? `<span class="voice-quote">"${story.quote}"</span>` : ''}
+                                        ` : story}
+                                    </li>
                                 `).join('')}
                             </ul>
                         </div>
@@ -1277,7 +1285,12 @@ function displayCommunityPulseReport(result) {
                             </div>
                             <ul class="voice-list">
                                 ${analysis.communityVoice.warnings.map(warning => `
-                                    <li>${warning}</li>
+                                    <li>
+                                        ${typeof warning === 'object' ? `
+                                            <strong>${warning.warning}</strong>
+                                            ${warning.reason ? `<span class="voice-context">${warning.reason}</span>` : ''}
+                                        ` : warning}
+                                    </li>
                                 `).join('')}
                             </ul>
                         </div>
@@ -1350,26 +1363,23 @@ function displayCommunityPulseReport(result) {
                         </div>
                     </div>
 
-                    <!-- Data Insights -->
-                    <div class="data-card data-card-wide">
-                        <div class="data-card-header">
-                            <span class="data-icon">💡</span>
-                            <h4>Data Insights</h4>
-                        </div>
-                        <div class="data-insights-grid">
-                            ${buildDataInsights(analysis.topThemes, sourcePosts)}
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <!-- Tab: Source Posts -->
             <div id="pulse-tab-sources" class="pulse-tab-content">
                 <div class="pulse-section source-posts-section">
-                    <h3><span class="section-icon">📝</span> Source Posts Analyzed</h3>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
-                        These are the actual Reddit posts used to generate the analysis above. Click to view on Reddit.
-                    </p>
+                    <div class="source-posts-header">
+                        <div>
+                            <h3><span class="section-icon">📝</span> Source Posts Analyzed</h3>
+                            <p style="color: var(--text-muted); font-size: 0.85rem; margin: 4px 0 0 0;">
+                                These are the actual Reddit posts used to generate the analysis above. Click to view on Reddit.
+                            </p>
+                        </div>
+                        <button onclick="downloadPulseSourceData()" class="btn-export">
+                            Download All Posts (CSV)
+                        </button>
+                    </div>
                     ${sourcePosts.map(bucket => `
                         <div class="source-bucket" id="bucket-${bucket.name}">
                             <div class="source-bucket-header" onclick="toggleSourceBucket('${bucket.name}')">
@@ -1446,6 +1456,67 @@ function toggleSourceBucket(bucketName) {
     if (bucket) {
         bucket.classList.toggle('collapsed');
     }
+}
+
+/**
+ * Download Community Pulse source posts as CSV
+ */
+function downloadPulseSourceData() {
+    if (!currentCommunityPulseResults || !currentCommunityPulseResults.sourcePosts) {
+        alert('No source data available');
+        return;
+    }
+
+    const { sourcePosts, subreddit } = currentCommunityPulseResults;
+
+    // Flatten all posts from all buckets
+    const allPosts = [];
+    for (const bucket of sourcePosts) {
+        for (const post of (bucket.posts || [])) {
+            allPosts.push({
+                timePeriod: bucket.label || bucket.name,
+                title: post.title,
+                url: post.url,
+                score: post.score,
+                numComments: post.num_comments,
+                subreddit: post.subreddit || subreddit,
+                createdUtc: post.created_utc,
+                date: new Date(post.created_utc * 1000).toISOString().split('T')[0],
+                selftext: (post.selftext || '').substring(0, 500).replace(/[\n\r]+/g, ' ')
+            });
+        }
+    }
+
+    // Create CSV content
+    const headers = ['Time Period', 'Title', 'URL', 'Score', 'Comments', 'Subreddit', 'Date', 'Preview'];
+    const csvRows = [headers.join(',')];
+
+    for (const post of allPosts) {
+        const row = [
+            `"${post.timePeriod}"`,
+            `"${post.title.replace(/"/g, '""')}"`,
+            post.url,
+            post.score,
+            post.numComments,
+            post.subreddit,
+            post.date,
+            `"${post.selftext.replace(/"/g, '""')}"`
+        ];
+        csvRows.push(row.join(','));
+    }
+
+    const csvContent = csvRows.join('\n');
+
+    // Download the CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reddit_${subreddit}_posts_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 
 /**
