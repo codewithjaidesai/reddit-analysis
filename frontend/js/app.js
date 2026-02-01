@@ -1127,56 +1127,6 @@ function displayCommunityPulseReport(result) {
                     </div>
                 </div>
 
-                <!-- Trend Analysis (for full depth) -->
-                ${result.depth === 'full' && analysis.trendAnalysis ? `
-                <div class="pulse-section">
-                    <h3><span class="section-icon">📈</span> What's Changing</h3>
-                    <div class="trend-cards">
-                        ${analysis.trendAnalysis.emerging && analysis.trendAnalysis.emerging.length > 0 ? `
-                        <div class="trend-card">
-                            <div class="trend-card-header">
-                                <span class="trend-icon">🔥</span>
-                                <h4>Emerging Topics</h4>
-                            </div>
-                            <ul>
-                                ${analysis.trendAnalysis.emerging.map(item => `
-                                    <li><strong>${item.topic}</strong> - ${item.evidence || item.opportunityNote || ''}</li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-
-                        ${analysis.trendAnalysis.consistent && analysis.trendAnalysis.consistent.length > 0 ? `
-                        <div class="trend-card">
-                            <div class="trend-card-header">
-                                <span class="trend-icon">📌</span>
-                                <h4>Always Discussed</h4>
-                            </div>
-                            <ul>
-                                ${analysis.trendAnalysis.consistent.map(item => `
-                                    <li><strong>${item.topic}</strong>${item.note ? ' - ' + item.note : ''}</li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-
-                        ${analysis.trendAnalysis.declining && analysis.trendAnalysis.declining.length > 0 ? `
-                        <div class="trend-card">
-                            <div class="trend-card-header">
-                                <span class="trend-icon">📉</span>
-                                <h4>Declining Interest</h4>
-                            </div>
-                            <ul>
-                                ${analysis.trendAnalysis.declining.map(item => `
-                                    <li><strong>${item.topic}</strong>${item.evidence ? ' - ' + item.evidence : ''}</li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-                    </div>
-                </div>
-                ` : ''}
-
                 <!-- Language Patterns -->
                 ${analysis.languagePatterns ? `
                 <div class="pulse-section">
@@ -1315,25 +1265,14 @@ function displayCommunityPulseReport(result) {
                         </div>
                     </div>
 
-                    <!-- Theme Distribution (Full Width) -->
+                    <!-- Engagement Metrics -->
                     <div class="data-card data-card-wide">
                         <div class="data-card-header">
-                            <span class="data-icon">🎯</span>
-                            <h4>Theme Distribution</h4>
+                            <span class="data-icon">⚡</span>
+                            <h4>Engagement Metrics</h4>
                         </div>
-                        <div class="theme-distribution-list">
-                            ${(analysis.topThemes || []).slice(0, 6).map((theme, index) => `
-                                <div class="theme-distribution-item">
-                                    <div class="theme-distribution-header">
-                                        <span class="theme-icon-dot theme-icon-${index % 6}">${['●', '◆', '■', '▲', '★', '◉'][index % 6]}</span>
-                                        <span class="theme-distribution-name">${theme.name}</span>
-                                        <span class="theme-distribution-pct">${theme.percentage}%</span>
-                                    </div>
-                                    <div class="theme-distribution-bar-container">
-                                        <div class="theme-distribution-bar-fill theme-bar-${index % 6}" style="width: ${theme.percentage}%"></div>
-                                    </div>
-                                </div>
-                            `).join('')}
+                        <div class="engagement-metrics-grid">
+                            ${buildEngagementMetrics(sourcePosts)}
                         </div>
                     </div>
 
@@ -1462,6 +1401,60 @@ function getTrendIcon(trend) {
 function capitalize(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Build engagement metrics HTML from source posts
+ */
+function buildEngagementMetrics(sourcePosts) {
+    // Flatten all posts from all buckets
+    const allPosts = (sourcePosts || []).flatMap(bucket => bucket.posts || []);
+
+    if (allPosts.length === 0) {
+        return '<p style="color: var(--text-muted); font-style: italic;">No engagement data available.</p>';
+    }
+
+    // Calculate metrics
+    const totalScore = allPosts.reduce((sum, p) => sum + (p.score || 0), 0);
+    const totalComments = allPosts.reduce((sum, p) => sum + (p.num_comments || 0), 0);
+    const avgScore = Math.round(totalScore / allPosts.length);
+    const avgComments = Math.round(totalComments / allPosts.length);
+
+    // Find top performers
+    const sortedByScore = [...allPosts].sort((a, b) => (b.score || 0) - (a.score || 0));
+    const topPost = sortedByScore[0];
+    const highEngagementPosts = allPosts.filter(p => (p.score || 0) > avgScore * 2).length;
+
+    // Calculate engagement ratio (comments per upvote)
+    const engagementRatio = totalScore > 0 ? (totalComments / totalScore).toFixed(2) : 0;
+
+    return `
+        <div class="engagement-metric">
+            <div class="metric-value">${formatNumber(avgScore)}</div>
+            <div class="metric-label">Avg. Upvotes</div>
+        </div>
+        <div class="engagement-metric">
+            <div class="metric-value">${avgComments}</div>
+            <div class="metric-label">Avg. Comments</div>
+        </div>
+        <div class="engagement-metric">
+            <div class="metric-value">${engagementRatio}</div>
+            <div class="metric-label">Discussion Ratio</div>
+            <div class="metric-hint">Comments per upvote</div>
+        </div>
+        <div class="engagement-metric">
+            <div class="metric-value">${highEngagementPosts}</div>
+            <div class="metric-label">Viral Posts</div>
+            <div class="metric-hint">2x+ avg engagement</div>
+        </div>
+        ${topPost ? `
+        <div class="engagement-highlight">
+            <div class="highlight-label">Top Performing Post</div>
+            <div class="highlight-title">${topPost.title?.substring(0, 80)}${topPost.title?.length > 80 ? '...' : ''}</div>
+            <div class="highlight-stats">${formatNumber(topPost.score)} upvotes · ${topPost.num_comments} comments</div>
+        </div>
+        ` : ''}
+    `;
 }
 
 /**

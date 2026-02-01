@@ -2236,6 +2236,72 @@ main {
     margin-bottom: 20px;
 }
 
+/* Engagement Metrics */
+.engagement-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.engagement-metric {
+    text-align: center;
+    padding: 16px 12px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.metric-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-light);
+    line-height: 1.2;
+}
+
+.metric-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-top: 4px;
+}
+
+.metric-hint {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.engagement-highlight {
+    grid-column: 1 / -1;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(159, 122, 234, 0.1) 100%);
+    border: 1px solid var(--primary);
+    border-radius: 10px;
+    margin-top: 8px;
+}
+
+.highlight-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.highlight-title {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.highlight-stats {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
 /* Methodology info in header */
 .pulse-meta-item.clickable {
     cursor: pointer;
@@ -2275,6 +2341,10 @@ main {
 
     .data-analysis-grid {
         grid-template-columns: 1fr;
+    }
+
+    .engagement-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .info-tooltip-content {
