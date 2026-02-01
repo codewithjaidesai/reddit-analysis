@@ -1381,6 +1381,62 @@ main {
     }
 }
 
+/* Focus Analysis Section */
+.focus-analysis-section {
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+.focus-analysis-section .section-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.focus-analysis-section .optional-tag {
+    font-weight: 400;
+    text-transform: none;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.focus-input-container {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.focus-input {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+
+.focus-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--glow-primary);
+}
+
+.focus-input::placeholder {
+    color: var(--text-muted);
+}
+
+.focus-input-container .hint {
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
 /* Analysis Depth Section */
 .analysis-depth-section {
     margin-top: 24px;
@@ -1548,7 +1604,23 @@ main {
 
 .theme-icon {
     font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
 }
+
+/* Theme icon colored dots */
+.theme-icon-dot {
+    font-size: 0.9rem;
+}
+
+.theme-icon-0 { color: #8B5CF6; } /* Purple */
+.theme-icon-1 { color: #3B82F6; } /* Blue */
+.theme-icon-2 { color: #10B981; } /* Green */
+.theme-icon-3 { color: #F59E0B; } /* Amber */
+.theme-icon-4 { color: #EF4444; } /* Red */
+.theme-icon-5 { color: #EC4899; } /* Pink */
 
 .theme-info {
     flex: 1;
@@ -2057,6 +2129,111 @@ main {
     text-align: right;
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+
+/* Wide data cards */
+.data-card-wide {
+    grid-column: 1 / -1;
+}
+
+/* Theme Distribution in Data tab */
+.theme-distribution-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.theme-distribution-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.theme-distribution-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.theme-distribution-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.theme-distribution-pct {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 40px;
+    text-align: right;
+}
+
+.theme-distribution-bar-container {
+    height: 6px;
+    background: var(--bg-card);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.theme-distribution-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.theme-bar-0 { background: #8B5CF6; }
+.theme-bar-1 { background: #3B82F6; }
+.theme-bar-2 { background: #10B981; }
+.theme-bar-3 { background: #F59E0B; }
+.theme-bar-4 { background: #EF4444; }
+.theme-bar-5 { background: #EC4899; }
+
+/* Data Insights section */
+.data-insights-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.data-insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.data-insight-icon {
+    font-size: 1.3rem;
+    min-width: 32px;
+}
+
+.data-insight-content {
+    flex: 1;
+}
+
+.data-insight-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.data-insight-text {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Stats row layout */
+.data-stats-row {
+    margin-bottom: 20px;
 }
 
 /* Methodology info in header */

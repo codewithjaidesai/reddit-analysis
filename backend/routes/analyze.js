@@ -352,7 +352,7 @@ router.post('/generate', async (req, res) => {
  */
 router.post('/community-pulse', async (req, res) => {
   try {
-    const { subreddit, depth, role } = req.body;
+    const { subreddit, depth, role, customFocus } = req.body;
 
     if (!subreddit) {
       return res.status(400).json({
@@ -367,6 +367,7 @@ router.post('/community-pulse', async (req, res) => {
     console.log(`\n=== COMMUNITY PULSE: r/${cleanSubreddit} ===`);
     console.log('Depth:', depth || 'full');
     console.log('Role:', role || 'not specified');
+    console.log('Custom Focus:', customFocus || 'none');
 
     // Step 1: Get subreddit info
     console.log('\nStep 1: Getting subreddit info...');
@@ -404,7 +405,7 @@ router.post('/community-pulse', async (req, res) => {
 
     // Step 3: Run Community Pulse analysis
     console.log('\nStep 3: Running AI analysis...');
-    const pulseAnalysis = await analyzeCommunityPulse(bucketedPosts, role, subredditInfo);
+    const pulseAnalysis = await analyzeCommunityPulse(bucketedPosts, role, subredditInfo, customFocus);
 
     if (!pulseAnalysis.success) {
       return res.status(500).json({
@@ -428,6 +429,7 @@ router.post('/community-pulse', async (req, res) => {
       },
       depth: depth || 'full',
       role: role || 'custom',
+      customFocus: customFocus || null,
       totalPostsAnalyzed: pulseAnalysis.totalPostsAnalyzed,
       bucketSummary: pulseAnalysis.bucketSummary,
       // Include source posts for the Source Data section

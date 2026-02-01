@@ -140,10 +140,11 @@ async function getSubredditInfo(subreddit) {
 /**
  * Run full Community Pulse analysis
  */
-async function analyzeCommunityPulse(subreddit, depth, role) {
+async function analyzeCommunityPulse(subreddit, depth, role, customFocus = null) {
     return await callAPI('/api/analyze/community-pulse', {
         subreddit,
         depth,
-        role
+        role,
+        customFocus
     });
 }

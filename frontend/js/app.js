@@ -943,6 +943,9 @@ async function handleCommunityPulse() {
     // Get selected role
     const role = document.getElementById('subredditUserRole').value || 'custom';
 
+    // Get custom focus (optional)
+    const customFocus = document.getElementById('customAnalysisFocus')?.value?.trim() || null;
+
     // Hide all sections and show status
     hideAll();
     document.getElementById('communityPulseResults').style.display = 'none';
@@ -976,7 +979,7 @@ async function handleCommunityPulse() {
     );
 
     try {
-        const result = await analyzeCommunityPulse(subreddit, depth, role);
+        const result = await analyzeCommunityPulse(subreddit, depth, role, customFocus);
 
         // Clear progress timers
         progressTimers.forEach(timer => clearTimeout(timer));
@@ -1032,6 +1035,21 @@ function displayCommunityPulseReport(result) {
         'declining': 'This topic was discussed more frequently 6-12 months ago and has decreased in recent posts.'
     };
 
+    // Trend label mapping (user feedback: add "Discussions" to make clearer)
+    const trendLabels = {
+        'rising': 'More Discussions',
+        'stable': 'Ongoing',
+        'declining': 'Fewer Discussions'
+    };
+
+    // Custom focus display
+    const customFocusDisplay = result.customFocus ? `
+        <span class="pulse-meta-item">
+            <span class="meta-icon">🎯</span>
+            Focus: ${result.customFocus}
+        </span>
+    ` : '';
+
     // Build the report HTML with tabs
     let html = `
         <div class="community-pulse-report">
@@ -1063,6 +1081,7 @@ function displayCommunityPulseReport(result) {
                         <span class="meta-icon">⚡</span>
                         ${subredditInfo?.activityLevel ? capitalize(subredditInfo.activityLevel) + ' activity' : ''}
                     </span>
+                    ${customFocusDisplay}
                 </div>
             </div>
 
@@ -1087,17 +1106,17 @@ function displayCommunityPulseReport(result) {
                 <div class="pulse-section">
                     <h3><span class="section-icon">📊</span> Top Themes</h3>
                     <div class="theme-list">
-                        ${(analysis.topThemes || []).map(theme => `
+                        ${(analysis.topThemes || []).map((theme, index) => `
                             <div class="theme-item">
                                 <div class="theme-main">
-                                    <span class="theme-icon">${getThemeIcon(theme.name)}</span>
+                                    <span class="theme-icon">${getThemeIcon(theme.name, index)}</span>
                                     <div class="theme-info">
                                         <div class="theme-name">${theme.name}</div>
                                         <div class="theme-percentage">${theme.percentage}% of discussions${theme.description ? ' · ' + theme.description : ''}</div>
                                     </div>
                                 </div>
                                 <span class="theme-trend ${theme.trend || 'stable'}">
-                                    ${getTrendIcon(theme.trend)} ${capitalize(theme.trend || 'stable')}
+                                    ${getTrendIcon(theme.trend)} ${trendLabels[theme.trend] || trendLabels['stable']}
                                     <span class="theme-trend-tooltip">
                                         ${trendExplanations[theme.trend] || trendExplanations['stable']}
                                         ${theme.trendNote ? '<br><br>' + theme.trendNote : ''}
@@ -1247,8 +1266,10 @@ function displayCommunityPulseReport(result) {
             <!-- Tab: Data Analysis -->
             <div id="pulse-tab-data" class="pulse-tab-content">
                 <div class="pulse-section">
-                    <h3><span class="section-icon">📊</span> Data Breakdown</h3>
-                    <div class="data-analysis-grid">
+                    <h3><span class="section-icon">📊</span> Quantitative Analysis</h3>
+
+                    <!-- Key Stats Row -->
+                    <div class="data-analysis-grid data-stats-row">
                         <!-- Posts by Time Period -->
                         <div class="data-card">
                             <div class="data-card-header">
@@ -1292,46 +1313,38 @@ function displayCommunityPulseReport(result) {
                                 <span class="data-stat-value">${subredditInfo?.postsPerDay ? '~' + subredditInfo.postsPerDay + ' posts/day' : 'Unknown'}</span>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Theme Distribution -->
-                        <div class="data-card">
-                            <div class="data-card-header">
-                                <span class="data-icon">🎯</span>
-                                <h4>Theme Distribution</h4>
-                            </div>
-                            ${(analysis.topThemes || []).slice(0, 5).map(theme => `
-                                <div class="data-bucket-bar">
-                                    <span class="data-bucket-label" style="min-width: 120px;">${theme.name.length > 15 ? theme.name.substring(0, 15) + '...' : theme.name}</span>
-                                    <div class="data-bucket-bar-container">
-                                        <div class="data-bucket-bar-fill" style="width: ${theme.percentage}%"></div>
+                    <!-- Theme Distribution (Full Width) -->
+                    <div class="data-card data-card-wide">
+                        <div class="data-card-header">
+                            <span class="data-icon">🎯</span>
+                            <h4>Theme Distribution</h4>
+                        </div>
+                        <div class="theme-distribution-list">
+                            ${(analysis.topThemes || []).slice(0, 6).map((theme, index) => `
+                                <div class="theme-distribution-item">
+                                    <div class="theme-distribution-header">
+                                        <span class="theme-icon-dot theme-icon-${index % 6}">${['●', '◆', '■', '▲', '★', '◉'][index % 6]}</span>
+                                        <span class="theme-distribution-name">${theme.name}</span>
+                                        <span class="theme-distribution-pct">${theme.percentage}%</span>
                                     </div>
-                                    <span class="data-bucket-count">${theme.percentage}%</span>
+                                    <div class="theme-distribution-bar-container">
+                                        <div class="theme-distribution-bar-fill theme-bar-${index % 6}" style="width: ${theme.percentage}%"></div>
+                                    </div>
                                 </div>
                             `).join('')}
                         </div>
+                    </div>
 
-                        <!-- Methodology -->
-                        <div class="data-card">
-                            <div class="data-card-header">
-                                <span class="data-icon">⚙️</span>
-                                <h4>Methodology</h4>
-                            </div>
-                            <div class="data-stat">
-                                <span class="data-stat-label">Posts Fetched</span>
-                                <span class="data-stat-value">${methodology?.totalFetched || 100}</span>
-                            </div>
-                            <div class="data-stat">
-                                <span class="data-stat-label">After Quality Filter</span>
-                                <span class="data-stat-value">${methodology?.qualityFiltered || result.totalPostsAnalyzed}</span>
-                            </div>
-                            <div class="data-stat">
-                                <span class="data-stat-label">Filter Criteria</span>
-                                <span class="data-stat-value" style="font-size: 0.75rem;">${methodology?.filterCriteria || '10+ upvotes, 5+ comments'}</span>
-                            </div>
-                            <div class="data-stat">
-                                <span class="data-stat-label">Bucket Strategy</span>
-                                <span class="data-stat-value" style="font-size: 0.75rem;">${methodology?.bucketStrategy || '4 time periods'}</span>
-                            </div>
+                    <!-- Data Insights -->
+                    <div class="data-card data-card-wide">
+                        <div class="data-card-header">
+                            <span class="data-icon">💡</span>
+                            <h4>Data Insights</h4>
+                        </div>
+                        <div class="data-insights-grid">
+                            ${buildDataInsights(analysis.topThemes, sourcePosts)}
                         </div>
                     </div>
                 </div>
@@ -1423,21 +1436,13 @@ function toggleSourceBucket(bucketName) {
 }
 
 /**
- * Get icon for theme based on name
+ * Get icon for theme based on index (simple, non-AI icons)
+ * Using colored circles/shapes instead of AI-generated emoji
  */
-function getThemeIcon(themeName) {
-    const name = (themeName || '').toLowerCase();
-    if (name.includes('pain') || name.includes('problem') || name.includes('frustrat')) return '😤';
-    if (name.includes('success') || name.includes('win') || name.includes('achieve')) return '🏆';
-    if (name.includes('question') || name.includes('help') || name.includes('advice')) return '❓';
-    if (name.includes('recommend') || name.includes('suggest')) return '💡';
-    if (name.includes('review') || name.includes('experience')) return '📝';
-    if (name.includes('health') || name.includes('wellness') || name.includes('fitness')) return '💪';
-    if (name.includes('money') || name.includes('finance') || name.includes('budget')) return '💰';
-    if (name.includes('tech') || name.includes('software') || name.includes('app')) return '💻';
-    if (name.includes('relation') || name.includes('social')) return '👥';
-    if (name.includes('work') || name.includes('career') || name.includes('job')) return '💼';
-    return '📌';
+function getThemeIcon(themeName, index = 0) {
+    // Simple colored dot icons using CSS classes
+    const icons = ['●', '◆', '■', '▲', '★', '◉'];
+    return `<span class="theme-icon-dot theme-icon-${index % 6}">${icons[index % 6]}</span>`;
 }
 
 /**
@@ -1457,6 +1462,78 @@ function getTrendIcon(trend) {
 function capitalize(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Build data insights HTML for the Data Analysis tab
+ */
+function buildDataInsights(themes, sourcePosts) {
+    const insights = [];
+    const topTheme = themes?.[0];
+    const risingThemes = (themes || []).filter(t => t.trend === 'rising');
+    const decliningThemes = (themes || []).filter(t => t.trend === 'declining');
+
+    if (topTheme) {
+        insights.push({
+            icon: '🏆',
+            title: 'Dominant Topic',
+            text: '"' + topTheme.name + '" accounts for ' + topTheme.percentage + '% of all discussions in this community.'
+        });
+    }
+
+    if (risingThemes.length > 0) {
+        const topicWord = risingThemes.length > 1 ? 's are' : ' is';
+        const topicNames = risingThemes.slice(0, 2).map(t => t.name).join(', ');
+        const moreText = risingThemes.length > 2 ? '...' : '';
+        insights.push({
+            icon: '📈',
+            title: 'Growing Interest',
+            text: risingThemes.length + ' topic' + topicWord + ' seeing increased discussion: ' + topicNames + moreText
+        });
+    }
+
+    if (decliningThemes.length > 0) {
+        const topicWord = decliningThemes.length > 1 ? 's have' : ' has';
+        insights.push({
+            icon: '📉',
+            title: 'Declining Interest',
+            text: decliningThemes.length + ' topic' + topicWord + ' seen reduced discussion over time.'
+        });
+    }
+
+    // Post volume insight
+    const recentBucket = sourcePosts?.[0];
+    const oldBucket = sourcePosts?.[sourcePosts.length - 1];
+    if (recentBucket && oldBucket && recentBucket.postCount && oldBucket.postCount) {
+        const ratio = (recentBucket.postCount / oldBucket.postCount).toFixed(1);
+        if (ratio > 1.2) {
+            insights.push({
+                icon: '🚀',
+                title: 'Activity Trend',
+                text: 'Recent posts (' + recentBucket.label + ') have ' + ratio + 'x more quality discussions than ' + oldBucket.label + '.'
+            });
+        } else if (ratio < 0.8) {
+            insights.push({
+                icon: '📊',
+                title: 'Activity Trend',
+                text: 'Older posts (' + oldBucket.label + ') had more quality discussions than recent months.'
+            });
+        }
+    }
+
+    if (insights.length === 0) {
+        return '<p style="color: var(--text-muted); font-style: italic;">No significant data insights available.</p>';
+    }
+
+    return insights.map(insight => `
+        <div class="data-insight-item">
+            <span class="data-insight-icon">${insight.icon}</span>
+            <div class="data-insight-content">
+                <div class="data-insight-title">${insight.title}</div>
+                <div class="data-insight-text">${insight.text}</div>
+            </div>
+        </div>
+    `).join('');
 }
 
 // ============================================
