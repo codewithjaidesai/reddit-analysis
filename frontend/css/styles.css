@@ -1437,6 +1437,25 @@ main {
     margin-bottom: 0;
 }
 
+.focus-input-container .hint-tip {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary);
+    font-size: 0.85rem;
+}
+
+.hint-link {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.hint-link:hover {
+    text-decoration: underline;
+}
+
 /* Analysis Depth Section */
 .analysis-depth-section {
     margin-top: 24px;
