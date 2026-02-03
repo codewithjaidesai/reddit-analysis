@@ -154,6 +154,64 @@ router.post('/subreddit-info', async (req, res) => {
 });
 
 /**
+ * GET /api/search/subreddit-autocomplete
+ * Search for subreddits matching a query (for autocomplete)
+ */
+router.get('/subreddit-autocomplete', async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || q.length < 2) {
+      return res.json({
+        success: true,
+        subreddits: []
+      });
+    }
+
+    // Clean query (remove r/ if present)
+    const cleanQuery = q.replace(/^r\//, '').trim();
+
+    console.log('Subreddit autocomplete search:', cleanQuery);
+
+    // Use Reddit's subreddit search API
+    const response = await fetch(
+      `https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(cleanQuery)}&limit=8`,
+      {
+        headers: {
+          'User-Agent': 'VoiceOfCustomer/1.0'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Reddit API error');
+    }
+
+    const data = await response.json();
+
+    // Extract relevant subreddit info
+    const subreddits = (data.data?.children || []).map(child => ({
+      name: child.data.display_name,
+      title: child.data.title,
+      subscribers: child.data.subscribers,
+      description: child.data.public_description?.substring(0, 100) || ''
+    }));
+
+    res.json({
+      success: true,
+      subreddits
+    });
+
+  } catch (error) {
+    console.error('Subreddit autocomplete error:', error);
+    res.json({
+      success: true,
+      subreddits: []
+    });
+  }
+});
+
+/**
  * POST /api/search/community-posts
  * Fetch time-bucketed posts for Community Pulse analysis
  */
