@@ -10,10 +10,15 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'Content Radar <digest@contentradar.com>';
 const baseUrl = process.env.BASE_URL || 'https://reddit-analysis.vercel.app';
 
+console.log('[Email Service] Initializing...');
+console.log('[Email Service] RESEND_API_KEY configured:', !!resendApiKey);
+console.log('[Email Service] From email:', fromEmail);
+console.log('[Email Service] Base URL:', baseUrl);
+
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 if (!resendApiKey) {
-  console.warn('Warning: RESEND_API_KEY not configured. Email features will not work.');
+  console.warn('[Email Service] WARNING: RESEND_API_KEY not configured. Emails will be simulated.');
 }
 
 /**
@@ -26,9 +31,12 @@ if (!resendApiKey) {
  * @param {boolean} params.isWelcome - Whether this is a welcome email
  */
 async function sendDigestEmail({ to, subreddit, digest, unsubscribeToken, isWelcome = false }) {
+  console.log(`[Email Service] sendDigestEmail called for ${to}, subreddit: ${subreddit}, isWelcome: ${isWelcome}`);
+
   if (!resend) {
-    console.log('Email would be sent to:', to);
-    console.log('Subject:', isWelcome ? `Welcome to Content Radar! Here's your first digest` : `📰 Your ${digest.frequency || 'Weekly'} Digest: r/${subreddit}`);
+    console.log('[Email Service] SIMULATED - No Resend client configured');
+    console.log('[Email Service] Would send to:', to);
+    console.log('[Email Service] Subject:', isWelcome ? `Welcome to Content Radar! Here's your first digest` : `📰 Your ${digest?.frequency || 'Weekly'} Digest: r/${subreddit}`);
     return { success: true, simulated: true };
   }
 
@@ -37,11 +45,17 @@ async function sendDigestEmail({ to, subreddit, digest, unsubscribeToken, isWelc
 
   const subject = isWelcome
     ? `👋 Welcome to Content Radar! Here's your first digest for r/${subreddit}`
-    : `📰 Your ${digest.frequency || 'Weekly'} Digest: r/${subreddit}`;
+    : `📰 Your ${digest?.frequency || 'Weekly'} Digest: r/${subreddit}`;
 
+  console.log(`[Email Service] Generating HTML for digest...`);
   const html = generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelcome);
 
   try {
+    console.log(`[Email Service] Sending via Resend...`);
+    console.log(`[Email Service] From: ${fromEmail}`);
+    console.log(`[Email Service] To: ${to}`);
+    console.log(`[Email Service] Subject: ${subject}`);
+
     const { data, error } = await resend.emails.send({
       from: fromEmail,
       to: to,
@@ -54,14 +68,16 @@ async function sendDigestEmail({ to, subreddit, digest, unsubscribeToken, isWelc
     });
 
     if (error) {
-      console.error('Resend error:', error);
-      throw new Error(error.message);
+      console.error('[Email Service] Resend API error:', JSON.stringify(error));
+      throw new Error(error.message || 'Resend API error');
     }
 
-    return { success: true, messageId: data.id };
+    console.log(`[Email Service] SUCCESS - Message ID: ${data?.id}`);
+    return { success: true, messageId: data?.id };
 
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('[Email Service] FAILED:', error.message);
+    console.error('[Email Service] Full error:', error);
     throw error;
   }
 }
