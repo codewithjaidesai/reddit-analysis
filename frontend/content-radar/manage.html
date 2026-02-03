@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Subscriptions - Content Radar</title>
+    <link rel="stylesheet" href="css/radar.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="logo">
+                <span class="logo-icon">📡</span>
+                <h1>Content Radar</h1>
+            </a>
+        </header>
+
+        <main>
+            <div class="manage-container">
+                <h2>Manage Your Subscriptions</h2>
+
+                <!-- Email Lookup -->
+                <div id="emailLookup" class="email-lookup">
+                    <p>Enter your email to view and manage your subscriptions</p>
+                    <form id="lookupForm" class="lookup-form">
+                        <input
+                            type="email"
+                            id="lookupEmail"
+                            placeholder="your@email.com"
+                            required
+                        />
+                        <button type="submit" class="lookup-btn">
+                            <span class="btn-text">Find Subscriptions</span>
+                            <span class="btn-loading" style="display: none;">
+                                <span class="spinner"></span>
+                            </span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Subscriptions List -->
+                <div id="subscriptionsList" class="subscriptions-list" style="display: none;">
+                    <div class="list-header">
+                        <h3>Your Subscriptions</h3>
+                        <span id="subscriptionCount" class="sub-count">0 active</span>
+                    </div>
+
+                    <div id="subscriptionsContainer">
+                        <!-- Subscriptions will be rendered here -->
+                    </div>
+
+                    <div class="list-actions">
+                        <a href="subscribe.html" class="add-btn">
+                            + Add New Subscription
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <span class="empty-icon">📭</span>
+                    <h3>No subscriptions found</h3>
+                    <p>You don't have any active subscriptions with this email.</p>
+                    <a href="subscribe.html" class="cta-button">
+                        Create Your First Subscription
+                    </a>
+                </div>
+
+                <!-- Error State -->
+                <div id="errorState" class="error-state" style="display: none;">
+                    <span class="error-icon">⚠️</span>
+                    <p id="errorMessage">Something went wrong</p>
+                    <button onclick="resetLookup()" class="retry-btn">Try Again</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p class="footer-links">
+                <a href="index.html">Home</a> •
+                <a href="subscribe.html">New Subscription</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Subscription Card Template -->
+    <template id="subscriptionCardTemplate">
+        <div class="subscription-card" data-id="">
+            <div class="card-header">
+                <span class="subreddit-name">r/subreddit</span>
+                <span class="frequency-badge">Weekly</span>
+            </div>
+            <div class="card-details">
+                <div class="detail">
+                    <span class="detail-label">Focus:</span>
+                    <span class="focus-topic">None</span>
+                </div>
+                <div class="detail">
+                    <span class="detail-label">Last digest:</span>
+                    <span class="last-sent">Never</span>
+                </div>
+                <div class="detail">
+                    <span class="detail-label">Subscribed:</span>
+                    <span class="created-at">-</span>
+                </div>
+            </div>
+            <div class="card-actions">
+                <button class="action-btn edit-btn" onclick="editSubscription(this)">
+                    Edit
+                </button>
+                <button class="action-btn unsubscribe-btn" onclick="unsubscribeClick(this)">
+                    Unsubscribe
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <script src="js/config.js"></script>
+    <script src="js/manage.js"></script>
+</body>
+</html>

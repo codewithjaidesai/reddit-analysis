@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscribe - Content Radar</title>
+    <link rel="stylesheet" href="css/radar.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="logo">
+                <span class="logo-icon">📡</span>
+                <h1>Content Radar</h1>
+            </a>
+        </header>
+
+        <main>
+            <div class="subscribe-container">
+                <div class="subscribe-form-section">
+                    <h2>Subscribe to a Community</h2>
+                    <p class="form-subtitle">Get weekly insights delivered to your inbox</p>
+
+                    <form id="subscribeForm" class="subscribe-form">
+                        <!-- Subreddit Input -->
+                        <div class="form-group">
+                            <label for="subreddit">Which subreddit do you want to follow?</label>
+                            <div class="subreddit-input-wrapper">
+                                <span class="prefix">r/</span>
+                                <input
+                                    type="text"
+                                    id="subreddit"
+                                    name="subreddit"
+                                    placeholder="artificialintelligence"
+                                    required
+                                    autocomplete="off"
+                                />
+                                <button type="button" id="checkSubreddit" class="check-btn">Check</button>
+                            </div>
+                            <p class="hint">Popular: artificialintelligence, recipes, WeightLossAdvice, menopause</p>
+                        </div>
+
+                        <!-- Subreddit Info Card (shown after check) -->
+                        <div id="subredditInfo" class="subreddit-info-card" style="display: none;">
+                            <div class="info-header">
+                                <span class="info-icon">✓</span>
+                                <span id="subredditTitle">r/artificialintelligence</span>
+                            </div>
+                            <div class="info-stats">
+                                <div class="stat">
+                                    <span class="stat-value" id="subscriberCount">-</span>
+                                    <span class="stat-label">members</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value" id="activityLevel">-</span>
+                                    <span class="stat-label">activity</span>
+                                </div>
+                            </div>
+                            <div class="frequency-recommendation" id="frequencyRecommendation">
+                                <span class="rec-icon">💡</span>
+                                <span id="frequencyReason">Checking activity...</span>
+                            </div>
+                        </div>
+
+                        <!-- Frequency Selection -->
+                        <div class="form-group" id="frequencyGroup" style="display: none;">
+                            <label>How often do you want to receive digests?</label>
+                            <div class="frequency-options">
+                                <label class="frequency-option">
+                                    <input type="radio" name="frequency" value="weekly" checked>
+                                    <span class="option-card">
+                                        <span class="option-icon">📅</span>
+                                        <span class="option-title">Weekly</span>
+                                        <span class="option-desc">Every Sunday morning</span>
+                                    </span>
+                                </label>
+                                <label class="frequency-option">
+                                    <input type="radio" name="frequency" value="daily">
+                                    <span class="option-card">
+                                        <span class="option-icon">⚡</span>
+                                        <span class="option-title">Daily</span>
+                                        <span class="option-desc">Every morning</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Email Input -->
+                        <div class="form-group" id="emailGroup" style="display: none;">
+                            <label for="email">Your email address</label>
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                placeholder="creator@example.com"
+                                required
+                            />
+                        </div>
+
+                        <!-- Focus Topic (Optional) -->
+                        <div class="form-group" id="focusGroup" style="display: none;">
+                            <label for="focusTopic">
+                                Focus topic <span class="optional">(optional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="focusTopic"
+                                name="focusTopic"
+                                placeholder="e.g., AI coding tools, quick weeknight meals"
+                            />
+                            <p class="hint">We'll prioritize content matching your focus in the digest</p>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="form-actions" id="formActions" style="display: none;">
+                            <button type="submit" class="submit-btn" id="submitBtn">
+                                <span class="btn-text">Subscribe - It's Free</span>
+                                <span class="btn-loading" style="display: none;">
+                                    <span class="spinner"></span>
+                                    Subscribing...
+                                </span>
+                            </button>
+                            <p class="privacy-note">
+                                We'll never spam you. Unsubscribe anytime with one click.
+                            </p>
+                        </div>
+                    </form>
+
+                    <!-- Error Message -->
+                    <div id="errorMessage" class="error-message" style="display: none;">
+                        <span class="error-icon">⚠️</span>
+                        <span id="errorText">Something went wrong</span>
+                    </div>
+                </div>
+
+                <!-- Success State -->
+                <div id="successState" class="success-state" style="display: none;">
+                    <div class="success-icon">✅</div>
+                    <h2>You're subscribed!</h2>
+                    <p class="success-subreddit">r/<span id="successSubreddit">artificialintelligence</span></p>
+
+                    <div class="success-details">
+                        <div class="detail">
+                            <span class="detail-icon">📬</span>
+                            <div>
+                                <strong>Check your inbox!</strong>
+                                <p>We just sent you last week's digest so you can see what to expect.</p>
+                            </div>
+                        </div>
+                        <div class="detail">
+                            <span class="detail-icon">📅</span>
+                            <div>
+                                <strong>Your next digest arrives:</strong>
+                                <p id="nextDigestDate">Sunday, Feb 9th at 9:00 AM</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="success-actions">
+                        <button onclick="resetForm()" class="secondary-btn">
+                            Add Another Subreddit
+                        </button>
+                        <a href="manage.html" class="text-link">
+                            Manage all subscriptions →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p class="footer-links">
+                <a href="index.html">Home</a> •
+                <a href="manage.html">Manage Subscription</a>
+            </p>
+        </footer>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/subscribe.js"></script>
+</body>
+</html>

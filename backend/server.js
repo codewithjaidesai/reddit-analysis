@@ -4,6 +4,7 @@ const config = require('./config');
 const apiLimiter = require('./middleware/rateLimiter');
 const analyzeRoutes = require('./routes/analyze');
 const searchRoutes = require('./routes/search');
+const radarRoutes = require('./routes/radar');
 
 const app = express();
 
@@ -32,7 +33,12 @@ app.get('/', (req, res) => {
       analyze_auto: 'POST /api/analyze/auto',
       search_topic: 'POST /api/search/topic',
       search_subreddit: 'POST /api/search/subreddit',
-      search_prescreen: 'POST /api/search/prescreen'
+      search_prescreen: 'POST /api/search/prescreen',
+      radar_subscribe: 'POST /api/radar/subscribe',
+      radar_subscriptions: 'GET /api/radar/subscriptions',
+      radar_unsubscribe: 'POST /api/radar/unsubscribe',
+      radar_subreddit: 'GET /api/radar/subreddit/:name',
+      radar_digest: 'GET /api/radar/digest/:subreddit/latest'
     }
   });
 });
@@ -48,6 +54,7 @@ app.get('/health', (req, res) => {
 // API routes with rate limiting
 app.use('/api/analyze', apiLimiter, analyzeRoutes);
 app.use('/api/search', apiLimiter, searchRoutes);
+app.use('/api/radar', apiLimiter, radarRoutes);
 
 // 404 handler
 app.use((req, res) => {
