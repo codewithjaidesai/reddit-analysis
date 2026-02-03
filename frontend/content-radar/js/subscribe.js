@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let currentSubredditInfo = null;
+let autocompleteTimeout = null;
 
 function initSubscribePage() {
     const form = document.getElementById('subscribeForm');
@@ -19,6 +20,27 @@ function initSubscribePage() {
         if (e.key === 'Enter') {
             e.preventDefault();
             checkSubreddit();
+        }
+    });
+
+    // Autocomplete on typing
+    subredditInput.addEventListener('input', (e) => {
+        const value = e.target.value.trim();
+        if (value.length >= 2) {
+            // Debounce autocomplete
+            clearTimeout(autocompleteTimeout);
+            autocompleteTimeout = setTimeout(() => {
+                showAutocomplete(value);
+            }, 300);
+        } else {
+            hideAutocomplete();
+        }
+    });
+
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.subreddit-input-wrapper')) {
+            hideAutocomplete();
         }
     });
 
@@ -37,6 +59,107 @@ function initSubscribePage() {
         subredditInput.value = urlSubreddit;
         checkSubreddit();
     }
+
+    // Create autocomplete container
+    createAutocompleteContainer();
+}
+
+function createAutocompleteContainer() {
+    const wrapper = document.querySelector('.subreddit-input-wrapper');
+    if (!wrapper.querySelector('.autocomplete-dropdown')) {
+        const dropdown = document.createElement('div');
+        dropdown.className = 'autocomplete-dropdown';
+        dropdown.style.cssText = `
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        `;
+        wrapper.style.position = 'relative';
+        wrapper.appendChild(dropdown);
+    }
+}
+
+async function showAutocomplete(query) {
+    const dropdown = document.querySelector('.autocomplete-dropdown');
+    if (!dropdown) return;
+
+    try {
+        // Use Reddit's search API for subreddit suggestions
+        const response = await fetch(
+            `${RADAR_CONFIG.baseUrl}/api/search/subreddit-autocomplete?q=${encodeURIComponent(query)}`
+        );
+
+        if (!response.ok) {
+            // Fallback: show popular suggestions that match
+            const popular = ['artificialintelligence', 'recipes', 'WeightLossAdvice', 'menopause',
+                           'productivity', 'Fitness', 'personalfinance', 'technology', 'cooking',
+                           'nutrition', 'selfimprovement', 'Entrepreneur', 'startups', 'SaaS'];
+            const matches = popular.filter(s => s.toLowerCase().includes(query.toLowerCase()));
+
+            if (matches.length > 0) {
+                renderAutocomplete(matches.slice(0, 5));
+            } else {
+                hideAutocomplete();
+            }
+            return;
+        }
+
+        const data = await response.json();
+        if (data.subreddits && data.subreddits.length > 0) {
+            renderAutocomplete(data.subreddits.slice(0, 5));
+        } else {
+            hideAutocomplete();
+        }
+    } catch (err) {
+        // On error, show popular matches
+        const popular = ['artificialintelligence', 'recipes', 'WeightLossAdvice', 'menopause'];
+        const matches = popular.filter(s => s.toLowerCase().includes(query.toLowerCase()));
+        if (matches.length > 0) {
+            renderAutocomplete(matches);
+        } else {
+            hideAutocomplete();
+        }
+    }
+}
+
+function renderAutocomplete(subreddits) {
+    const dropdown = document.querySelector('.autocomplete-dropdown');
+    if (!dropdown) return;
+
+    dropdown.innerHTML = subreddits.map(sub => `
+        <div class="autocomplete-item" onclick="selectSubreddit('${sub}')" style="
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        " onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+            r/${sub}
+        </div>
+    `).join('');
+
+    dropdown.style.display = 'block';
+}
+
+function hideAutocomplete() {
+    const dropdown = document.querySelector('.autocomplete-dropdown');
+    if (dropdown) {
+        dropdown.style.display = 'none';
+    }
+}
+
+function selectSubreddit(name) {
+    document.getElementById('subreddit').value = name;
+    hideAutocomplete();
+    checkSubreddit();
 }
 
 async function checkSubreddit() {
@@ -55,20 +178,34 @@ async function checkSubreddit() {
     checkBtn.disabled = true;
     checkBtn.textContent = '...';
     hideError();
+    hideAutocomplete();
 
     try {
         const data = await RadarAPI.getSubredditInfo(subreddit);
+
+        // Check for API error
+        if (!data.success) {
+            throw new Error(data.error || 'Subreddit not found');
+        }
+
         currentSubredditInfo = data;
 
+        // Safely get subreddit name
+        const subName = data.subreddit?.name || data.subreddit?.subreddit || subreddit;
+        const subscribers = data.subreddit?.subscribers || 0;
+        const activityLevel = data.activity?.level || 'unknown';
+        const reason = data.activity?.reason || 'Weekly digest recommended.';
+        const recommendedFreq = data.activity?.recommendedFrequency || 'weekly';
+
         // Update info card
-        document.getElementById('subredditTitle').textContent = `r/${data.subreddit.name}`;
-        document.getElementById('subscriberCount').textContent = RadarUtils.formatNumber(data.subreddit.subscribers);
-        document.getElementById('activityLevel').textContent = RadarUtils.formatActivityLevel(data.activity.level);
-        document.getElementById('frequencyReason').textContent = data.activity.reason;
+        document.getElementById('subredditTitle').textContent = `r/${subName}`;
+        document.getElementById('subscriberCount').textContent = RadarUtils.formatNumber(subscribers);
+        document.getElementById('activityLevel').textContent = RadarUtils.formatActivityLevel(activityLevel);
+        document.getElementById('frequencyReason').textContent = reason;
 
         // Pre-select recommended frequency
-        const recommendedFreq = data.activity.recommendedFrequency || 'weekly';
-        document.querySelector(`input[name="frequency"][value="${recommendedFreq}"]`).checked = true;
+        const freqRadio = document.querySelector(`input[name="frequency"][value="${recommendedFreq}"]`);
+        if (freqRadio) freqRadio.checked = true;
 
         // Show info card and remaining fields
         infoCard.style.display = 'block';
@@ -81,6 +218,7 @@ async function checkSubreddit() {
         document.getElementById('email').focus();
 
     } catch (error) {
+        console.error('Check subreddit error:', error);
         showError(error.message || `Could not find r/${subreddit}`);
         currentSubredditInfo = null;
         infoCard.style.display = 'none';
@@ -99,9 +237,13 @@ async function handleSubmit(e) {
     }
 
     const email = document.getElementById('email').value.trim();
-    const frequency = document.querySelector('input[name="frequency"]:checked').value;
+    const frequency = document.querySelector('input[name="frequency"]:checked')?.value || 'weekly';
     const focusTopic = document.getElementById('focusTopic').value.trim() || null;
-    const subreddit = currentSubredditInfo.subreddit.name;
+
+    // Safely get subreddit name
+    const subreddit = currentSubredditInfo.subreddit?.name ||
+                      currentSubredditInfo.subreddit?.subreddit ||
+                      document.getElementById('subreddit').value.trim().replace(/^r\//, '');
 
     // Validate email
     if (!email || !email.includes('@')) {
@@ -126,9 +268,10 @@ async function handleSubmit(e) {
         RadarUtils.saveEmail(email);
 
         // Show success state
-        showSuccess(data);
+        showSuccess(data, subreddit);
 
     } catch (error) {
+        console.error('Subscribe error:', error);
         showError(error.message || 'Failed to subscribe. Please try again.');
     } finally {
         submitBtn.disabled = false;
@@ -137,14 +280,15 @@ async function handleSubmit(e) {
     }
 }
 
-function showSuccess(data) {
+function showSuccess(data, fallbackSubreddit) {
     // Hide form, show success
     document.querySelector('.subscribe-form-section').style.display = 'none';
     const successState = document.getElementById('successState');
     successState.style.display = 'block';
 
-    // Update success content
-    document.getElementById('successSubreddit').textContent = data.subscription.subreddit;
+    // Update success content - use fallback if needed
+    const subName = data.subscription?.subreddit || fallbackSubreddit;
+    document.getElementById('successSubreddit').textContent = subName;
 
     // Format next digest date
     if (data.nextDigestDate) {
@@ -187,6 +331,7 @@ function resetForm() {
     // Reset state
     currentSubredditInfo = null;
     hideError();
+    hideAutocomplete();
 
     // Focus subreddit input
     document.getElementById('subreddit').focus();

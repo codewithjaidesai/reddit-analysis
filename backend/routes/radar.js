@@ -101,10 +101,10 @@ router.post('/subscribe', async (req, res) => {
         createdAt: subscription.created_at
       },
       subredditInfo: {
-        name: subredditInfo.name,
+        name: subredditInfo.subreddit,
         title: subredditInfo.title,
         subscribers: subredditInfo.subscribers,
-        description: subredditInfo.publicDescription
+        description: subredditInfo.description
       },
       nextDigestDate,
       welcomeDigestAvailable: !!cachedDigest,
@@ -398,18 +398,20 @@ router.get('/subreddit/:name', async (req, res) => {
     res.json({
       success: true,
       subreddit: {
-        name: info.name,
+        name: info.subreddit,
         title: info.title,
-        description: info.publicDescription,
+        description: info.description,
         subscribers: info.subscribers,
-        created: info.created
+        created: info.created,
+        postsPerDay: info.postsPerDay,
+        activityLevel: info.activityLevel
       },
       activity: {
-        level: stats.activity_level,
-        postsPerDay: stats.posts_per_day,
-        avgCommentsPerPost: stats.avg_comments_per_post,
-        recommendedFrequency: stats.recommended_frequency,
-        reason: stats.reason || getActivityReason(stats.activity_level)
+        level: stats?.activity_level || info.activityLevel,
+        postsPerDay: stats?.posts_per_day || info.postsPerDay,
+        avgCommentsPerPost: stats?.avg_comments_per_post,
+        recommendedFrequency: stats?.recommended_frequency || (info.activityLevel === 'high' ? 'daily' : 'weekly'),
+        reason: stats?.reason || getActivityReason(stats?.activity_level || info.activityLevel)
       }
     });
 
