@@ -135,18 +135,33 @@ function renderAutocomplete(subreddits) {
     const dropdown = document.querySelector('.autocomplete-dropdown');
     if (!dropdown) return;
 
-    dropdown.innerHTML = subreddits.map(sub => `
-        <div class="autocomplete-item" onclick="selectSubreddit('${sub}')" style="
-            padding: 12px 16px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--border);
-            transition: background 0.2s;
-        " onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
-            r/${sub}
-        </div>
-    `).join('');
+    dropdown.innerHTML = subreddits.map(sub => {
+        // Handle both string and object formats
+        const name = typeof sub === 'string' ? sub : sub.name;
+        const subscribers = typeof sub === 'object' && sub.subscribers
+            ? ` (${formatSubCount(sub.subscribers)})`
+            : '';
+
+        return `
+            <div class="autocomplete-item" onclick="selectSubreddit('${name}')" style="
+                padding: 12px 16px;
+                cursor: pointer;
+                border-bottom: 1px solid var(--border);
+                transition: background 0.2s;
+            " onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+                <span style="color: var(--text-primary)">r/${name}</span>
+                <span style="color: var(--text-muted); font-size: 0.85em;">${subscribers}</span>
+            </div>
+        `;
+    }).join('');
 
     dropdown.style.display = 'block';
+}
+
+function formatSubCount(count) {
+    if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M members';
+    if (count >= 1000) return (count / 1000).toFixed(0) + 'K members';
+    return count + ' members';
 }
 
 function hideAutocomplete() {

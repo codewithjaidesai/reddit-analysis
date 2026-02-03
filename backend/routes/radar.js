@@ -332,23 +332,42 @@ router.post('/resubscribe', async (req, res) => {
  */
 router.get('/subreddit/:name', async (req, res) => {
   try {
-    const subreddit = req.params.name.replace(/^r\//, '').toLowerCase();
+    // Don't lowercase - Reddit subreddit names can be case-sensitive for display
+    const subreddit = req.params.name.replace(/^r\//, '').trim();
+
+    console.log(`Fetching subreddit info for: ${subreddit}`);
 
     // Get basic subreddit info
     const info = await getSubredditInfo(subreddit);
 
-    // Try to get cached stats
-    let stats = await db.getSubredditStats(subreddit);
+    console.log(`Subreddit info received:`, {
+      name: info.subreddit,
+      subscribers: info.subscribers,
+      activityLevel: info.activityLevel
+    });
 
-    // If no cached stats or stale (> 24 hours), calculate fresh
+    // If we got valid subscriber data from the info call, use it
+    const subscribers = info.subscribers || 0;
+    const activityLevel = info.activityLevel || 'medium';
+    const postsPerDay = info.postsPerDay || 0;
+
+    // Try to get cached stats (but don't fail if DB isn't connected)
+    let stats = null;
+    try {
+      stats = await db.getSubredditStats(subreddit.toLowerCase());
+    } catch (dbErr) {
+      console.log('Could not fetch cached stats (DB may not be connected):', dbErr.message);
+    }
+
+    // If no cached stats or stale (> 24 hours), try to calculate fresh
     const isStale = !stats || (Date.now() - new Date(stats.last_updated).getTime() > 24 * 60 * 60 * 1000);
 
-    if (isStale) {
-      // Fetch recent posts to calculate activity
+    if (isStale && subscribers > 0) {
+      // Only try to calculate activity if we got valid subscriber data
       try {
         const { buckets } = await fetchTimeBucketedPosts(subreddit, 'quick'); // 30 days
         const totalPosts = buckets.reduce((sum, b) => sum + b.posts.length, 0);
-        const postsPerDay = totalPosts / 30;
+        const calculatedPostsPerDay = totalPosts / 30;
 
         const allPosts = buckets.flatMap(b => b.posts);
         const avgComments = allPosts.length > 0
@@ -356,62 +375,74 @@ router.get('/subreddit/:name', async (req, res) => {
           : 0;
 
         // Classify activity
-        const activityScore = postsPerDay * (1 + avgComments / 50);
-        let activityLevel, recommendedFrequency, reason;
+        const activityScore = calculatedPostsPerDay * (1 + avgComments / 50);
+        let calculatedActivityLevel, recommendedFrequency, reason;
 
         if (activityScore > 200) {
-          activityLevel = 'high';
+          calculatedActivityLevel = 'high';
           recommendedFrequency = 'daily';
           reason = 'High-activity community. Daily keeps you ahead of trends.';
         } else if (activityScore > 50) {
-          activityLevel = 'medium';
+          calculatedActivityLevel = 'medium';
           recommendedFrequency = 'weekly';
           reason = 'Moderate activity. Weekly captures the best without noise.';
         } else {
-          activityLevel = 'low';
+          calculatedActivityLevel = 'low';
           recommendedFrequency = 'weekly';
           reason = 'Thoughtful community. Weekly digest is ideal.';
         }
 
-        // Save stats
-        stats = await db.saveSubredditStats({
-          subreddit,
-          subscribers: info.subscribers,
-          postsPerDay,
-          avgCommentsPerPost: avgComments,
-          activityLevel,
-          recommendedFrequency
-        });
-
-        stats.reason = reason;
+        // Try to save stats
+        try {
+          stats = await db.saveSubredditStats({
+            subreddit: subreddit.toLowerCase(),
+            subscribers,
+            postsPerDay: calculatedPostsPerDay,
+            avgCommentsPerPost: avgComments,
+            activityLevel: calculatedActivityLevel,
+            recommendedFrequency
+          });
+          stats.reason = reason;
+        } catch (saveErr) {
+          console.log('Could not save stats:', saveErr.message);
+          stats = {
+            activity_level: calculatedActivityLevel,
+            posts_per_day: calculatedPostsPerDay,
+            avg_comments_per_post: avgComments,
+            recommended_frequency: recommendedFrequency,
+            reason
+          };
+        }
       } catch (err) {
-        console.error('Error calculating activity stats:', err);
-        // Return basic info without stats
+        console.error('Error calculating activity stats:', err.message);
+        // Use data from info call as fallback
         stats = {
-          activity_level: 'unknown',
-          recommended_frequency: 'weekly',
-          reason: 'Unable to calculate activity level.'
+          activity_level: activityLevel,
+          posts_per_day: postsPerDay,
+          recommended_frequency: activityLevel === 'high' ? 'daily' : 'weekly',
+          reason: getActivityReason(activityLevel)
         };
       }
     }
 
+    // Build final response using best available data
     res.json({
       success: true,
       subreddit: {
         name: info.subreddit,
         title: info.title,
         description: info.description,
-        subscribers: info.subscribers,
+        subscribers: subscribers,
         created: info.created,
-        postsPerDay: info.postsPerDay,
-        activityLevel: info.activityLevel
+        postsPerDay: stats?.posts_per_day || postsPerDay,
+        activityLevel: stats?.activity_level || activityLevel
       },
       activity: {
-        level: stats?.activity_level || info.activityLevel,
-        postsPerDay: stats?.posts_per_day || info.postsPerDay,
+        level: stats?.activity_level || activityLevel,
+        postsPerDay: stats?.posts_per_day || postsPerDay,
         avgCommentsPerPost: stats?.avg_comments_per_post,
-        recommendedFrequency: stats?.recommended_frequency || (info.activityLevel === 'high' ? 'daily' : 'weekly'),
-        reason: stats?.reason || getActivityReason(stats?.activity_level || info.activityLevel)
+        recommendedFrequency: stats?.recommended_frequency || (activityLevel === 'high' ? 'daily' : 'weekly'),
+        reason: stats?.reason || getActivityReason(stats?.activity_level || activityLevel)
       }
     });
 
