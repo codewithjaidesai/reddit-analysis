@@ -156,6 +156,20 @@
                         </div>
                     </div>
 
+                    <!-- Preview Digest Section -->
+                    <div class="preview-section" id="previewSection">
+                        <p class="preview-intro">Don't want to wait? Get a sample digest now:</p>
+                        <button id="sendPreviewBtn" onclick="sendPreviewDigest()" class="preview-btn">
+                            <span class="btn-text">📬 Send me last week's digest</span>
+                            <span class="btn-loading" style="display: none;">
+                                <span class="spinner"></span>
+                                Generating digest...
+                            </span>
+                        </button>
+                        <p class="preview-note">Takes ~30 seconds to generate with AI</p>
+                        <div id="previewResult" class="preview-result" style="display: none;"></div>
+                    </div>
+
                     <div class="success-actions">
                         <button onclick="resetForm()" class="secondary-btn">
                             Add Another Subreddit

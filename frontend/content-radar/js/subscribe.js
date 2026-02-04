@@ -325,9 +325,12 @@ function showSuccess(data, fallbackSubreddit) {
         document.getElementById('nextDigestDate').textContent = RadarUtils.formatDate(data.nextDigestDate);
     }
 
-    // Store unsubscribe token for potential use
+    // Store subscription info for preview digest
     if (data.unsubscribeToken) {
         sessionStorage.setItem('lastUnsubscribeToken', data.unsubscribeToken);
+    }
+    if (data.subscription?.id) {
+        sessionStorage.setItem('lastSubscriptionId', data.subscription.id);
     }
 }
 
@@ -365,4 +368,81 @@ function resetForm() {
 
     // Focus subreddit input
     document.getElementById('subreddit').focus();
+
+    // Reset preview section
+    const previewSection = document.getElementById('previewSection');
+    if (previewSection) {
+        previewSection.style.display = 'block';
+        const previewBtn = document.getElementById('sendPreviewBtn');
+        if (previewBtn) {
+            previewBtn.disabled = false;
+            previewBtn.querySelector('.btn-text').style.display = 'block';
+            previewBtn.querySelector('.btn-loading').style.display = 'none';
+        }
+        const previewResult = document.getElementById('previewResult');
+        if (previewResult) {
+            previewResult.style.display = 'none';
+        }
+    }
+}
+
+// Send preview digest
+async function sendPreviewDigest() {
+    const subscriptionId = sessionStorage.getItem('lastSubscriptionId');
+    const token = sessionStorage.getItem('lastUnsubscribeToken');
+
+    if (!subscriptionId && !token) {
+        showPreviewResult(false, 'No subscription found. Please subscribe first.');
+        return;
+    }
+
+    const btn = document.getElementById('sendPreviewBtn');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoading = btn.querySelector('.btn-loading');
+    const previewResult = document.getElementById('previewResult');
+
+    // Show loading state
+    btn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'flex';
+    previewResult.style.display = 'none';
+
+    try {
+        const response = await fetch(`${RADAR_CONFIG.baseUrl}/api/radar/send-preview`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                subscriptionId: subscriptionId,
+                token: token
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showPreviewResult(true, 'Digest sent! Check your inbox in a minute.');
+            // Hide the preview section after success
+            setTimeout(() => {
+                document.getElementById('previewSection').style.display = 'none';
+            }, 5000);
+        } else {
+            throw new Error(data.error || 'Failed to send preview');
+        }
+
+    } catch (error) {
+        console.error('Preview error:', error);
+        showPreviewResult(false, error.message || 'Failed to send preview. Please try again.');
+        btn.disabled = false;
+        btnText.style.display = 'block';
+        btnLoading.style.display = 'none';
+    }
+}
+
+function showPreviewResult(success, message) {
+    const previewResult = document.getElementById('previewResult');
+    previewResult.className = `preview-result ${success ? 'success' : 'error'}`;
+    previewResult.textContent = message;
+    previewResult.style.display = 'block';
 }

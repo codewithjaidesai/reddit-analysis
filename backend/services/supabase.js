@@ -147,6 +147,24 @@ async function getSubscriptionByToken(token) {
 }
 
 /**
+ * Get subscription by ID
+ * @param {string} id - Subscription ID
+ * @returns {Promise<Object|null>}
+ */
+async function getSubscriptionById(id) {
+  if (!supabase) throw new Error('Database not configured');
+
+  const { data, error } = await supabase
+    .from('digest_subscriptions')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
  * Unsubscribe using token
  * @param {string} token - Unsubscribe token
  * @param {string} [reason] - Optional reason for unsubscribing
@@ -637,6 +655,7 @@ module.exports = {
   createSubscription,
   getSubscriptionsByEmail,
   getSubscriptionByToken,
+  getSubscriptionById,
   unsubscribe,
   resubscribe,
   updateSubscription,
