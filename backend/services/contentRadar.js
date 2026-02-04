@@ -336,7 +336,119 @@ Return ONLY valid JSON, no markdown code blocks.`;
 }
 
 /**
+ * Extract all comments from posts for validation
+ * @param {Array} postsWithComments - Posts with their comments
+ * @returns {Map} Map of normalized text -> original comment
+ */
+function extractAllComments(postsWithComments) {
+  const comments = new Map();
+
+  for (const post of postsWithComments) {
+    if (!post.comments) continue;
+
+    for (const comment of post.comments) {
+      if (!comment.body) continue;
+
+      // Store with normalized key for fuzzy matching
+      const normalized = normalizeText(comment.body);
+      comments.set(normalized, {
+        body: comment.body,
+        author: comment.author,
+        score: comment.score,
+        postTitle: post.title
+      });
+
+      // Also store first 100 chars for partial matches
+      if (normalized.length > 100) {
+        comments.set(normalized.substring(0, 100), {
+          body: comment.body,
+          author: comment.author,
+          score: comment.score,
+          postTitle: post.title
+        });
+      }
+    }
+  }
+
+  return comments;
+}
+
+/**
+ * Normalize text for comparison
+ */
+function normalizeText(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' ')    // Normalize whitespace
+    .trim();
+}
+
+/**
+ * Validate a quote against real comments
+ * Returns the quote with verified data, or null if not found
+ */
+function validateQuote(voice, realComments) {
+  if (!voice || !voice.quote) return null;
+
+  const normalizedQuote = normalizeText(voice.quote);
+
+  // Try exact match first
+  if (realComments.has(normalizedQuote)) {
+    const real = realComments.get(normalizedQuote);
+    return {
+      quote: real.body.substring(0, 300), // Use actual text, cap length
+      author: real.author,
+      score: real.score,
+      context: voice.context || `From: "${real.postTitle}"`
+    };
+  }
+
+  // Try partial match (quote might be truncated)
+  for (const [key, real] of realComments.entries()) {
+    // Check if the AI quote is a substring of a real comment
+    if (key.includes(normalizedQuote) || normalizedQuote.includes(key.substring(0, 50))) {
+      return {
+        quote: real.body.substring(0, 300),
+        author: real.author,
+        score: real.score,
+        context: voice.context || `From: "${real.postTitle}"`
+      };
+    }
+  }
+
+  // Quote not found in source data - reject it
+  console.log(`[Quote Validation] REJECTED - Quote not found in source: "${voice.quote.substring(0, 50)}..."`);
+  return null;
+}
+
+/**
+ * Validate a thread reply against real comments
+ */
+function validateReply(reply, realComments) {
+  if (!reply || !reply.text) return null;
+
+  const normalizedText = normalizeText(reply.text);
+
+  // Try to find matching comment
+  for (const [key, real] of realComments.entries()) {
+    if (key.includes(normalizedText) || normalizedText.includes(key.substring(0, 50))) {
+      return {
+        text: real.body.substring(0, 200),
+        author: real.author,
+        score: real.score
+      };
+    }
+  }
+
+  // Reply not found - reject it
+  console.log(`[Quote Validation] REJECTED reply: "${reply.text.substring(0, 50)}..."`);
+  return null;
+}
+
+/**
  * Parse the AI response into digest format
+ * Validates quotes against actual source data to prevent hallucinations
  */
 function parseDigestResponse(response, posts, postsWithComments) {
   try {
@@ -353,6 +465,25 @@ function parseDigestResponse(response, posts, postsWithComments) {
     }
 
     const parsed = JSON.parse(cleaned);
+
+    // Build a set of all real comments for validation
+    const realComments = extractAllComments(postsWithComments);
+
+    // Validate and filter voicesOfTheWeek - only keep verified quotes
+    if (parsed.voicesOfTheWeek && Array.isArray(parsed.voicesOfTheWeek)) {
+      parsed.voicesOfTheWeek = parsed.voicesOfTheWeek
+        .map(voice => validateQuote(voice, realComments))
+        .filter(voice => voice !== null);
+
+      console.log(`[Quote Validation] Kept ${parsed.voicesOfTheWeek.length} verified voices`);
+    }
+
+    // Validate threadOfTheWeek replies
+    if (parsed.threadOfTheWeek && parsed.threadOfTheWeek.topReplies) {
+      parsed.threadOfTheWeek.topReplies = parsed.threadOfTheWeek.topReplies
+        .map(reply => validateReply(reply, realComments))
+        .filter(reply => reply !== null);
+    }
 
     // Enhance with actual post data
     if (parsed.coverStory && typeof parsed.coverStory.postIndex === 'number') {
