@@ -173,18 +173,23 @@ router.get('/subreddit-autocomplete', async (req, res) => {
 
     console.log('Subreddit autocomplete search:', cleanQuery);
 
-    // Use Reddit's subreddit search API
+    // Use authenticated Reddit OAuth API to avoid rate limiting
+    const { getRedditAccessToken } = require('../services/reddit');
+    const accessToken = await getRedditAccessToken();
+
     const response = await fetch(
-      `https://www.reddit.com/subreddits/search.json?q=${encodeURIComponent(cleanQuery)}&limit=8`,
+      `https://oauth.reddit.com/subreddits/search?q=${encodeURIComponent(cleanQuery)}&limit=8`,
       {
         headers: {
+          'Authorization': `bearer ${accessToken}`,
           'User-Agent': 'VoiceOfCustomer/1.0'
         }
       }
     );
 
     if (!response.ok) {
-      throw new Error('Reddit API error');
+      console.error('Reddit API response not ok:', response.status, response.statusText);
+      throw new Error(`Reddit API error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -203,7 +208,8 @@ router.get('/subreddit-autocomplete', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Subreddit autocomplete error:', error);
+    console.error('Subreddit autocomplete error:', error.message);
+    // Return empty array on error so UI doesn't break
     res.json({
       success: true,
       subreddits: []

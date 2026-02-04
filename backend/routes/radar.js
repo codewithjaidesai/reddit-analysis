@@ -365,13 +365,19 @@ router.get('/subreddit/:name', async (req, res) => {
     if (isStale && subscribers > 0) {
       // Only try to calculate activity if we got valid subscriber data
       try {
-        const { buckets } = await fetchTimeBucketedPosts(subreddit, 'quick'); // 30 days
-        const totalPosts = buckets.reduce((sum, b) => sum + b.posts.length, 0);
+        const result = await fetchTimeBucketedPosts(subreddit, 'quick'); // 30 days
+        const buckets = result?.buckets || [];
+
+        if (!buckets || buckets.length === 0) {
+          throw new Error('No posts data returned');
+        }
+
+        const totalPosts = buckets.reduce((sum, b) => sum + (b.posts?.length || 0), 0);
         const calculatedPostsPerDay = totalPosts / 30;
 
-        const allPosts = buckets.flatMap(b => b.posts);
+        const allPosts = buckets.flatMap(b => b.posts || []);
         const avgComments = allPosts.length > 0
-          ? allPosts.reduce((sum, p) => sum + (p.numComments || 0), 0) / allPosts.length
+          ? allPosts.reduce((sum, p) => sum + (p?.numComments || 0), 0) / allPosts.length
           : 0;
 
         // Classify activity
