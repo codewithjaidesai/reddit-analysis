@@ -305,6 +305,21 @@ function showSuccess(data, fallbackSubreddit) {
     const subName = data.subscription?.subreddit || fallbackSubreddit;
     document.getElementById('successSubreddit').textContent = subName;
 
+    // Update email status message based on whether email was sent
+    const emailIcon = document.getElementById('emailStatusIcon');
+    const emailTitle = document.getElementById('emailStatusTitle');
+    const emailText = document.getElementById('emailStatusText');
+
+    if (data.welcomeEmailSent) {
+        emailIcon.textContent = '📬';
+        emailTitle.textContent = 'Check your inbox!';
+        emailText.textContent = 'We sent you a welcome email with what to expect.';
+    } else {
+        emailIcon.textContent = '📅';
+        emailTitle.textContent = 'You\'re all set!';
+        emailText.textContent = 'Your first digest will arrive on the scheduled day.';
+    }
+
     // Format next digest date
     if (data.nextDigestDate) {
         document.getElementById('nextDigestDate').textContent = RadarUtils.formatDate(data.nextDigestDate);
