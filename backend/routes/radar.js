@@ -536,6 +536,87 @@ function getActivityReason(level) {
 // ============================================
 
 /**
+ * POST /api/radar/send-preview
+ * Send a preview digest to the subscriber (for manual triggering)
+ */
+router.post('/send-preview', async (req, res) => {
+  try {
+    const { subscriptionId, token } = req.body;
+
+    if (!subscriptionId && !token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Either subscriptionId or token is required'
+      });
+    }
+
+    // Get subscription
+    let subscription;
+    if (token) {
+      subscription = await db.getSubscriptionByToken(token);
+    } else {
+      subscription = await db.getSubscriptionById(subscriptionId);
+    }
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        error: 'Subscription not found'
+      });
+    }
+
+    if (!subscription.is_active) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subscription is not active'
+      });
+    }
+
+    console.log(`[Preview] Generating digest for ${subscription.email} - r/${subscription.subreddit}...`);
+
+    // Generate the digest
+    const digest = await generateDigest({
+      subreddit: subscription.subreddit,
+      subscriptionId: subscription.id,
+      focusTopic: subscription.focus_topic,
+      frequency: subscription.frequency
+    });
+
+    // Send the email
+    const { sendDigestEmail } = require('../services/emailService');
+    await sendDigestEmail({
+      to: subscription.email,
+      subreddit: subscription.subreddit,
+      digest,
+      unsubscribeToken: subscription.unsubscribe_token,
+      isWelcome: true // Mark as welcome so it shows the banner
+    });
+
+    console.log(`[Preview] Successfully sent digest preview to ${subscription.email}`);
+
+    res.json({
+      success: true,
+      message: `Preview digest sent to ${subscription.email}`,
+      digest: {
+        subreddit: subscription.subreddit,
+        periodStart: digest.periodStart,
+        periodEnd: digest.periodEnd,
+        quickHitsCount: digest.quickHits?.length || 0,
+        hasCoverStory: !!digest.coverStory,
+        contentIdeasCount: digest.contentIdeas?.length || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('Send preview error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to send preview digest'
+    });
+  }
+});
+
+/**
  * POST /api/radar/admin/generate
  * Manually generate a digest (for testing)
  */
