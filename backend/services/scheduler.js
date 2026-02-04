@@ -151,78 +151,31 @@ async function processSubscriptionDigest(subscription) {
 }
 
 /**
- * Send a welcome digest immediately after subscription
+ * Send a welcome email immediately after subscription
+ * This sends a simple welcome message to avoid serverless timeout
+ * The first full digest will arrive on the scheduled day
  */
 async function sendWelcomeDigest(subscription) {
-  const { id, email, subreddit, focus_topic, unsubscribe_token } = subscription;
+  const { id, email, subreddit, frequency, unsubscribe_token } = subscription;
 
-  console.log(`[Welcome Digest] Starting for ${email} - r/${subreddit}`);
-  console.log(`[Welcome Digest] Subscription ID: ${id}, Has unsubscribe token: ${!!unsubscribe_token}`);
+  console.log(`[Welcome Email] Starting for ${email} - r/${subreddit}`);
 
   try {
-    // First, check if we have a cached digest
-    let digest = null;
-    try {
-      digest = await db.getCachedDigest(subreddit);
-      console.log(`[Welcome Digest] Cached digest found: ${!!digest}`);
-    } catch (cacheErr) {
-      console.log(`[Welcome Digest] Cache check failed (DB may not be connected): ${cacheErr.message}`);
-    }
+    // Send a simple welcome email (no AI generation to avoid timeout)
+    const { sendWelcomeEmail } = require('./emailService');
 
-    if (!digest) {
-      // Generate a fresh digest
-      console.log(`[Welcome Digest] No cached digest for r/${subreddit}, generating...`);
-      try {
-        const freshDigest = await generateDigest({
-          subreddit,
-          subscriptionId: id,
-          focusTopic: focus_topic,
-          frequency: 'weekly'
-        });
-        console.log(`[Welcome Digest] Fresh digest generated with ${freshDigest.metrics?.totalPosts || 0} posts`);
-
-        // Try to cache it for future welcome emails
-        try {
-          const now = new Date();
-          const weekStart = new Date(now);
-          weekStart.setDate(weekStart.getDate() - 7);
-
-          await db.cacheDigest({
-            subreddit,
-            weekStart: weekStart.toISOString().split('T')[0],
-            weekEnd: now.toISOString().split('T')[0],
-            digestContent: freshDigest,
-            postCount: freshDigest.metrics?.totalPosts,
-            commentCount: freshDigest.metrics?.totalComments
-          });
-          console.log(`[Welcome Digest] Digest cached for future use`);
-        } catch (cacheWriteErr) {
-          console.log(`[Welcome Digest] Could not cache digest: ${cacheWriteErr.message}`);
-        }
-
-        digest = { digest_content: freshDigest };
-      } catch (genErr) {
-        console.error(`[Welcome Digest] Failed to generate digest: ${genErr.message}`);
-        throw genErr;
-      }
-    }
-
-    // Send welcome email
-    console.log(`[Welcome Digest] Sending email to ${email}...`);
-    const emailResult = await sendDigestEmail({
+    const result = await sendWelcomeEmail({
       to: email,
       subreddit,
-      digest: digest.digest_content,
-      unsubscribeToken: unsubscribe_token,
-      isWelcome: true
+      frequency: frequency || 'weekly',
+      unsubscribeToken: unsubscribe_token
     });
 
-    console.log(`[Welcome Digest] Email sent to ${email}:`, emailResult);
-    return { success: true, ...emailResult };
+    console.log(`[Welcome Email] Sent to ${email}:`, result);
+    return { success: true, ...result };
 
   } catch (error) {
-    console.error(`[Welcome Digest] FAILED for ${email}:`, error.message);
-    console.error(`[Welcome Digest] Stack:`, error.stack);
+    console.error(`[Welcome Email] FAILED for ${email}:`, error.message);
     // Don't throw - welcome email failure shouldn't break subscription
     return { success: false, error: error.message };
   }

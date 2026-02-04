@@ -14,5 +14,15 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/welcome-digests",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-digests",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }
