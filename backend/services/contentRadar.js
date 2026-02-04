@@ -19,31 +19,43 @@ const db = require('./supabase');
  * @param {string} params.frequency - 'daily' or 'weekly'
  * @returns {Promise<Object>} Generated digest
  */
-async function generateDigest({ subreddit, subscriptionId = null, focusTopic = null, frequency = 'weekly' }) {
-  console.log(`Generating ${frequency} digest for r/${subreddit}...`);
+async function generateDigest({ subreddit, subscriptionId = null, focusTopic = null, frequency = 'weekly', isPreview = false }) {
+  console.log(`Generating ${frequency} digest for r/${subreddit}... (preview: ${isPreview})`);
 
   // Calculate time period
+  // For previews and first digests, always use 7 days to ensure we have content
   const periodEnd = new Date();
   const periodStart = new Date();
-  if (frequency === 'daily') {
-    periodStart.setDate(periodStart.getDate() - 1);
-  } else {
-    periodStart.setDate(periodStart.getDate() - 7);
-  }
+  const lookbackDays = (frequency === 'daily' && !isPreview) ? 1 : 7;
+  periodStart.setDate(periodStart.getDate() - lookbackDays);
+
+  console.log(`[Digest] Period: ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
 
   // Fetch subreddit info
   const subredditInfo = await getSubredditInfo(subreddit);
 
-  // Fetch posts for the period (using 'quick' depth for weekly, even quicker for daily)
-  const depth = frequency === 'daily' ? 'quick' : 'quick';
-  const { buckets } = await fetchTimeBucketedPosts(subreddit, depth);
+  // Fetch posts - use 'medium' depth for better coverage
+  const { buckets } = await fetchTimeBucketedPosts(subreddit, 'medium');
+
+  console.log(`[Digest] Fetched ${buckets?.length || 0} buckets`);
+  const totalPosts = buckets?.reduce((sum, b) => sum + (b.posts?.length || 0), 0) || 0;
+  console.log(`[Digest] Total posts fetched: ${totalPosts}`);
 
   // Filter to only include posts from our period
   const periodPosts = filterPostsByPeriod(buckets, periodStart, periodEnd);
 
+  console.log(`[Digest] Posts in period: ${periodPosts.length}`);
+
   if (periodPosts.length === 0) {
-    console.log(`No posts found for r/${subreddit} in the specified period`);
-    return createEmptyDigest(subreddit, periodStart, periodEnd, frequency);
+    console.log(`[Digest] No posts found for r/${subreddit} in the specified period, using all recent posts`);
+    // Fallback: use all posts if none match the period (common for less active subreddits)
+    const allPosts = buckets?.flatMap(b => b.posts || []).sort((a, b) => (b.score || 0) - (a.score || 0)) || [];
+    if (allPosts.length === 0) {
+      return createEmptyDigest(subreddit, periodStart, periodEnd, frequency);
+    }
+    // Use the recent posts even if outside the strict period
+    periodPosts.push(...allPosts.slice(0, 30));
+    console.log(`[Digest] Using ${periodPosts.length} recent posts as fallback`);
   }
 
   // Sample top posts for comment analysis

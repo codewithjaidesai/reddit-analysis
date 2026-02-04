@@ -75,11 +75,19 @@ header {
 }
 
 .logo h1 {
-    font-size: 2rem;
+    font-size: 1.8rem;
     background: var(--accent-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    margin: 0;
+}
+
+.brand-feature {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 2px 0 0 0;
+    font-weight: 500;
 }
 
 .subtitle {

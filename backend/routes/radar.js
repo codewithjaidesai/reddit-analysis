@@ -574,12 +574,13 @@ router.post('/send-preview', async (req, res) => {
 
     console.log(`[Preview] Generating digest for ${subscription.email} - r/${subscription.subreddit}...`);
 
-    // Generate the digest
+    // Generate the digest with isPreview flag to ensure we get content
     const digest = await generateDigest({
       subreddit: subscription.subreddit,
       subscriptionId: subscription.id,
       focusTopic: subscription.focus_topic,
-      frequency: subscription.frequency
+      frequency: subscription.frequency,
+      isPreview: true  // Always use 7-day window for preview digests
     });
 
     // Send the email
