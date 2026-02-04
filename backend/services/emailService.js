@@ -480,7 +480,95 @@ async function sendNotificationEmail({ to, subject, message }) {
   }
 }
 
+/**
+ * Send a simple welcome email (fast, no AI generation)
+ */
+async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) {
+  console.log(`[Email Service] sendWelcomeEmail called for ${to}, subreddit: ${subreddit}`);
+
+  const unsubscribeUrl = `${baseUrl}/content-radar/unsubscribe.html?token=${unsubscribeToken}`;
+  const manageUrl = `${baseUrl}/content-radar/manage.html`;
+
+  const nextDigestDay = frequency === 'daily' ? 'tomorrow morning' : 'this Sunday morning';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 20px;">
+  <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #9f7aea 100%); color: white; padding: 30px; text-align: center;">
+      <h1 style="margin: 0; font-size: 24px;">Welcome to Content Radar!</h1>
+    </div>
+    <div style="padding: 30px;">
+      <p style="font-size: 16px; color: #333;">You're now subscribed to <strong style="color: #667eea;">r/${subreddit}</strong></p>
+
+      <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">📅 Your first digest arrives:</p>
+        <p style="margin: 0; font-size: 18px; font-weight: 600; color: #333;">${nextDigestDay}</p>
+      </div>
+
+      <p style="font-size: 14px; color: #666; line-height: 1.6;">
+        Each ${frequency} digest includes:
+      </p>
+      <ul style="font-size: 14px; color: #666; line-height: 1.8;">
+        <li>🔥 Top discussions & trending topics</li>
+        <li>💬 Memorable quotes from the community</li>
+        <li>💡 Content ideas tailored for creators</li>
+        <li>📊 Community pulse & metrics</li>
+      </ul>
+
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="${baseUrl}/content-radar/subscribe.html" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #9f7aea 100%); color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Add Another Subreddit</a>
+      </div>
+    </div>
+    <div style="padding: 20px; background: #f8f9fa; font-size: 12px; color: #666; text-align: center;">
+      <a href="${unsubscribeUrl}" style="color: #667eea; text-decoration: none;">Unsubscribe</a> ·
+      <a href="${manageUrl}" style="color: #667eea; text-decoration: none;">Manage Preferences</a>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  if (!resend) {
+    console.log('[Email Service] SIMULATED welcome email to:', to);
+    return { success: true, simulated: true };
+  }
+
+  try {
+    console.log(`[Email Service] Sending welcome email via Resend to ${to}...`);
+
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: to,
+      subject: `👋 Welcome to Content Radar! You're subscribed to r/${subreddit}`,
+      html: html,
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+      }
+    });
+
+    if (error) {
+      console.error('[Email Service] Resend error:', JSON.stringify(error));
+      throw new Error(error.message || 'Resend API error');
+    }
+
+    console.log(`[Email Service] Welcome email SUCCESS - ID: ${data?.id}`);
+    return { success: true, messageId: data?.id };
+
+  } catch (error) {
+    console.error('[Email Service] Welcome email FAILED:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   sendDigestEmail,
-  sendNotificationEmail
+  sendNotificationEmail,
+  sendWelcomeEmail
 };

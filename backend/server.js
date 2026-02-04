@@ -8,6 +8,9 @@ const radarRoutes = require('./routes/radar');
 
 const app = express();
 
+// Trust proxy for Vercel/cloud deployments (needed for rate limiting)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors(config.cors));
 app.use(express.json({ limit: '10mb' }));
