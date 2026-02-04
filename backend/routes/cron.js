@@ -11,14 +11,20 @@ const { sendDigestEmail } = require('../services/emailService');
 
 /**
  * GET /api/cron/welcome-digests
- * Process pending welcome digests (called by Vercel Cron)
+ * Process pending welcome digests (called by Vercel Cron or manually)
+ *
+ * Can also be triggered manually via POST for testing
  */
-router.get('/welcome-digests', async (req, res) => {
-  // Verify cron secret (Vercel adds this header)
+router.get('/welcome-digests', processWelcomeDigests);
+router.post('/welcome-digests', processWelcomeDigests);
+
+async function processWelcomeDigests(req, res) {
+  // Verify cron secret for automated calls (skip for POST manual triggers during testing)
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // For GET requests from Vercel cron, verify the secret
+  if (req.method === 'GET' && cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     console.log('[Cron] Unauthorized cron request');
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -90,7 +96,7 @@ router.get('/welcome-digests', async (req, res) => {
       error: error.message
     });
   }
-});
+}
 
 /**
  * GET /api/cron/scheduled-digests

@@ -18,7 +18,7 @@
   "crons": [
     {
       "path": "/api/cron/welcome-digests",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/cron/scheduled-digests",
