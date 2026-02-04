@@ -30,26 +30,66 @@ function generateUnsubscribeToken() {
 // ============================================
 
 /**
- * Create a new subscription
+ * Create a new subscription or reactivate an inactive one
  * @param {Object} params - Subscription parameters
  * @param {string} params.email - User's email
  * @param {string} params.subreddit - Subreddit name (without r/)
  * @param {string} params.frequency - 'daily' or 'weekly'
  * @param {string} [params.focusTopic] - Optional focus topic for personalization
- * @returns {Promise<Object>} Created subscription
+ * @returns {Promise<Object>} Created or reactivated subscription
  */
 async function createSubscription({ email, subreddit, frequency = 'weekly', focusTopic = null }) {
   if (!supabase) throw new Error('Database not configured');
 
-  // Normalize subreddit (remove r/ prefix if present)
+  // Normalize inputs
+  const normalizedEmail = email.toLowerCase().trim();
   const normalizedSubreddit = subreddit.replace(/^r\//, '').toLowerCase();
 
+  // First, check if there's an existing subscription (active or inactive)
+  const { data: existing, error: checkError } = await supabase
+    .from('digest_subscriptions')
+    .select('*')
+    .eq('email', normalizedEmail)
+    .eq('subreddit', normalizedSubreddit)
+    .single();
+
+  if (checkError && checkError.code !== 'PGRST116') {
+    throw checkError;
+  }
+
+  // If exists and active, throw error
+  if (existing && existing.is_active) {
+    throw new Error(`Already subscribed to r/${normalizedSubreddit}`);
+  }
+
+  // If exists but inactive, reactivate it
+  if (existing && !existing.is_active) {
+    const { data: reactivated, error: reactivateError } = await supabase
+      .from('digest_subscriptions')
+      .update({
+        is_active: true,
+        frequency,
+        focus_topic: focusTopic,
+        unsubscribed_at: null,
+        unsubscribe_reason: null,
+        last_sent_at: null // Reset so they get welcome digest
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if (reactivateError) throw reactivateError;
+    console.log(`Reactivated subscription for ${normalizedEmail} to r/${normalizedSubreddit}`);
+    return reactivated;
+  }
+
+  // Create new subscription
   const unsubscribeToken = generateUnsubscribeToken();
 
   const { data, error } = await supabase
     .from('digest_subscriptions')
     .insert({
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       subreddit: normalizedSubreddit,
       frequency,
       focus_topic: focusTopic,
@@ -60,7 +100,6 @@ async function createSubscription({ email, subreddit, frequency = 'weekly', focu
     .single();
 
   if (error) {
-    // Check for duplicate subscription
     if (error.code === '23505') {
       throw new Error(`Already subscribed to r/${normalizedSubreddit}`);
     }

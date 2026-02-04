@@ -80,15 +80,21 @@ router.post('/subscribe', async (req, res) => {
     // Calculate next digest date
     const nextDigestDate = calculateNextDigestDate(subscription.frequency, subscription.day_of_week);
 
-    // Send welcome digest asynchronously (don't block response)
-    let welcomeDigestSent = false;
-    sendWelcomeDigest(subscription)
-      .then(result => {
-        console.log(`Welcome digest for ${subscription.email}: ${result.success ? 'sent' : 'failed'}`);
-      })
-      .catch(err => {
-        console.error(`Welcome digest error for ${subscription.email}:`, err);
-      });
+    // Try to send welcome email (wait for result with timeout)
+    let welcomeEmailResult = { success: false, error: 'Not attempted' };
+    try {
+      // Set a timeout of 8 seconds for the welcome email
+      const emailPromise = sendWelcomeDigest(subscription);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Email timeout')), 8000)
+      );
+
+      welcomeEmailResult = await Promise.race([emailPromise, timeoutPromise]);
+      console.log(`Welcome email for ${subscription.email}: ${welcomeEmailResult.success ? 'sent' : 'failed'}`);
+    } catch (err) {
+      console.error(`Welcome email error for ${subscription.email}:`, err.message);
+      welcomeEmailResult = { success: false, error: err.message };
+    }
 
     res.status(201).json({
       success: true,
@@ -104,11 +110,14 @@ router.post('/subscribe', async (req, res) => {
         name: subredditInfo.subreddit,
         title: subredditInfo.title,
         subscribers: subredditInfo.subscribers,
-        description: subredditInfo.description
+        description: subredditInfo.description,
+        // Use activity from getSubredditInfo (same as Community Pulse)
+        activityLevel: subredditInfo.activityLevel,
+        postsPerDay: subredditInfo.postsPerDay
       },
       nextDigestDate,
-      welcomeDigestAvailable: !!cachedDigest,
-      welcomeDigestSending: true,
+      welcomeEmailSent: welcomeEmailResult.success,
+      welcomeEmailError: welcomeEmailResult.error,
       unsubscribeToken: subscription.unsubscribe_token
     });
 
@@ -329,131 +338,51 @@ router.post('/resubscribe', async (req, res) => {
 /**
  * GET /api/radar/subreddit/:name
  * Get subreddit info with activity classification
+ * Uses same logic as Community Pulse for consistency
  */
 router.get('/subreddit/:name', async (req, res) => {
   try {
-    // Don't lowercase - Reddit subreddit names can be case-sensitive for display
     const subreddit = req.params.name.replace(/^r\//, '').trim();
 
-    console.log(`Fetching subreddit info for: ${subreddit}`);
+    console.log(`[Radar] Fetching subreddit info for: ${subreddit}`);
 
-    // Get basic subreddit info
+    // Get subreddit info - same function used by Community Pulse
+    // This already calculates activity level based on posts per day
     const info = await getSubredditInfo(subreddit);
 
-    console.log(`Subreddit info received:`, {
+    console.log(`[Radar] Info received:`, {
       name: info.subreddit,
       subscribers: info.subscribers,
+      postsPerDay: info.postsPerDay,
       activityLevel: info.activityLevel
     });
 
-    // If we got valid subscriber data from the info call, use it
-    const subscribers = info.subscribers || 0;
+    // Determine recommendation based on activity
     const activityLevel = info.activityLevel || 'medium';
-    const postsPerDay = info.postsPerDay || 0;
+    const recommendedFrequency = activityLevel === 'high' ? 'daily' : 'weekly';
+    const reason = getActivityReason(activityLevel);
 
-    // Try to get cached stats (but don't fail if DB isn't connected)
-    let stats = null;
-    try {
-      stats = await db.getSubredditStats(subreddit.toLowerCase());
-    } catch (dbErr) {
-      console.log('Could not fetch cached stats (DB may not be connected):', dbErr.message);
-    }
-
-    // If no cached stats or stale (> 24 hours), try to calculate fresh
-    const isStale = !stats || (Date.now() - new Date(stats.last_updated).getTime() > 24 * 60 * 60 * 1000);
-
-    if (isStale && subscribers > 0) {
-      // Only try to calculate activity if we got valid subscriber data
-      try {
-        const result = await fetchTimeBucketedPosts(subreddit, 'quick'); // 30 days
-        const buckets = result?.buckets || [];
-
-        if (!buckets || buckets.length === 0) {
-          throw new Error('No posts data returned');
-        }
-
-        const totalPosts = buckets.reduce((sum, b) => sum + (b.posts?.length || 0), 0);
-        const calculatedPostsPerDay = totalPosts / 30;
-
-        const allPosts = buckets.flatMap(b => b.posts || []);
-        const avgComments = allPosts.length > 0
-          ? allPosts.reduce((sum, p) => sum + (p?.numComments || 0), 0) / allPosts.length
-          : 0;
-
-        // Classify activity
-        const activityScore = calculatedPostsPerDay * (1 + avgComments / 50);
-        let calculatedActivityLevel, recommendedFrequency, reason;
-
-        if (activityScore > 200) {
-          calculatedActivityLevel = 'high';
-          recommendedFrequency = 'daily';
-          reason = 'High-activity community. Daily keeps you ahead of trends.';
-        } else if (activityScore > 50) {
-          calculatedActivityLevel = 'medium';
-          recommendedFrequency = 'weekly';
-          reason = 'Moderate activity. Weekly captures the best without noise.';
-        } else {
-          calculatedActivityLevel = 'low';
-          recommendedFrequency = 'weekly';
-          reason = 'Thoughtful community. Weekly digest is ideal.';
-        }
-
-        // Try to save stats
-        try {
-          stats = await db.saveSubredditStats({
-            subreddit: subreddit.toLowerCase(),
-            subscribers,
-            postsPerDay: calculatedPostsPerDay,
-            avgCommentsPerPost: avgComments,
-            activityLevel: calculatedActivityLevel,
-            recommendedFrequency
-          });
-          stats.reason = reason;
-        } catch (saveErr) {
-          console.log('Could not save stats:', saveErr.message);
-          stats = {
-            activity_level: calculatedActivityLevel,
-            posts_per_day: calculatedPostsPerDay,
-            avg_comments_per_post: avgComments,
-            recommended_frequency: recommendedFrequency,
-            reason
-          };
-        }
-      } catch (err) {
-        console.error('Error calculating activity stats:', err.message);
-        // Use data from info call as fallback
-        stats = {
-          activity_level: activityLevel,
-          posts_per_day: postsPerDay,
-          recommended_frequency: activityLevel === 'high' ? 'daily' : 'weekly',
-          reason: getActivityReason(activityLevel)
-        };
-      }
-    }
-
-    // Build final response using best available data
     res.json({
       success: true,
       subreddit: {
         name: info.subreddit,
         title: info.title,
         description: info.description,
-        subscribers: subscribers,
+        subscribers: info.subscribers || 0,
         created: info.created,
-        postsPerDay: stats?.posts_per_day || postsPerDay,
-        activityLevel: stats?.activity_level || activityLevel
+        postsPerDay: info.postsPerDay || 0,
+        activityLevel: activityLevel
       },
       activity: {
-        level: stats?.activity_level || activityLevel,
-        postsPerDay: stats?.posts_per_day || postsPerDay,
-        avgCommentsPerPost: stats?.avg_comments_per_post,
-        recommendedFrequency: stats?.recommended_frequency || (activityLevel === 'high' ? 'daily' : 'weekly'),
-        reason: stats?.reason || getActivityReason(stats?.activity_level || activityLevel)
+        level: activityLevel,
+        postsPerDay: info.postsPerDay || 0,
+        recommendedFrequency,
+        reason
       }
     });
 
   } catch (error) {
-    console.error('Get subreddit info error:', error);
+    console.error('[Radar] Get subreddit info error:', error);
 
     if (error.message?.includes('not found') || error.message?.includes('404')) {
       return res.status(404).json({

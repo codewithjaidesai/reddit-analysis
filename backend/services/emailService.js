@@ -7,7 +7,9 @@ const { Resend } = require('resend');
 
 // Initialize Resend client
 const resendApiKey = process.env.RESEND_API_KEY;
-const fromEmail = process.env.RESEND_FROM_EMAIL || 'Content Radar <digest@contentradar.com>';
+// Default to Resend's test sender if no custom domain configured
+// This allows sending to the Resend account owner's email without domain verification
+const fromEmail = process.env.RESEND_FROM_EMAIL || 'Content Radar <onboarding@resend.dev>';
 const baseUrl = process.env.BASE_URL || 'https://reddit-analysis.vercel.app';
 
 console.log('[Email Service] Initializing...');
