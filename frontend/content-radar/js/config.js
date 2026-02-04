@@ -1,8 +1,9 @@
 // Content Radar API Configuration
 
 const RADAR_CONFIG = {
-    // Backend URL - Update this after deployment
-    baseUrl: 'https://reddit-analysis.vercel.app',
+    // Backend URL - use relative path for same-origin requests
+    // This allows the frontend to work on any domain without changes
+    baseUrl: '',  // Empty string = same origin (relative URLs)
 
     endpoints: {
         subscribe: '/api/radar/subscribe',
