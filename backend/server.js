@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const config = require('./config');
 const apiLimiter = require('./middleware/rateLimiter');
 const analyzeRoutes = require('./routes/analyze');
@@ -62,6 +63,9 @@ app.use('/api/radar', apiLimiter, radarRoutes);
 
 // Cron routes (no rate limiting - internal only)
 app.use('/api/cron', cronRoutes);
+
+// Serve Content Radar frontend static files
+app.use('/content-radar', express.static(path.join(__dirname, '../frontend/content-radar')));
 
 // 404 handler
 app.use((req, res) => {

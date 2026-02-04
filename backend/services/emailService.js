@@ -297,6 +297,7 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
       <h1>📰 CONTENT RADAR</h1>
       <div class="subreddit">r/${subreddit}</div>
       <div class="issue">Issue #${issueNumber} • ${periodStart} - ${periodEnd}</div>
+      <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">by Voice of the Customer</div>
     </div>
 
     ${isWelcome ? `
@@ -423,8 +424,7 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
         <a href="${manageUrl}">Manage Preferences</a>
       </div>
       <p style="margin-top: 16px; font-size: 11px; color: #999;">
-        Content Radar<br>
-        Part of Voice of the Customer
+        Content Radar by Voice of the Customer
       </p>
     </div>
   </div>
@@ -503,7 +503,8 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 20px;">
   <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
     <div style="background: linear-gradient(135deg, #667eea 0%, #9f7aea 100%); color: white; padding: 30px; text-align: center;">
-      <h1 style="margin: 0; font-size: 24px;">Welcome to Content Radar!</h1>
+      <h1 style="margin: 0; font-size: 24px;">Your Content Radar is Active!</h1>
+      <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">by Voice of the Customer</p>
     </div>
     <div style="padding: 30px;">
       <p style="font-size: 16px; color: #333;">You're now subscribed to <strong style="color: #667eea;">r/${subreddit}</strong></p>
@@ -530,6 +531,9 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
     <div style="padding: 20px; background: #f8f9fa; font-size: 12px; color: #666; text-align: center;">
       <a href="${unsubscribeUrl}" style="color: #667eea; text-decoration: none;">Unsubscribe</a> ·
       <a href="${manageUrl}" style="color: #667eea; text-decoration: none;">Manage Preferences</a>
+      <p style="margin: 12px 0 0 0; font-size: 11px; color: #999;">
+        Content Radar by Voice of the Customer
+      </p>
     </div>
   </div>
 </body>
@@ -547,7 +551,7 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
     const { data, error } = await resend.emails.send({
       from: fromEmail,
       to: to,
-      subject: `👋 Welcome to Content Radar! You're subscribed to r/${subreddit}`,
+      subject: `📡 Your Reddit Radar for r/${subreddit} is Active | Voice of the Customer`,
       html: html,
       headers: {
         'List-Unsubscribe': `<${unsubscribeUrl}>`,
