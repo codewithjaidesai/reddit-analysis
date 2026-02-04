@@ -5,6 +5,7 @@ const apiLimiter = require('./middleware/rateLimiter');
 const analyzeRoutes = require('./routes/analyze');
 const searchRoutes = require('./routes/search');
 const radarRoutes = require('./routes/radar');
+const cronRoutes = require('./routes/cron');
 
 const app = express();
 
@@ -58,6 +59,9 @@ app.get('/health', (req, res) => {
 app.use('/api/analyze', apiLimiter, analyzeRoutes);
 app.use('/api/search', apiLimiter, searchRoutes);
 app.use('/api/radar', apiLimiter, radarRoutes);
+
+// Cron routes (no rate limiting - internal only)
+app.use('/api/cron', cronRoutes);
 
 // 404 handler
 app.use((req, res) => {

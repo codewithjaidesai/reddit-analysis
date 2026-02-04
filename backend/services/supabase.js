@@ -503,6 +503,93 @@ async function isConnected() {
   }
 }
 
+// ============================================
+// CRON JOB OPERATIONS
+// ============================================
+
+/**
+ * Get subscriptions that need welcome digests
+ * (active, never sent, created within last 24 hours)
+ * @param {number} limit - Max subscriptions to return
+ * @returns {Promise<Array>} Subscriptions needing welcome digests
+ */
+async function getPendingWelcomeDigests(limit = 2) {
+  if (!supabase) throw new Error('Database not configured');
+
+  const oneDayAgo = new Date();
+  oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+
+  const { data, error } = await supabase
+    .from('digest_subscriptions')
+    .select('*')
+    .eq('is_active', true)
+    .is('last_sent_at', null)
+    .gte('created_at', oneDayAgo.toISOString())
+    .order('created_at', { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Update subscription last_sent_at timestamp
+ * @param {string} subscriptionId - Subscription ID
+ */
+async function updateSubscriptionLastSent(subscriptionId) {
+  if (!supabase) throw new Error('Database not configured');
+
+  const { error } = await supabase
+    .from('digest_subscriptions')
+    .update({ last_sent_at: new Date().toISOString() })
+    .eq('id', subscriptionId);
+
+  if (error) throw error;
+}
+
+/**
+ * Get subscriptions due for scheduled digest
+ * @returns {Promise<Array>} Subscriptions due for digest
+ */
+async function getSubscriptionsDueForDigest() {
+  if (!supabase) throw new Error('Database not configured');
+
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 = Sunday
+  const currentHour = now.getHours();
+
+  // Only process during morning hours (8-10 AM)
+  if (currentHour < 8 || currentHour > 10) {
+    return [];
+  }
+
+  // Build query based on frequency
+  let query = supabase
+    .from('digest_subscriptions')
+    .select('*')
+    .eq('is_active', true);
+
+  // For weekly: check if it's the right day
+  // For daily: always include
+  // Also ensure we haven't sent in the last 20 hours (prevent double sends)
+  const twentyHoursAgo = new Date();
+  twentyHoursAgo.setHours(twentyHoursAgo.getHours() - 20);
+
+  const { data, error } = await query
+    .or(`frequency.eq.daily,and(frequency.eq.weekly,day_of_week.eq.${currentDay})`)
+    .or(`last_sent_at.is.null,last_sent_at.lt.${twentyHoursAgo.toISOString()}`)
+    .limit(10);
+
+  if (error) throw error;
+
+  // Filter to only include subscriptions that haven't been sent recently
+  return (data || []).filter(sub => {
+    if (!sub.last_sent_at) return true; // Never sent
+    const lastSent = new Date(sub.last_sent_at);
+    return (now - lastSent) > 20 * 60 * 60 * 1000; // More than 20 hours ago
+  });
+}
+
 module.exports = {
   supabase,
   isConnected,
@@ -532,5 +619,10 @@ module.exports = {
 
   // Stats
   saveSubredditStats,
-  getSubredditStats
+  getSubredditStats,
+
+  // Cron
+  getPendingWelcomeDigests,
+  updateSubscriptionLastSent,
+  getSubscriptionsDueForDigest
 };
