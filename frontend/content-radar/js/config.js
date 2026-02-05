@@ -1,22 +1,8 @@
 // Content Radar API Configuration
 
-// Detect if we need to use a different API origin
-// If the frontend is served from the backend, use relative URLs
-// Otherwise, use the API_BASE_URL if defined in a script tag or default to backend
-function getApiBaseUrl() {
-    // Check if API_BASE_URL is set (can be injected via script)
-    if (typeof API_BASE_URL !== 'undefined' && API_BASE_URL) {
-        return API_BASE_URL;
-    }
-
-    // Check if we're on the backend domain (has /api routes)
-    // For same-origin, use relative URLs
-    return '';
-}
-
 const RADAR_CONFIG = {
-    // Backend URL - dynamically determined
-    baseUrl: getApiBaseUrl(),
+    // Backend API URL - frontend is hosted separately from backend
+    baseUrl: 'https://reddit-analysis.vercel.app',
 
     endpoints: {
         subscribe: '/api/radar/subscribe',
