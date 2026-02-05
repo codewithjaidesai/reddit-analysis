@@ -6,9 +6,78 @@
  */
 
 const { analyzeWithGemini } = require('./gemini');
-const { fetchTimeBucketedPosts, getSubredditInfo } = require('./search');
+const { fetchTimeBucketedPosts, getSubredditInfo, getRedditAccessToken } = require('./search');
 const { extractRedditData, fetchCommentsForPosts, samplePostsForComments } = require('./reddit');
 const db = require('./supabase');
+const axios = require('axios');
+const config = require('../config');
+
+/**
+ * Fetch recent posts for digest (uses /hot and /new endpoints, not /top)
+ * This ensures we get posts from the actual time period, not just top posts of all time
+ */
+async function fetchRecentPostsForDigest(subreddit, days = 7) {
+  console.log(`[Digest] Fetching recent posts for r/${subreddit} (last ${days} days)`);
+
+  try {
+    const accessToken = await getRedditAccessToken();
+    const allPosts = [];
+    const cutoffTime = Date.now() / 1000 - (days * 24 * 60 * 60); // X days ago in seconds
+
+    // Fetch from /hot endpoint (most engaging recent posts)
+    const hotUrl = `https://oauth.reddit.com/r/${subreddit}/hot`;
+    const hotResponse = await axios.get(hotUrl, {
+      params: { limit: 100, raw_json: 1 },
+      headers: {
+        'Authorization': `bearer ${accessToken}`,
+        'User-Agent': config.reddit.userAgent
+      }
+    });
+
+    if (hotResponse.data?.data?.children) {
+      const hotPosts = hotResponse.data.data.children
+        .map(child => child.data)
+        .filter(post => post.created_utc >= cutoffTime);
+      console.log(`[Digest] Found ${hotPosts.length} hot posts in time range`);
+      allPosts.push(...hotPosts);
+    }
+
+    // Also fetch from /new endpoint to catch recent posts that aren't "hot" yet
+    const newUrl = `https://oauth.reddit.com/r/${subreddit}/new`;
+    const newResponse = await axios.get(newUrl, {
+      params: { limit: 100, raw_json: 1 },
+      headers: {
+        'Authorization': `bearer ${accessToken}`,
+        'User-Agent': config.reddit.userAgent
+      }
+    });
+
+    if (newResponse.data?.data?.children) {
+      const newPosts = newResponse.data.data.children
+        .map(child => child.data)
+        .filter(post => post.created_utc >= cutoffTime && post.score >= 5); // Min engagement
+      console.log(`[Digest] Found ${newPosts.length} new posts with engagement in time range`);
+
+      // Add new posts that aren't already in hot
+      const existingIds = new Set(allPosts.map(p => p.id));
+      for (const post of newPosts) {
+        if (!existingIds.has(post.id)) {
+          allPosts.push(post);
+        }
+      }
+    }
+
+    // Sort by score descending
+    allPosts.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    console.log(`[Digest] Total unique posts for digest: ${allPosts.length}`);
+    return allPosts;
+
+  } catch (error) {
+    console.error(`[Digest] Error fetching recent posts:`, error.message);
+    return [];
+  }
+}
 
 /**
  * Generate a digest for a subreddit
@@ -34,28 +103,15 @@ async function generateDigest({ subreddit, subscriptionId = null, focusTopic = n
   // Fetch subreddit info
   const subredditInfo = await getSubredditInfo(subreddit);
 
-  // Fetch posts - use 'medium' depth for better coverage
-  const { buckets } = await fetchTimeBucketedPosts(subreddit, 'medium');
+  // Fetch RECENT posts using hot/new endpoints (not top posts of all time!)
+  // This is the critical fix - fetchTimeBucketedPosts fetches /top which has old posts
+  const periodPosts = await fetchRecentPostsForDigest(subreddit, lookbackDays);
 
-  console.log(`[Digest] Fetched ${buckets?.length || 0} buckets`);
-  const totalPosts = buckets?.reduce((sum, b) => sum + (b.posts?.length || 0), 0) || 0;
-  console.log(`[Digest] Total posts fetched: ${totalPosts}`);
-
-  // Filter to only include posts from our period
-  const periodPosts = filterPostsByPeriod(buckets, periodStart, periodEnd);
-
-  console.log(`[Digest] Posts in period: ${periodPosts.length}`);
+  console.log(`[Digest] Posts fetched for digest: ${periodPosts.length}`);
 
   if (periodPosts.length === 0) {
-    console.log(`[Digest] No posts found for r/${subreddit} in the specified period, using all recent posts`);
-    // Fallback: use all posts if none match the period (common for less active subreddits)
-    const allPosts = buckets?.flatMap(b => b.posts || []).sort((a, b) => (b.score || 0) - (a.score || 0)) || [];
-    if (allPosts.length === 0) {
-      return createEmptyDigest(subreddit, periodStart, periodEnd, frequency);
-    }
-    // Use the recent posts even if outside the strict period
-    periodPosts.push(...allPosts.slice(0, 30));
-    console.log(`[Digest] Using ${periodPosts.length} recent posts as fallback`);
+    console.log(`[Digest] No posts found for r/${subreddit}, returning empty digest`);
+    return createEmptyDigest(subreddit, periodStart, periodEnd, frequency);
   }
 
   // Sample top posts for comment analysis
