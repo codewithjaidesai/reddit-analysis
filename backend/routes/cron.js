@@ -10,6 +10,34 @@ const { generateDigest } = require('../services/contentRadar');
 const { sendDigestEmail } = require('../services/emailService');
 
 /**
+ * Verify cron request authenticity
+ * Vercel cron jobs can be verified via CRON_SECRET or are from Vercel's IPs
+ */
+function verifyCronRequest(req) {
+  const cronSecret = process.env.CRON_SECRET;
+
+  // If no secret configured, allow all (for development)
+  if (!cronSecret) {
+    return true;
+  }
+
+  // Check Authorization header (Bearer token)
+  const authHeader = req.headers.authorization;
+  if (authHeader === `Bearer ${cronSecret}`) {
+    return true;
+  }
+
+  // Check for Vercel cron header (automatically set by Vercel)
+  // When using Vercel cron, requests come from Vercel's infrastructure
+  const userAgent = req.headers['user-agent'] || '';
+  if (userAgent.includes('vercel-cron')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * GET /api/cron/welcome-digests
  * Process pending welcome digests (called by Vercel Cron or manually)
  *
@@ -19,28 +47,30 @@ router.get('/welcome-digests', processWelcomeDigests);
 router.post('/welcome-digests', processWelcomeDigests);
 
 async function processWelcomeDigests(req, res) {
-  // Verify cron secret for automated calls (skip for POST manual triggers during testing)
-  const authHeader = req.headers.authorization;
-  const cronSecret = process.env.CRON_SECRET;
-
-  // For GET requests from Vercel cron, verify the secret
-  if (req.method === 'GET' && cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    console.log('[Cron] Unauthorized cron request');
+  // Allow POST for manual testing, verify GET requests
+  if (req.method === 'GET' && !verifyCronRequest(req)) {
+    console.log('[Cron] Unauthorized cron request - check CRON_SECRET');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  console.log('[Cron] ========================================');
   console.log('[Cron] Starting welcome digest processing...');
+  console.log('[Cron] Time:', new Date().toISOString());
 
   try {
-    // Get subscriptions that need welcome digests (never sent, created in last 24 hours)
-    const pendingSubscriptions = await db.getPendingWelcomeDigests(2); // Process max 2 per run
+    // Get subscriptions that need welcome digests (never sent)
+    const pendingSubscriptions = await db.getPendingWelcomeDigests(5); // Process max 5 per run
 
     if (pendingSubscriptions.length === 0) {
       console.log('[Cron] No pending welcome digests');
-      return res.json({ success: true, processed: 0 });
+      console.log('[Cron] ========================================');
+      return res.json({ success: true, processed: 0, message: 'No pending welcome digests' });
     }
 
-    console.log(`[Cron] Found ${pendingSubscriptions.length} pending welcome digests`);
+    console.log(`[Cron] Found ${pendingSubscriptions.length} pending welcome digests:`);
+    pendingSubscriptions.forEach(sub => {
+      console.log(`[Cron]   - ${sub.email} -> r/${sub.subreddit} (created: ${sub.created_at})`);
+    });
 
     let successCount = 0;
     let errorCount = 0;
@@ -81,6 +111,7 @@ async function processWelcomeDigests(req, res) {
     }
 
     console.log(`[Cron] Completed: ${successCount} sent, ${errorCount} failed`);
+    console.log('[Cron] ========================================');
 
     res.json({
       success: true,
@@ -91,6 +122,7 @@ async function processWelcomeDigests(req, res) {
 
   } catch (error) {
     console.error('[Cron] Welcome digest cron error:', error);
+    console.log('[Cron] ========================================');
     res.status(500).json({
       success: false,
       error: error.message
@@ -102,16 +134,20 @@ async function processWelcomeDigests(req, res) {
  * GET /api/cron/scheduled-digests
  * Process scheduled daily/weekly digests (called by Vercel Cron)
  */
-router.get('/scheduled-digests', async (req, res) => {
-  // Verify cron secret
-  const authHeader = req.headers.authorization;
-  const cronSecret = process.env.CRON_SECRET;
+router.get('/scheduled-digests', processScheduledDigests);
+router.post('/scheduled-digests', processScheduledDigests);
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+async function processScheduledDigests(req, res) {
+  // Allow POST for manual testing, verify GET requests
+  if (req.method === 'GET' && !verifyCronRequest(req)) {
+    console.log('[Cron] Unauthorized scheduled digest request - check CRON_SECRET');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  console.log('[Cron] ========================================');
   console.log('[Cron] Starting scheduled digest processing...');
+  console.log('[Cron] Time:', new Date().toISOString());
+  console.log('[Cron] Day of week (UTC):', new Date().getUTCDay(), '(0=Sunday)');
 
   try {
     // Get subscriptions due for digest
@@ -119,21 +155,30 @@ router.get('/scheduled-digests', async (req, res) => {
 
     if (dueSubscriptions.length === 0) {
       console.log('[Cron] No scheduled digests due');
-      return res.json({ success: true, processed: 0 });
+      console.log('[Cron] ========================================');
+      return res.json({ success: true, processed: 0, message: 'No digests due' });
     }
 
-    console.log(`[Cron] Found ${dueSubscriptions.length} scheduled digests due`);
+    console.log(`[Cron] Found ${dueSubscriptions.length} scheduled digests due:`);
+    dueSubscriptions.forEach(sub => {
+      console.log(`[Cron]   - ${sub.email} -> r/${sub.subreddit} (${sub.frequency})`);
+    });
 
     let successCount = 0;
+    let errorCount = 0;
 
     for (const sub of dueSubscriptions) {
       try {
+        console.log(`[Cron] Processing scheduled digest for ${sub.email} - r/${sub.subreddit}...`);
+
         const digest = await generateDigest({
           subreddit: sub.subreddit,
           subscriptionId: sub.id,
           focusTopic: sub.focus_topic,
           frequency: sub.frequency
         });
+
+        console.log(`[Cron] Digest generated for r/${sub.subreddit}, sending email...`);
 
         await sendDigestEmail({
           to: sub.email,
@@ -145,25 +190,32 @@ router.get('/scheduled-digests', async (req, res) => {
 
         await db.updateSubscriptionLastSent(sub.id);
         successCount++;
+        console.log(`[Cron] Successfully sent scheduled digest to ${sub.email}`);
 
       } catch (error) {
         console.error(`[Cron] Failed scheduled digest for ${sub.email}:`, error.message);
+        errorCount++;
       }
     }
+
+    console.log(`[Cron] Completed: ${successCount} sent, ${errorCount} failed`);
+    console.log('[Cron] ========================================');
 
     res.json({
       success: true,
       processed: dueSubscriptions.length,
-      sent: successCount
+      sent: successCount,
+      failed: errorCount
     });
 
   } catch (error) {
     console.error('[Cron] Scheduled digest cron error:', error);
+    console.log('[Cron] ========================================');
     res.status(500).json({
       success: false,
       error: error.message
     });
   }
-});
+}
 
 module.exports = router;

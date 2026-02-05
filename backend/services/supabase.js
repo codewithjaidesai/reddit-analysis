@@ -566,26 +566,26 @@ async function isConnected() {
 
 /**
  * Get subscriptions that need welcome digests
- * (active, never sent, created within last 24 hours)
+ * (active, never sent - no time restriction so we catch any missed ones)
  * @param {number} limit - Max subscriptions to return
  * @returns {Promise<Array>} Subscriptions needing welcome digests
  */
-async function getPendingWelcomeDigests(limit = 2) {
+async function getPendingWelcomeDigests(limit = 5) {
   if (!supabase) throw new Error('Database not configured');
 
-  const oneDayAgo = new Date();
-  oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-
+  // Get all active subscriptions that have never received a digest
+  // No time restriction - we want to catch any that were missed
   const { data, error } = await supabase
     .from('digest_subscriptions')
     .select('*')
     .eq('is_active', true)
     .is('last_sent_at', null)
-    .gte('created_at', oneDayAgo.toISOString())
     .order('created_at', { ascending: true })
     .limit(limit);
 
   if (error) throw error;
+
+  console.log(`[DB] Found ${data?.length || 0} pending welcome digests`);
   return data || [];
 }
 
@@ -606,45 +606,58 @@ async function updateSubscriptionLastSent(subscriptionId) {
 
 /**
  * Get subscriptions due for scheduled digest
+ * Timing is controlled by Vercel cron, not by code
  * @returns {Promise<Array>} Subscriptions due for digest
  */
 async function getSubscriptionsDueForDigest() {
   if (!supabase) throw new Error('Database not configured');
 
   const now = new Date();
-  const currentDay = now.getDay(); // 0 = Sunday
-  const currentHour = now.getHours();
+  const currentDay = now.getUTCDay(); // 0 = Sunday (use UTC for Vercel)
 
-  // Only process during morning hours (8-10 AM)
-  if (currentHour < 8 || currentHour > 10) {
-    return [];
-  }
+  // Calculate time thresholds
+  const twentyHoursAgo = new Date(now.getTime() - 20 * 60 * 60 * 1000);
+  const sixDaysAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
 
-  // Build query based on frequency
-  let query = supabase
+  console.log(`[DB] Checking scheduled digests - Day: ${currentDay} (0=Sunday)`);
+
+  // Get daily subscriptions that haven't been sent in 20+ hours
+  const { data: dailySubs, error: dailyError } = await supabase
     .from('digest_subscriptions')
     .select('*')
-    .eq('is_active', true);
-
-  // For weekly: check if it's the right day
-  // For daily: always include
-  // Also ensure we haven't sent in the last 20 hours (prevent double sends)
-  const twentyHoursAgo = new Date();
-  twentyHoursAgo.setHours(twentyHoursAgo.getHours() - 20);
-
-  const { data, error } = await query
-    .or(`frequency.eq.daily,and(frequency.eq.weekly,day_of_week.eq.${currentDay})`)
-    .or(`last_sent_at.is.null,last_sent_at.lt.${twentyHoursAgo.toISOString()}`)
+    .eq('is_active', true)
+    .eq('frequency', 'daily')
+    .not('last_sent_at', 'is', null)  // Already got welcome digest
+    .lt('last_sent_at', twentyHoursAgo.toISOString())
     .limit(10);
 
-  if (error) throw error;
+  if (dailyError) {
+    console.error('[DB] Error fetching daily subs:', dailyError);
+    throw dailyError;
+  }
 
-  // Filter to only include subscriptions that haven't been sent recently
-  return (data || []).filter(sub => {
-    if (!sub.last_sent_at) return true; // Never sent
-    const lastSent = new Date(sub.last_sent_at);
-    return (now - lastSent) > 20 * 60 * 60 * 1000; // More than 20 hours ago
-  });
+  // Get weekly subscriptions that:
+  // 1. Match today's day_of_week
+  // 2. Haven't been sent in 6+ days
+  const { data: weeklySubs, error: weeklyError } = await supabase
+    .from('digest_subscriptions')
+    .select('*')
+    .eq('is_active', true)
+    .eq('frequency', 'weekly')
+    .eq('day_of_week', currentDay)
+    .not('last_sent_at', 'is', null)  // Already got welcome digest
+    .lt('last_sent_at', sixDaysAgo.toISOString())
+    .limit(10);
+
+  if (weeklyError) {
+    console.error('[DB] Error fetching weekly subs:', weeklyError);
+    throw weeklyError;
+  }
+
+  const allDue = [...(dailySubs || []), ...(weeklySubs || [])];
+  console.log(`[DB] Found ${dailySubs?.length || 0} daily + ${weeklySubs?.length || 0} weekly = ${allDue.length} due for digest`);
+
+  return allDue;
 }
 
 module.exports = {
