@@ -125,8 +125,8 @@ async function generateDigest({ subreddit, subscriptionId = null, focusTopic = n
   };
   const sampledPosts = samplePostsForComments(bucketedData, 15);
 
-  // Fetch comments for sampled posts
-  const postsWithComments = await fetchCommentsForPosts(sampledPosts, 10);
+  // Fetch comments for sampled posts (no progress callback needed)
+  const postsWithComments = await fetchCommentsForPosts(sampledPosts);
 
   // Get previous digest for comparison (if subscription exists)
   let previousDigest = null;
