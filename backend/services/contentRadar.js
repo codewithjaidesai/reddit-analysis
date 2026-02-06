@@ -115,7 +115,15 @@ async function generateDigest({ subreddit, subscriptionId = null, focusTopic = n
   }
 
   // Sample top posts for comment analysis
-  const sampledPosts = samplePostsForComments(periodPosts, 15);
+  // samplePostsForComments expects bucketed data, so wrap our flat array
+  const bucketedData = {
+    buckets: [{
+      name: 'recent',
+      label: 'Recent Posts',
+      posts: periodPosts
+    }]
+  };
+  const sampledPosts = samplePostsForComments(bucketedData, 15);
 
   // Fetch comments for sampled posts
   const postsWithComments = await fetchCommentsForPosts(sampledPosts, 10);
