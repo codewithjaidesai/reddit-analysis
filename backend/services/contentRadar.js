@@ -6,8 +6,8 @@
  */
 
 const { analyzeWithGemini } = require('./gemini');
-const { fetchTimeBucketedPosts, getSubredditInfo } = require('./search');
-const { extractRedditData, fetchCommentsForPosts, samplePostsForComments, getRedditAccessToken } = require('./reddit');
+const { fetchTimeBucketedPosts, getSubredditInfo, samplePostsForComments, fetchCommentsForPosts } = require('./search');
+const { extractRedditData, getRedditAccessToken } = require('./reddit');
 const db = require('./supabase');
 const axios = require('axios');
 const config = require('../config');
@@ -115,7 +115,15 @@ async function generateDigest({ subreddit, subscriptionId = null, focusTopic = n
   }
 
   // Sample top posts for comment analysis
-  const sampledPosts = samplePostsForComments(periodPosts, 15);
+  // samplePostsForComments expects bucketed data, so wrap our flat array
+  const bucketedData = {
+    buckets: [{
+      name: 'recent',
+      label: 'Recent Posts',
+      posts: periodPosts
+    }]
+  };
+  const sampledPosts = samplePostsForComments(bucketedData, 15);
 
   // Fetch comments for sampled posts
   const postsWithComments = await fetchCommentsForPosts(sampledPosts, 10);
