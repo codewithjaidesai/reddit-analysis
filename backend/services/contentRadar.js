@@ -6,8 +6,8 @@
  */
 
 const { analyzeWithGemini } = require('./gemini');
-const { fetchTimeBucketedPosts, getSubredditInfo, samplePostsForComments } = require('./search');
-const { extractRedditData, fetchCommentsForPosts, getRedditAccessToken } = require('./reddit');
+const { fetchTimeBucketedPosts, getSubredditInfo, samplePostsForComments, fetchCommentsForPosts } = require('./search');
+const { extractRedditData, getRedditAccessToken } = require('./reddit');
 const db = require('./supabase');
 const axios = require('axios');
 const config = require('../config');
