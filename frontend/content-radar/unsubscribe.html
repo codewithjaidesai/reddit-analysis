@@ -23,43 +23,7 @@
                 <!-- Loading State -->
                 <div id="loadingState" class="loading-state">
                     <div class="spinner large"></div>
-                    <p>Loading subscription details...</p>
-                </div>
-
-                <!-- Confirm Unsubscribe -->
-                <div id="confirmState" class="confirm-state" style="display: none;">
-                    <span class="sad-icon">😢</span>
-                    <h2>Unsubscribe from Content Radar?</h2>
-
-                    <div class="unsubscribe-details">
-                        <p>You're about to unsubscribe from:</p>
-                        <div class="subscription-preview">
-                            <span class="preview-subreddit">r/<span id="subredditName">-</span></span>
-                            <span class="preview-frequency" id="frequencyText">Weekly digest</span>
-                        </div>
-                    </div>
-
-                    <div class="unsubscribe-actions">
-                        <button id="confirmUnsubscribe" class="danger-btn">
-                            <span class="btn-text">Yes, Unsubscribe</span>
-                            <span class="btn-loading" style="display: none;">
-                                <span class="spinner"></span>
-                            </span>
-                        </button>
-                        <a href="index.html" class="cancel-link">Cancel, keep my subscription</a>
-                    </div>
-
-                    <div class="alternative-options">
-                        <p>Or would you prefer to:</p>
-                        <div class="alt-buttons">
-                            <button class="alt-btn" onclick="pauseSubscription()">
-                                ⏸️ Pause for 2 weeks
-                            </button>
-                            <button class="alt-btn" onclick="changeFrequency()">
-                                📅 Switch to monthly
-                            </button>
-                        </div>
-                    </div>
+                    <p>Unsubscribing...</p>
                 </div>
 
                 <!-- Success State -->
@@ -68,39 +32,16 @@
                     <h2>You've been unsubscribed</h2>
                     <p>You won't receive any more digests for <strong>r/<span id="unsubSubreddit">-</span></strong>.</p>
 
-                    <div class="feedback-section">
-                        <p>We'd love to know why you left:</p>
-                        <div class="feedback-options">
-                            <label class="feedback-option">
-                                <input type="radio" name="reason" value="too_frequent">
-                                <span>Too frequent</span>
-                            </label>
-                            <label class="feedback-option">
-                                <input type="radio" name="reason" value="not_relevant">
-                                <span>Not relevant to me</span>
-                            </label>
-                            <label class="feedback-option">
-                                <input type="radio" name="reason" value="content_quality">
-                                <span>Content quality</span>
-                            </label>
-                            <label class="feedback-option">
-                                <input type="radio" name="reason" value="too_many_emails">
-                                <span>Too many emails in general</span>
-                            </label>
-                            <label class="feedback-option">
-                                <input type="radio" name="reason" value="other">
-                                <span>Other</span>
-                            </label>
-                        </div>
-                        <button id="submitFeedback" class="secondary-btn">Submit Feedback</button>
-                    </div>
-
                     <div class="resubscribe-section">
                         <p>Changed your mind?</p>
                         <button id="resubscribeBtn" class="cta-button">
                             Resubscribe
                         </button>
                     </div>
+
+                    <p class="footer-links" style="margin-top: 24px;">
+                        <a href="subscribe.html">Subscribe to a different community</a>
+                    </p>
                 </div>
 
                 <!-- Error State -->
@@ -123,7 +64,7 @@
                             Resubscribe
                         </button>
                         <a href="subscribe.html" class="text-link">
-                            Subscribe to a different community →
+                            Subscribe to a different community
                         </a>
                     </div>
                 </div>
