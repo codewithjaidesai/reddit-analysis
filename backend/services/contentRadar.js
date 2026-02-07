@@ -263,10 +263,38 @@ async function generateDigestContent({
   });
 
   // Call Gemini for analysis
-  const analysis = await analyzeWithGemini(prompt);
+  const geminiResult = await analyzeWithGemini(prompt);
 
-  // Parse the AI response
-  const parsed = parseDigestResponse(analysis, posts, postsWithComments);
+  // Check if AI call succeeded
+  if (!geminiResult.success) {
+    console.error('[Digest] Gemini API failed:', geminiResult.error);
+    // Return fallback digest with real post data
+    return {
+      quickHits: [`Top discussion: "${posts[0]?.title || 'Community active this week'}"`],
+      coverStory: posts[0] ? {
+        title: posts[0].title,
+        post: {
+          id: posts[0].id,
+          url: posts[0].url || `https://reddit.com${posts[0].permalink}`,
+          author: posts[0].author,
+          score: posts[0].score,
+          numComments: posts[0].num_comments || posts[0].numComments
+        },
+        summary: 'This was the most engaging post this period.'
+      } : null,
+      voicesOfTheWeek: [],
+      threadOfTheWeek: null,
+      contentIdeas: [],
+      emergingTopics: [],
+      metrics: {
+        totalPosts: posts.length,
+        totalComments: posts.reduce((sum, p) => sum + (p.num_comments || p.numComments || 0), 0)
+      }
+    };
+  }
+
+  // Parse the AI response - extract the analysis text from the result object
+  const parsed = parseDigestResponse(geminiResult.analysis, posts, postsWithComments);
 
   return parsed;
 }
