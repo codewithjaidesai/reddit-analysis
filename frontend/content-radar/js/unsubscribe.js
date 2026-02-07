@@ -1,4 +1,5 @@
 // Unsubscribe Page Logic
+// 1-step unsubscribe: automatically unsubscribes on page load
 
 document.addEventListener('DOMContentLoaded', () => {
     initUnsubscribePage();
@@ -16,58 +17,22 @@ async function initUnsubscribePage() {
         return;
     }
 
-    // Load subscription info
+    // First check subscription status, then auto-unsubscribe if active
     try {
         const data = await RadarAPI.getUnsubscribeInfo(currentToken);
         currentSubscription = data.subscription;
 
         if (!currentSubscription.isActive) {
-            // Already unsubscribed
             showAlreadyUnsubscribed();
-        } else {
-            // Show confirmation
-            showConfirmation();
+            return;
         }
 
-    } catch (error) {
-        showError(error.message || 'Could not find this subscription.');
-    }
-}
-
-function showConfirmation() {
-    hideAllStates();
-
-    // Update UI with subscription details
-    document.getElementById('subredditName').textContent = currentSubscription.subreddit;
-    document.getElementById('frequencyText').textContent =
-        `${capitalizeFirst(currentSubscription.frequency || 'Weekly')} digest`;
-
-    document.getElementById('confirmState').style.display = 'block';
-
-    // Set up confirm button
-    document.getElementById('confirmUnsubscribe').addEventListener('click', handleUnsubscribe);
-}
-
-async function handleUnsubscribe() {
-    const confirmBtn = document.getElementById('confirmUnsubscribe');
-    const btnText = confirmBtn.querySelector('.btn-text');
-    const btnLoading = confirmBtn.querySelector('.btn-loading');
-
-    // Show loading
-    confirmBtn.disabled = true;
-    btnText.style.display = 'none';
-    btnLoading.style.display = 'flex';
-
-    try {
+        // Auto-unsubscribe immediately
         await RadarAPI.unsubscribe(currentToken);
         showSuccess();
 
     } catch (error) {
-        alert(error.message || 'Failed to unsubscribe. Please try again.');
-    } finally {
-        confirmBtn.disabled = false;
-        btnText.style.display = 'block';
-        btnLoading.style.display = 'none';
+        showError(error.message || 'Could not process this unsubscribe request.');
     }
 }
 
@@ -77,25 +42,8 @@ function showSuccess() {
     document.getElementById('unsubSubreddit').textContent = currentSubscription.subreddit;
     document.getElementById('successState').style.display = 'block';
 
-    // Set up feedback submission
-    document.getElementById('submitFeedback').addEventListener('click', submitFeedback);
-
     // Set up resubscribe button
     document.getElementById('resubscribeBtn').addEventListener('click', handleResubscribe);
-}
-
-async function submitFeedback() {
-    const selectedReason = document.querySelector('input[name="reason"]:checked');
-
-    if (!selectedReason) {
-        alert('Please select a reason');
-        return;
-    }
-
-    // In a real implementation, you'd send this to the server
-    // For now, just show a thank you message
-    const feedbackSection = document.querySelector('.feedback-section');
-    feedbackSection.innerHTML = '<p style="color: var(--success);">Thank you for your feedback!</p>';
 }
 
 async function handleResubscribe() {
@@ -106,9 +54,12 @@ async function handleResubscribe() {
     try {
         await RadarAPI.resubscribe(currentToken);
 
-        // Show success message and redirect
-        alert('Successfully resubscribed!');
-        window.location.href = 'manage.html';
+        // Show inline confirmation instead of alert
+        resubscribeBtn.textContent = 'Resubscribed!';
+        resubscribeBtn.style.background = 'var(--success, #10b981)';
+        setTimeout(() => {
+            window.location.href = 'manage.html';
+        }, 1000);
 
     } catch (error) {
         alert(error.message || 'Failed to resubscribe. Please try again.');
@@ -122,7 +73,27 @@ function showAlreadyUnsubscribed() {
     document.getElementById('alreadyUnsubState').style.display = 'block';
 
     // Set up resubscribe button
-    document.getElementById('resubscribeBtn2').addEventListener('click', handleResubscribe);
+    document.getElementById('resubscribeBtn2').addEventListener('click', handleResubscribe2);
+}
+
+async function handleResubscribe2() {
+    const resubscribeBtn = document.getElementById('resubscribeBtn2');
+    resubscribeBtn.disabled = true;
+    resubscribeBtn.textContent = 'Resubscribing...';
+
+    try {
+        await RadarAPI.resubscribe(currentToken);
+        resubscribeBtn.textContent = 'Resubscribed!';
+        resubscribeBtn.style.background = 'var(--success, #10b981)';
+        setTimeout(() => {
+            window.location.href = 'manage.html';
+        }, 1000);
+
+    } catch (error) {
+        alert(error.message || 'Failed to resubscribe. Please try again.');
+        resubscribeBtn.disabled = false;
+        resubscribeBtn.textContent = 'Resubscribe';
+    }
 }
 
 function showError(message) {
@@ -133,22 +104,7 @@ function showError(message) {
 
 function hideAllStates() {
     document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('confirmState').style.display = 'none';
     document.getElementById('successState').style.display = 'none';
     document.getElementById('errorState').style.display = 'none';
     document.getElementById('alreadyUnsubState').style.display = 'none';
-}
-
-function pauseSubscription() {
-    // TODO: Implement pause functionality
-    alert('Pause functionality coming soon!');
-}
-
-function changeFrequency() {
-    // TODO: Implement frequency change
-    alert('Frequency change coming soon! For now, please unsubscribe and resubscribe with new settings.');
-}
-
-function capitalizeFirst(str) {
-    return str.charAt(0).toUpperCase() + str.slice(1);
 }
