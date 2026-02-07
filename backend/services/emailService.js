@@ -85,6 +85,19 @@ async function sendDigestEmail({ to, subreddit, digest, unsubscribeToken, isWelc
 }
 
 /**
+ * Escape HTML special characters to prevent broken email rendering
+ * from user-generated Reddit content (quotes, titles, etc.)
+ */
+function escapeHtml(str) {
+  if (!str || typeof str !== 'string') return str || '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
  * Generate HTML for digest email
  */
 function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelcome) {
@@ -312,7 +325,7 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
         <div class="section-title">⚡ QUICK HITS</div>
         <div class="quick-hits">
           <ul>
-            ${digest.quickHits.map(hit => `<li>${hit}</li>`).join('')}
+            ${digest.quickHits.map(hit => `<li>${escapeHtml(hit)}</li>`).join('')}
           </ul>
         </div>
       </div>
@@ -322,9 +335,9 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
       <div class="section">
         <div class="section-title">🔥 COVER STORY</div>
         <div class="cover-story">
-          <h3>"${digest.coverStory.title}"</h3>
+          <h3>"${escapeHtml(digest.coverStory.title)}"</h3>
           <div class="meta">${digest.coverStory.post?.score || 0} upvotes • ${digest.coverStory.post?.numComments || 0} comments</div>
-          <p>${digest.coverStory.summary || ''}</p>
+          <p>${escapeHtml(digest.coverStory.summary || '')}</p>
           ${digest.coverStory.post?.url ? `<a href="${digest.coverStory.post.url}" style="color: #667eea;">Read the full thread →</a>` : ''}
         </div>
       </div>
@@ -335,8 +348,8 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
         <div class="section-title">💬 VOICES OF THE WEEK</div>
         ${digest.voicesOfTheWeek.slice(0, 3).map(voice => `
         <div class="voice">
-          <blockquote>"${voice.quote}"</blockquote>
-          <div class="attribution">— ${voice.author} • ${voice.score} ⬆️</div>
+          <blockquote>"${escapeHtml(voice.quote)}"</blockquote>
+          <div class="attribution">— ${escapeHtml(voice.author)} • ${voice.score} ⬆️</div>
         </div>
         `).join('')}
       </div>
@@ -346,11 +359,11 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
       <div class="section">
         <div class="section-title">📖 THREAD OF THE WEEK</div>
         <div class="thread">
-          <div class="thread-title">"${digest.threadOfTheWeek.title}"</div>
+          <div class="thread-title">"${escapeHtml(digest.threadOfTheWeek.title)}"</div>
           ${(digest.threadOfTheWeek.topReplies || []).slice(0, 4).map((reply, i) => `
           <div class="reply ${i > 0 ? 'nested' : ''}">
-            <div>"${reply.text}"</div>
-            <div class="attribution" style="font-size: 12px; color: #666; margin-top: 4px;">— ${reply.author} • ${reply.score} ⬆️</div>
+            <div>"${escapeHtml(reply.text)}"</div>
+            <div class="attribution" style="font-size: 12px; color: #666; margin-top: 4px;">— ${escapeHtml(reply.author)} • ${reply.score} ⬆️</div>
           </div>
           `).join('')}
           ${digest.threadOfTheWeek.post?.url ? `<a href="${digest.threadOfTheWeek.post.url}" style="color: #667eea; display: block; margin-top: 12px;">See full thread →</a>` : ''}
@@ -365,8 +378,8 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
           <ol>
             ${digest.contentIdeas.slice(0, 3).map(idea => `
             <li>
-              <strong>${idea.title}</strong>
-              <div class="rationale">${idea.rationale}</div>
+              <strong>${escapeHtml(idea.title)}</strong>
+              <div class="rationale">${escapeHtml(idea.rationale)}</div>
             </li>
             `).join('')}
           </ol>
@@ -379,7 +392,7 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
         <div class="section-title">🆕 EMERGING THIS WEEK</div>
         <ul>
           ${digest.emergingTopics.slice(0, 5).map(topic => `
-          <li><strong>${topic.topic}</strong> (${topic.mentions} mentions) ${topic.isNew ? '🆕' : ''}</li>
+          <li><strong>${escapeHtml(topic.topic)}</strong> (${topic.mentions} mentions) ${topic.isNew ? '🆕' : ''}</li>
           `).join('')}
         </ul>
       </div>

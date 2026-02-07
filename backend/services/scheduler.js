@@ -172,6 +172,19 @@ async function sendWelcomeDigest(subscription) {
     });
 
     console.log(`[Welcome Email] Sent to ${email}:`, result);
+
+    // Update last_sent_at so scheduled digest cron can pick up this subscription.
+    // Without this, last_sent_at stays NULL and getSubscriptionsDueForDigest()
+    // will never find this subscription for recurring digests.
+    if (result.success && !result.simulated) {
+      try {
+        await db.markSubscriptionSent(id);
+        console.log(`[Welcome Email] Updated last_sent_at for subscription ${id}`);
+      } catch (dbError) {
+        console.error(`[Welcome Email] Failed to update last_sent_at for ${id}:`, dbError.message);
+      }
+    }
+
     return { success: true, ...result };
 
   } catch (error) {
