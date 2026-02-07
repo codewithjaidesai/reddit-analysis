@@ -593,6 +593,15 @@ router.post('/send-preview', async (req, res) => {
       isWelcome: true // Mark as welcome so it shows the banner
     });
 
+    // Update last_sent_at so subscription enters the regular digest cycle.
+    // Without this, scheduled digests would never find this subscription.
+    try {
+      await db.updateSubscriptionLastSent(subscription.id);
+      console.log(`[Preview] Updated last_sent_at for subscription ${subscription.id}`);
+    } catch (dbError) {
+      console.error(`[Preview] Failed to update last_sent_at:`, dbError.message);
+    }
+
     console.log(`[Preview] Successfully sent digest preview to ${subscription.email}`);
 
     res.json({

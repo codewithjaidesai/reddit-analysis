@@ -622,13 +622,13 @@ async function getSubscriptionsDueForDigest() {
   console.log(`[DB] Checking scheduled digests - Day: ${currentDay} (0=Sunday)`);
 
   // Get daily subscriptions that haven't been sent in 20+ hours
+  // Also include subscriptions where last_sent_at is NULL (missed by welcome cron)
   const { data: dailySubs, error: dailyError } = await supabase
     .from('digest_subscriptions')
     .select('*')
     .eq('is_active', true)
     .eq('frequency', 'daily')
-    .not('last_sent_at', 'is', null)  // Already got welcome digest
-    .lt('last_sent_at', twentyHoursAgo.toISOString())
+    .or(`last_sent_at.is.null,last_sent_at.lt.${twentyHoursAgo.toISOString()}`)
     .limit(10);
 
   if (dailyError) {
@@ -638,15 +638,14 @@ async function getSubscriptionsDueForDigest() {
 
   // Get weekly subscriptions that:
   // 1. Match today's day_of_week
-  // 2. Haven't been sent in 6+ days
+  // 2. Haven't been sent in 6+ days OR never sent (last_sent_at is NULL)
   const { data: weeklySubs, error: weeklyError } = await supabase
     .from('digest_subscriptions')
     .select('*')
     .eq('is_active', true)
     .eq('frequency', 'weekly')
     .eq('day_of_week', currentDay)
-    .not('last_sent_at', 'is', null)  // Already got welcome digest
-    .lt('last_sent_at', sixDaysAgo.toISOString())
+    .or(`last_sent_at.is.null,last_sent_at.lt.${sixDaysAgo.toISOString()}`)
     .limit(10);
 
   if (weeklyError) {
