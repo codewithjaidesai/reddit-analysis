@@ -221,15 +221,20 @@ function createEmptyDigest(subreddit, periodStart, periodEnd, frequency) {
     periodStart: periodStart.toISOString(),
     periodEnd: periodEnd.toISOString(),
     generatedAt: new Date().toISOString(),
-    quickHits: ['No significant activity this period'],
+    quickHits: [{ hook: 'No significant activity this period', post: null }],
     coverStory: null,
+    theDebate: null,
     voicesOfTheWeek: [],
     threadOfTheWeek: null,
+    sleeperHit: null,
+    fromTheTrenches: [],
+    soWhat: null,
     contentIdeas: [],
     emergingTopics: [],
     metrics: {
       totalPosts: 0,
-      totalComments: 0
+      totalComments: 0,
+      avgScore: 0
     }
   };
 }
@@ -269,26 +274,31 @@ async function generateDigestContent({
   if (!geminiResult.success) {
     console.error('[Digest] Gemini API failed:', geminiResult.error);
     // Return fallback digest with real post data
+    const fallbackPost = posts[0] ? {
+      id: posts[0].id,
+      title: posts[0].title,
+      url: `https://reddit.com${posts[0].permalink}`,
+      author: posts[0].author,
+      score: posts[0].score,
+      numComments: posts[0].num_comments || posts[0].numComments || 0,
+      selftext: posts[0].selftext || '',
+      createdUtc: posts[0].created_utc
+    } : null;
     return {
-      quickHits: [`Top discussion: "${posts[0]?.title || 'Community active this week'}"`],
-      coverStory: posts[0] ? {
-        title: posts[0].title,
-        post: {
-          id: posts[0].id,
-          url: posts[0].url || `https://reddit.com${posts[0].permalink}`,
-          author: posts[0].author,
-          score: posts[0].score,
-          numComments: posts[0].num_comments || posts[0].numComments
-        },
-        summary: 'This was the most engaging post this period.'
-      } : null,
+      quickHits: [{ hook: `Top discussion: "${posts[0]?.title || 'Community active this period'}"`, post: fallbackPost }],
+      coverStory: fallbackPost ? { whyItMatters: 'Most engaging post this period.', post: fallbackPost } : null,
+      theDebate: null,
       voicesOfTheWeek: [],
       threadOfTheWeek: null,
+      sleeperHit: null,
+      fromTheTrenches: [],
+      soWhat: null,
       contentIdeas: [],
       emergingTopics: [],
       metrics: {
         totalPosts: posts.length,
-        totalComments: posts.reduce((sum, p) => sum + (p.num_comments || p.numComments || 0), 0)
+        totalComments: posts.reduce((sum, p) => sum + (p.num_comments || p.numComments || 0), 0),
+        avgScore: posts.length > 0 ? Math.round(posts.reduce((sum, p) => sum + (p.score || 0), 0) / posts.length) : 0
       }
     };
   }
@@ -314,45 +324,64 @@ function buildDigestPrompt({
   previousDigest
 }) {
   const periodLabel = frequency === 'daily' ? 'today' : 'this week';
+  const now = Date.now() / 1000;
 
-  let prompt = `You are generating a Content Radar digest for r/${subreddit}.
-This is a ${frequency} digest for content creators who want to stay on top of trending topics and find content ideas.
+  let prompt = `You are curating a Content Radar digest for r/${subreddit}.
+
+Your readers are content creators and business researchers who follow this community to spot trends, find content angles, and understand what real people care about. They want to feel like they browsed Reddit without opening Reddit.
+
+RULES FOR TONE:
+- Write like a sharp friend forwarding interesting threads, NOT a corporate newsletter
+- Keep the raw Reddit energy — messy takes, casual language, real opinions
+- DO NOT sanitize, paraphrase, or "clean up" quotes. Use them exactly as written.
+- When something is funny, controversial, or surprising — lean into it
 
 SUBREDDIT: r/${subreddit}
 ${subredditInfo?.title ? `Title: ${subredditInfo.title}` : ''}
 ${subredditInfo?.subscribers ? `Subscribers: ${subredditInfo.subscribers.toLocaleString()}` : ''}
 Period: ${formatDateRange(periodStart, periodEnd)}
-${focusTopic ? `User's focus topic: ${focusTopic}` : ''}
+${focusTopic ? `Reader's focus: ${focusTopic}` : ''}
 
-=== TOP POSTS ${periodLabel.toUpperCase()} ===
+=== POSTS FROM ${periodLabel.toUpperCase()} ===
 `;
 
-  // Add top posts
-  for (const post of posts.slice(0, 30)) {
-    prompt += `\n[${post.score} pts, ${post.num_comments || post.numComments || 0} comments] "${post.title}"`;
+  // Add posts with richer data — more selftext, age, comment ratio
+  for (let i = 0; i < Math.min(posts.length, 30); i++) {
+    const post = posts[i];
+    const numComments = post.num_comments || post.numComments || 0;
+    const commentRatio = post.score > 0 ? (numComments / post.score).toFixed(2) : 'N/A';
+    const ageHours = post.created_utc ? ((now - post.created_utc) / 3600).toFixed(0) : '?';
+
+    prompt += `\n[#${i}] "${post.title}"`;
+    prompt += `\n  Score: ${post.score} | Comments: ${numComments} | Comment/Vote ratio: ${commentRatio} | Posted: ${ageHours}h ago | By: u/${post.author}`;
+
     if (post.selftext) {
-      prompt += `\n  ${post.selftext.substring(0, 200)}...`;
+      const maxLen = i < 15 ? 500 : 200;
+      const text = post.selftext.substring(0, maxLen);
+      prompt += `\n  Post body: "${text}${post.selftext.length > maxLen ? '...' : ''}"`;
     }
+    prompt += '\n';
   }
 
-  // Add posts with comments for voice analysis
+  // Add community discussions with more comments and author data
   if (postsWithComments.length > 0) {
-    prompt += `\n\n=== COMMUNITY DISCUSSIONS (with comments) ===\n`;
-    for (const post of postsWithComments.slice(0, 10)) {
-      prompt += `\n**"${post.title}"** [${post.score} pts]\n`;
+    prompt += `\n=== COMMUNITY DISCUSSIONS (with comments) ===\n`;
+    for (const post of postsWithComments.slice(0, 12)) {
+      const postIdx = posts.findIndex(p => p.id === post.id);
+      prompt += `\n**[#${postIdx >= 0 ? postIdx : '?'}] "${post.title}"** [${post.score} pts, ${post.num_comments || post.numComments || 0} comments]\n`;
+
       if (post.comments && post.comments.length > 0) {
-        prompt += `Top comments:\n`;
-        for (const comment of post.comments.slice(0, 5)) {
-          const text = comment.body.substring(0, 200);
-          prompt += `  - [${comment.score} pts] "${text}${comment.body.length > 200 ? '...' : ''}"\n`;
+        for (const comment of post.comments.slice(0, 8)) {
+          const text = comment.body.substring(0, 300);
+          prompt += `  - u/${comment.author} [${comment.score} pts]: "${text}${comment.body.length > 300 ? '...' : ''}"\n`;
         }
       }
     }
   }
 
-  // Add comparison context if available
+  // Previous digest for comparison
   if (previousDigest && previousDigest.top_themes) {
-    prompt += `\n\n=== LAST DIGEST'S TOP THEMES (for comparison) ===\n`;
+    prompt += `\n\n=== LAST DIGEST'S THEMES (for comparison) ===\n`;
     prompt += JSON.stringify(previousDigest.top_themes, null, 2);
   }
 
@@ -360,79 +389,129 @@ ${focusTopic ? `User's focus topic: ${focusTopic}` : ''}
 
 === YOUR TASK ===
 
-Generate a magazine-style digest with these sections. Return as JSON:
+Curate this into a digest. Return as JSON with these sections:
 
 {
   "quickHits": [
-    // 3-4 bullet points summarizing the week/day
-    // Include specific numbers and trends
-    // Example: "AI coding tools dominated discussion (+45% mentions)"
+    // 3-4 one-line story hooks that make people want to click through
+    // Each must reference a specific post. Write them like headlines, not statistics.
+    // BAD: "AI tools saw 45% increase in mentions"
+    // GOOD: "A dev's rant about Copilot breaking prod got 2.3K upvotes — plot twist: the bug was theirs"
+    {
+      "hook": "The story hook sentence",
+      "postIndex": 0
+    }
   ],
 
   "coverStory": {
-    "title": "The headline from the most engaging discussion",
-    "postIndex": 0,  // Index of the post in the TOP POSTS list (0-based)
-    "summary": "2-3 sentences explaining why this resonated and what it reveals"
+    // The single most interesting/engaging post this period
+    // DO NOT write a summary. We will show the actual post content directly.
+    "postIndex": 0,
+    "whyItMatters": "1 sentence — why this blew up or why it matters (be real, not corporate)"
+  },
+
+  "theDebate": {
+    // The most polarizing topic where the community is genuinely split
+    // Set to null if there's no real disagreement worth highlighting
+    "topic": "The question people disagree on",
+    "postIndex": 0,
+    "sideA": {
+      "position": "What this camp believes (1 sentence)",
+      "quotes": [
+        {"text": "Exact quote from comments", "author": "u/username", "score": 123}
+      ]
+    },
+    "sideB": {
+      "position": "What the other camp believes (1 sentence)",
+      "quotes": [
+        {"text": "Exact quote from comments", "author": "u/username", "score": 123}
+      ]
+    }
   },
 
   "voicesOfTheWeek": [
-    // 2-3 memorable quotes from comments
+    // 3-4 comments worth reading — insightful, funny, or brutally honest
+    // These should make the reader think "I need to read this thread"
     {
-      "quote": "The exact quote (keep the human voice, including casual language)",
+      "quote": "The exact comment text — keep the human voice, typos and all",
       "author": "u/username",
       "score": 123,
-      "context": "Brief context about what post this was from"
+      "postIndex": 0
     }
   ],
 
   "threadOfTheWeek": {
-    "title": "Thread title",
-    "postIndex": 0,  // Index of the post
+    // The best conversation — where replies build on each other
+    "postIndex": 0,
     "topReplies": [
-      // 3-4 actual replies showing the conversation flow
-      {"text": "Reply text", "author": "u/username", "score": 45}
+      {"text": "Exact reply text", "author": "u/username", "score": 45}
+    ]
+  },
+
+  "sleeperHit": {
+    // A post with HIGH comment-to-vote ratio (>0.5) — lots of discussion but not many upvotes
+    // The hidden gem most people scrolled past. Set to null if nothing qualifies.
+    "postIndex": 0,
+    "whyItMatters": "Why this deserves attention despite low upvotes"
+  },
+
+  "fromTheTrenches": [
+    // 3-5 real data points, numbers, tools, or actionable advice people shared in comments
+    // These are the gold nuggets — real practitioner knowledge
+    // BAD: "Users discussed various pricing strategies"
+    // GOOD: "We switched from Vercel to Railway and our bill dropped from $340/mo to $45/mo"
+    {
+      "insight": "The actual data point, number, tool, or recommendation someone shared",
+      "author": "u/username",
+      "postIndex": 0
+    }
+  ],
+
+  "soWhat": {
+    // Second-order thinking — connect the dots across this period's discussions
+    // State what's happening now, then project the non-obvious consequence
+    "signal": "The pattern or trend across this period's discussions (be specific)",
+    "implications": [
+      "First order: What this means right now",
+      "Second order: Where this leads — the non-obvious consequence most people miss",
+      "For creators: What to do about it — the specific content or positioning play"
     ]
   },
 
   "contentIdeas": [
-    // 3 specific content ideas for creators
+    // 3 specific content ideas backed by demand signals from actual threads
     {
-      "title": "Specific content title/angle",
-      "rationale": "Why this would work (data from the community)"
-      ${focusTopic ? `, "relevanceToFocus": 0.0-1.0 // How relevant to user's focus: "${focusTopic}"` : ''}
+      "title": "Specific content title or angle",
+      "format": "blog post / video / thread / comparison / tutorial",
+      "demandSignal": "What in the data proves people want this — cite the specific thread or comment pattern",
+      "sourcePostIndex": 0
     }
   ],
 
   "emergingTopics": [
-    // Topics that are new or growing
     {
       "topic": "Topic name",
       "mentions": 12,
-      "isNew": true,  // true if not mentioned in previous digest
-      "isControversial": false  // true if there's debate
+      "isNew": true,
+      "context": "Why it's emerging now (1 sentence)"
     }
   ],
-
-  "theDebate": {
-    // Optional: if there's a significant disagreement this week
-    "topic": "What people are debating",
-    "forSide": {"summary": "...", "quotes": ["..."]},
-    "againstSide": {"summary": "...", "quotes": ["..."]}
-  },
 
   "metrics": {
     "totalPosts": ${posts.length},
     "totalComments": ${posts.reduce((sum, p) => sum + (p.num_comments || p.numComments || 0), 0)},
-    "topMentionedTerms": ["term1", "term2", "term3"]  // Most frequently mentioned products/tools/topics
+    "avgScore": ${posts.length > 0 ? Math.round(posts.reduce((sum, p) => sum + (p.score || 0), 0) / posts.length) : 0}
   }
 }
 
-IMPORTANT:
-- Preserve the HUMAN VOICE. Use actual quotes, not paraphrased versions.
-- Be specific with numbers and percentages where possible.
-- The "postIndex" fields should reference posts from the TOP POSTS list (0-indexed).
-- Content ideas should be actionable for creators (not generic).
-${focusTopic ? `- Prioritize content matching the user's focus: "${focusTopic}"` : ''}
+CRITICAL RULES:
+1. USE EXACT QUOTES from the comment data above. Do NOT paraphrase, clean up, or rewrite them.
+2. postIndex values MUST be valid indices from the POSTS list (0 to ${Math.min(posts.length, 30) - 1}).
+3. "fromTheTrenches" items must contain REAL data/numbers/tools from actual comments — not AI-generated advice.
+4. Write like a person, not a marketing team. No corporate-speak.
+5. If a section has no good content for this period, set it to null — don't fabricate.
+6. For "soWhat", think like the show Connections: state the present, then trace the non-obvious consequence.
+${focusTopic ? `7. Prioritize content relevant to: "${focusTopic}"` : ''}
 
 Return ONLY valid JSON, no markdown code blocks.`;
 
@@ -553,67 +632,122 @@ function validateReply(reply, realComments) {
 /**
  * Parse the AI response into digest format
  * Validates quotes against actual source data to prevent hallucinations
+ * Enriches all sections with real post data (URLs, selftext, etc.)
  */
 function parseDigestResponse(response, posts, postsWithComments) {
+  // Helper to get enriched post data by index
+  function getPostData(postIndex) {
+    if (typeof postIndex !== 'number' || postIndex < 0 || postIndex >= posts.length) return null;
+    const post = posts[postIndex];
+    if (!post) return null;
+    return {
+      id: post.id,
+      title: post.title,
+      url: `https://reddit.com${post.permalink}`,
+      author: post.author,
+      score: post.score,
+      numComments: post.num_comments || post.numComments || 0,
+      selftext: post.selftext || '',
+      createdUtc: post.created_utc
+    };
+  }
+
   try {
-    // Clean up response if needed
+    // Clean up response
     let cleaned = response.trim();
-    if (cleaned.startsWith('```json')) {
-      cleaned = cleaned.slice(7);
-    }
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.slice(3);
-    }
-    if (cleaned.endsWith('```')) {
-      cleaned = cleaned.slice(0, -3);
-    }
+    if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+    if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+    if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
 
     const parsed = JSON.parse(cleaned);
 
-    // Build a set of all real comments for validation
+    // Build real comments map for quote validation
     const realComments = extractAllComments(postsWithComments);
 
-    // Validate and filter voicesOfTheWeek - only keep verified quotes
+    // --- Enrich quickHits with post data ---
+    if (parsed.quickHits && Array.isArray(parsed.quickHits)) {
+      parsed.quickHits = parsed.quickHits.map(hit => {
+        if (typeof hit === 'string') return { hook: hit, post: null };
+        return {
+          hook: hit.hook || String(hit),
+          post: getPostData(hit.postIndex)
+        };
+      });
+    }
+
+    // --- Enrich coverStory with full post data (including selftext) ---
+    if (parsed.coverStory && typeof parsed.coverStory.postIndex === 'number') {
+      parsed.coverStory.post = getPostData(parsed.coverStory.postIndex);
+    }
+
+    // --- Enrich theDebate with post data and validate quotes ---
+    if (parsed.theDebate && parsed.theDebate.topic) {
+      parsed.theDebate.post = getPostData(parsed.theDebate.postIndex);
+      // Validate debate quotes (they use 'text' field like replies)
+      if (parsed.theDebate.sideA?.quotes) {
+        parsed.theDebate.sideA.quotes = parsed.theDebate.sideA.quotes
+          .map(q => {
+            // Try to validate against real comments
+            const asReply = validateReply({ text: q.text, author: q.author, score: q.score }, realComments);
+            return asReply || q; // Keep AI version if not found (debate quotes are harder to match)
+          })
+          .slice(0, 2);
+      }
+      if (parsed.theDebate.sideB?.quotes) {
+        parsed.theDebate.sideB.quotes = parsed.theDebate.sideB.quotes
+          .map(q => {
+            const asReply = validateReply({ text: q.text, author: q.author, score: q.score }, realComments);
+            return asReply || q;
+          })
+          .slice(0, 2);
+      }
+    }
+
+    // --- Validate and enrich voicesOfTheWeek ---
     if (parsed.voicesOfTheWeek && Array.isArray(parsed.voicesOfTheWeek)) {
       parsed.voicesOfTheWeek = parsed.voicesOfTheWeek
-        .map(voice => validateQuote(voice, realComments))
+        .map(voice => {
+          const validated = validateQuote(voice, realComments);
+          if (validated) {
+            validated.post = getPostData(voice.postIndex);
+            return validated;
+          }
+          return null;
+        })
         .filter(voice => voice !== null);
 
       console.log(`[Quote Validation] Kept ${parsed.voicesOfTheWeek.length} verified voices`);
     }
 
-    // Validate threadOfTheWeek replies
-    if (parsed.threadOfTheWeek && parsed.threadOfTheWeek.topReplies) {
-      parsed.threadOfTheWeek.topReplies = parsed.threadOfTheWeek.topReplies
-        .map(reply => validateReply(reply, realComments))
-        .filter(reply => reply !== null);
-    }
-
-    // Enhance with actual post data
-    if (parsed.coverStory && typeof parsed.coverStory.postIndex === 'number') {
-      const post = posts[parsed.coverStory.postIndex];
-      if (post) {
-        parsed.coverStory.post = {
-          id: post.id,
-          url: post.url || `https://reddit.com${post.permalink}`,
-          author: post.author,
-          score: post.score,
-          numComments: post.num_comments || post.numComments
-        };
+    // --- Validate and enrich threadOfTheWeek ---
+    if (parsed.threadOfTheWeek) {
+      parsed.threadOfTheWeek.post = getPostData(parsed.threadOfTheWeek.postIndex);
+      if (parsed.threadOfTheWeek.topReplies) {
+        parsed.threadOfTheWeek.topReplies = parsed.threadOfTheWeek.topReplies
+          .map(reply => validateReply(reply, realComments))
+          .filter(reply => reply !== null);
       }
     }
 
-    if (parsed.threadOfTheWeek && typeof parsed.threadOfTheWeek.postIndex === 'number') {
-      const post = posts[parsed.threadOfTheWeek.postIndex];
-      if (post) {
-        parsed.threadOfTheWeek.post = {
-          id: post.id,
-          url: post.url || `https://reddit.com${post.permalink}`,
-          author: post.author,
-          score: post.score,
-          numComments: post.num_comments || post.numComments
-        };
-      }
+    // --- Enrich sleeperHit ---
+    if (parsed.sleeperHit && typeof parsed.sleeperHit.postIndex === 'number') {
+      parsed.sleeperHit.post = getPostData(parsed.sleeperHit.postIndex);
+    }
+
+    // --- Enrich fromTheTrenches with post data ---
+    if (parsed.fromTheTrenches && Array.isArray(parsed.fromTheTrenches)) {
+      parsed.fromTheTrenches = parsed.fromTheTrenches.map(item => ({
+        ...item,
+        post: getPostData(item.postIndex)
+      }));
+    }
+
+    // --- Enrich contentIdeas with source post data ---
+    if (parsed.contentIdeas && Array.isArray(parsed.contentIdeas)) {
+      parsed.contentIdeas = parsed.contentIdeas.map(idea => ({
+        ...idea,
+        post: getPostData(idea.sourcePostIndex)
+      }));
     }
 
     return parsed;
@@ -624,24 +758,23 @@ function parseDigestResponse(response, posts, postsWithComments) {
 
     // Return a basic structure on parse failure
     return {
-      quickHits: ['Analysis in progress - check back soon'],
+      quickHits: [{ hook: `Top discussion: "${posts[0]?.title || 'Community active this period'}"`, post: getPostData(0) }],
       coverStory: posts[0] ? {
-        title: posts[0].title,
-        post: {
-          id: posts[0].id,
-          url: posts[0].url || `https://reddit.com${posts[0].permalink}`,
-          score: posts[0].score,
-          numComments: posts[0].num_comments || posts[0].numComments
-        },
-        summary: 'Top post this period.'
+        whyItMatters: 'Most engaging post this period.',
+        post: getPostData(0)
       } : null,
+      theDebate: null,
       voicesOfTheWeek: [],
       threadOfTheWeek: null,
+      sleeperHit: null,
+      fromTheTrenches: [],
+      soWhat: null,
       contentIdeas: [],
       emergingTopics: [],
       metrics: {
         totalPosts: posts.length,
-        totalComments: posts.reduce((sum, p) => sum + (p.num_comments || p.numComments || 0), 0)
+        totalComments: posts.reduce((sum, p) => sum + (p.num_comments || p.numComments || 0), 0),
+        avgScore: posts.length > 0 ? Math.round(posts.reduce((sum, p) => sum + (p.score || 0), 0) / posts.length) : 0
       }
     };
   }
