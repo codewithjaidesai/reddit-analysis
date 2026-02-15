@@ -289,7 +289,7 @@ UPSTASH_REDIS_TOKEN=xxx
 
 # Resend
 RESEND_API_KEY=xxx
-RESEND_FROM_EMAIL=digest@contentradar.com
+RESEND_FROM_EMAIL=Content Radar <digest@voiceofthecustomer.online>
 
 # Security
 UNSUBSCRIBE_SECRET=xxx  # For signing unsubscribe tokens
