@@ -4,6 +4,7 @@
  * Switch tabs
  */
 function switchTab(tabName) {
+    Analytics.trackTabSwitch(tabName);
     // Hide all tabs
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
