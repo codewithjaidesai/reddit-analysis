@@ -29,6 +29,7 @@ async function initUnsubscribePage() {
 
         // Auto-unsubscribe immediately
         await RadarAPI.unsubscribe(currentToken);
+        Analytics.trackUnsubscribe(currentSubscription.subreddit);
         showSuccess();
 
     } catch (error) {
@@ -53,6 +54,7 @@ async function handleResubscribe() {
 
     try {
         await RadarAPI.resubscribe(currentToken);
+        Analytics.trackResubscribe(currentSubscription?.subreddit);
 
         // Show inline confirmation instead of alert
         resubscribeBtn.textContent = 'Resubscribed!';
@@ -83,6 +85,7 @@ async function handleResubscribe2() {
 
     try {
         await RadarAPI.resubscribe(currentToken);
+        Analytics.trackResubscribe(currentSubscription?.subreddit);
         resubscribeBtn.textContent = 'Resubscribed!';
         resubscribeBtn.style.background = 'var(--success, #10b981)';
         setTimeout(() => {

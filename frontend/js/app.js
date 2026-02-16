@@ -132,6 +132,8 @@ async function handleAnalyzeUrl() {
         return;
     }
 
+    Analytics.trackAnalyzeUrl(url, role, goal);
+
     // Reset UI
     hideAll();
     setButtonLoading('analyzeBtn', true);
@@ -166,8 +168,11 @@ async function handleAnalyzeUrl() {
             displayInsights(result.insights.aiAnalysis);
         }
 
+        Analytics.trackAnalyzeUrlComplete(url, result.extractedData?.comments?.length || 0);
+
     } catch (error) {
         console.error('Analysis error:', error);
+        Analytics.trackError('url_analysis', error.message);
         showError(error.message || 'An unexpected error occurred');
     } finally {
         setButtonLoading('analyzeBtn', false);
@@ -273,6 +278,8 @@ async function handleSearchByTopic() {
         timestamp: Date.now()
     });
 
+    Analytics.trackSearchByTopic(researchQuestion, timeRange, limit, searchMethod);
+
     // Reset
     hideAll();
     topicSelectedPosts.clear();
@@ -369,6 +376,7 @@ async function handleSearchByTopic() {
 
     } catch (error) {
         console.error('Auto-analyze error:', error);
+        Analytics.trackError('topic_search', error.message);
         showError(error.message || 'Analysis failed');
     }
 }
@@ -701,6 +709,8 @@ async function analyzeTopicSelectedPosts() {
         .filter(post => topicSelectedPosts.has(post.id))
         .map(post => post.url);
 
+    Analytics.trackPostsAnalyzed('topic_search', selectedUrls.length);
+
     // Collapse results section and update its summary
     updateResultsCollapsedSummary(currentTopicResults.length, topicSelectedPosts.size);
     collapseSection('topicResultsSection');
@@ -722,6 +732,8 @@ async function handleSearchSubreddit() {
 
     const timeRange = document.getElementById('subredditTimeRange').value;
     const limit = parseInt(document.getElementById('subredditLimit').value);
+
+    Analytics.trackSearchSubreddit(subreddit, timeRange, limit);
 
     // Reset
     hideAll();
@@ -748,8 +760,11 @@ async function handleSearchSubreddit() {
         displayPostCards(result.posts, 'subredditPostsList', subredditSelectedPosts, 'toggleSubredditPost');
         updateSubredditSelectedCount();
 
+        Analytics.trackSearchSubredditComplete(subreddit, result.posts?.length || 0);
+
     } catch (error) {
         console.error('Search error:', error);
+        Analytics.trackError('subreddit_search', error.message);
         showError(error.message || 'Search failed');
     }
 }
@@ -802,6 +817,8 @@ async function analyzeSubredditSelectedPosts() {
     const selectedUrls = currentSubredditResults
         .filter(post => subredditSelectedPosts.has(post.id))
         .map(post => post.url);
+
+    Analytics.trackPostsAnalyzed('subreddit_search', selectedUrls.length);
 
     await analyzeMultiplePosts(selectedUrls);
 }
@@ -946,6 +963,8 @@ async function handleCommunityPulse() {
     // Get custom focus (optional)
     const customFocus = document.getElementById('customAnalysisFocus')?.value?.trim() || null;
 
+    Analytics.trackCommunityPulse(subreddit, depth);
+
     // Hide all sections and show status
     hideAll();
     document.getElementById('communityPulseResults').style.display = 'none';
@@ -1002,10 +1021,13 @@ async function handleCommunityPulse() {
         hideAll();
         displayCommunityPulseReport(result);
 
+        Analytics.trackCommunityPulseComplete(subreddit);
+
     } catch (error) {
         // Clear progress timers on error
         progressTimers.forEach(timer => clearTimeout(timer));
         console.error('Community Pulse error:', error);
+        Analytics.trackError('community_pulse', error.message);
         showError(error.message || 'Analysis failed. Please try again.');
     }
 }
@@ -1462,6 +1484,7 @@ function toggleSourceBucket(bucketName) {
  * Download Community Pulse source posts as CSV
  */
 function downloadPulseSourceData() {
+    Analytics.trackDownloadRawData();
     if (!currentCommunityPulseResults || !currentCommunityPulseResults.sourcePosts) {
         alert('No source data available');
         return;
@@ -2398,6 +2421,7 @@ function togglePostDetails(index) {
 
 // Export combined summary as PDF
 function exportCombinedSummaryPDF() {
+    Analytics.trackExportPDF('combined_summary');
     if (!window.combinedResultsData) return;
 
     const { combinedAnalysis, posts } = window.combinedResultsData;
@@ -2974,6 +2998,7 @@ function copySourcePostAsText(index) {
 
 // Download all raw data as formatted PDF
 function downloadAllRawData() {
+    Analytics.trackDownloadRawData();
     if (!window.combinedResultsData) return;
 
     const { posts } = window.combinedResultsData;
@@ -3487,6 +3512,7 @@ document.addEventListener('keypress', function(e) {
  * Switch between analysis tabs
  */
 function switchAnalysisTab(tabName) {
+    Analytics.trackAnalysisTabSwitch(tabName);
     // Update tab buttons
     document.querySelectorAll('.analysis-tab').forEach(btn => {
         btn.classList.remove('active');
@@ -3513,6 +3539,8 @@ function switchAnalysisTab(tabName) {
  */
 function switchAnalysis(index) {
     if (index < 0 || index >= analysisHistory.length) return;
+
+    Analytics.trackAnalysisHistorySwitch(index, analysisHistory.length);
 
     currentAnalysisIndex = index;
     const entry = analysisHistory[index];
@@ -3700,6 +3728,8 @@ async function submitReanalyze() {
     const role = personaData ? personaData.role : 'Analyst';
     const goal = reanalyzeSelectedOutcome;
 
+    Analytics.trackReanalyze(reanalyzeSelectedPersona, goal);
+
     // Update research context
     window.currentResearchContext = {
         ...window.currentResearchContext,
@@ -3835,6 +3865,7 @@ async function submitGenerate() {
         }
 
         showStatus('Content generated!', 100);
+        Analytics.trackContentGenerated(selectedType, tone, length);
 
         // Add to generated contents (current session)
         const generatedItem = {
@@ -3888,6 +3919,7 @@ function copyGeneratedContent(index) {
     if (index < 0 || index >= generatedContents.length) return;
 
     const content = generatedContents[index];
+    Analytics.trackCopyContent(content.type);
     navigator.clipboard.writeText(content.content).then(() => {
         alert('Content copied to clipboard!');
     }).catch(err => {
@@ -3900,6 +3932,7 @@ function copyGeneratedContent(index) {
  * Export generated content as PDF
  */
 function exportGeneratedContentPDF(index) {
+    Analytics.trackExportPDF('generated_content');
     if (index < 0 || index >= generatedContents.length) return;
 
     const content = generatedContents[index];

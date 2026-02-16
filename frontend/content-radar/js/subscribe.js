@@ -204,6 +204,7 @@ async function checkSubreddit() {
         }
 
         currentSubredditInfo = data;
+        Analytics.trackSubredditCheck(subreddit);
 
         // Safely get subreddit name
         const subName = data.subreddit?.name || data.subreddit?.subreddit || subreddit;
@@ -284,9 +285,11 @@ async function handleSubmit(e) {
 
         // Show success state
         showSuccess(data, subreddit);
+        Analytics.trackSubscribe(subreddit, frequency, !!focusTopic);
 
     } catch (error) {
         console.error('Subscribe error:', error);
+        Analytics.trackError('subscribe', error.message);
         showError(error.message || 'Failed to subscribe. Please try again.');
     } finally {
         submitBtn.disabled = false;
@@ -388,6 +391,7 @@ function resetForm() {
 
 // Send preview digest
 async function sendPreviewDigest() {
+    Analytics.trackPreviewDigest('unknown');
     const subscriptionId = sessionStorage.getItem('lastSubscriptionId');
     const token = sessionStorage.getItem('lastUnsubscribeToken');
 

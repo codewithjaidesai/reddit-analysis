@@ -51,6 +51,8 @@ async function handleLookup(e) {
         // Save email
         RadarUtils.saveEmail(email);
 
+        Analytics.trackSubscriptionLookup(currentSubscriptions.length);
+
         if (currentSubscriptions.length === 0) {
             showEmptyState();
         } else {
@@ -58,6 +60,7 @@ async function handleLookup(e) {
         }
 
     } catch (error) {
+        Analytics.trackError('subscription_lookup', error.message);
         showError(error.message || 'Failed to load subscriptions');
     } finally {
         lookupBtn.disabled = false;
