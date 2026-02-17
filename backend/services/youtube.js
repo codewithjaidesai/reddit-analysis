@@ -263,7 +263,7 @@ function extractValuableComments(comments, video) {
         valid: 0,
         extracted: 0,
         percentageKept: 0,
-        averageLikes: 0
+        averageScore: 0
       }
     };
   }
@@ -379,7 +379,7 @@ function extractValuableComments(comments, video) {
       valid: validComments.length,
       extracted: valuableComments.length,
       percentageKept: percentageKept,
-      averageLikes: avgLikes
+      averageScore: avgLikes
     }
   };
 }
