@@ -123,21 +123,26 @@ async function handleAnalyzeUrl() {
     const goal = document.getElementById('urlUserGoal').value.trim();
 
     if (!url) {
-        showError('Please enter a Reddit URL');
+        showError('Please enter a URL');
         return;
     }
 
-    if (!url.includes('reddit.com/r/') || !url.includes('/comments/')) {
-        showError('Please enter a valid Reddit post URL');
+    // Check for valid Reddit or YouTube URL
+    const isRedditUrl = url.includes('reddit.com/r/') && url.includes('/comments/');
+    const isYouTubeUrl = url.includes('youtube.com/watch') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/');
+
+    if (!isRedditUrl && !isYouTubeUrl) {
+        showError('Please enter a valid Reddit post URL or YouTube video URL');
         return;
     }
 
+    const source = isYouTubeUrl ? 'youtube' : 'reddit';
     Analytics.trackAnalyzeUrl(url, role, goal);
 
     // Reset UI
     hideAll();
     setButtonLoading('analyzeBtn', true);
-    showStatus('Extracting Reddit data...', 20);
+    showStatus(isYouTubeUrl ? 'Extracting YouTube data...' : 'Extracting Reddit data...', 20);
 
     try {
         // Call the full analysis endpoint with role/goal
