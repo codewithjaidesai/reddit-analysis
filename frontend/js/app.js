@@ -169,8 +169,17 @@ async function handleAnalyzeUrl() {
             displayExtractedData(result.extractedData);
         }
 
-        if (result.insights && result.insights.aiAnalysis) {
-            displayInsights(result.insights.aiAnalysis);
+        if (result.insights) {
+            // Use structured display if available, otherwise fallback to markdown
+            if (result.insights.structured) {
+                displayStructuredInsights(
+                    result.insights.structured,
+                    result.insights.model,
+                    result.insights.source || result.extractedData?.source || 'reddit'
+                );
+            } else if (result.insights.aiAnalysis) {
+                displayInsights(result.insights.aiAnalysis);
+            }
         }
 
         Analytics.trackAnalyzeUrlComplete(url, result.extractedData?.comments?.length || 0);

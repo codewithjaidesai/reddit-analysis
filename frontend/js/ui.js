@@ -342,7 +342,7 @@ function displayExtractedData(data) {
 }
 
 /**
- * Display AI insights
+ * Display AI insights (markdown fallback)
  */
 function displayInsights(analysisText) {
     // Store insights for export
@@ -351,6 +351,317 @@ function displayInsights(analysisText) {
     const formattedHtml = formatMarkdown(analysisText);
     document.getElementById('insightsContent').innerHTML = formattedHtml;
     document.getElementById('insightsCard').style.display = 'block';
+}
+
+/**
+ * Display structured AI insights (like Analyze User)
+ * @param {object} analysis - Structured analysis object
+ * @param {string} model - AI model used
+ * @param {string} source - 'reddit' or 'youtube'
+ */
+function displayStructuredInsights(analysis, model, source = 'reddit') {
+    // Store for export
+    window.currentAIInsights = JSON.stringify(analysis, null, 2);
+
+    const isYouTube = source === 'youtube';
+    const engagementLabel = isYouTube ? 'likes' : 'pts';
+
+    let html = '';
+
+    // Executive Summary
+    if (analysis.executiveSummary) {
+        html += `
+            <div class="content-analysis-section">
+                <h3>Executive Summary</h3>
+                <p class="executive-summary-text">${escapeHtml(analysis.executiveSummary)}</p>
+            </div>
+        `;
+    }
+
+    // Goal Analysis (Evidence Section)
+    if (analysis.goalAnalysis) {
+        const ga = analysis.goalAnalysis;
+        const verdictClass = getVerdictClass(ga.verdict);
+        const evidenceScore = ga.evidenceScore || 0;
+
+        html += `
+            <div class="content-analysis-section">
+                <h3>Goal Analysis</h3>
+                <div class="goal-analysis-card">
+                    <div class="hypothesis-row">
+                        <span class="hypothesis-label">Hypothesis:</span>
+                        <span class="hypothesis-text">${escapeHtml(ga.hypothesis || 'N/A')}</span>
+                    </div>
+                    <div class="verdict-row">
+                        <span class="verdict-badge ${verdictClass}">${ga.verdict || 'Unknown'}</span>
+                        <span class="confidence-badge confidence-${ga.confidenceLevel || 'medium'}">${(ga.confidenceLevel || 'medium').toUpperCase()} confidence</span>
+                    </div>
+                    <div class="evidence-bar-container">
+                        <div class="evidence-bar">
+                            <div class="evidence-fill" style="width: ${evidenceScore}%"></div>
+                        </div>
+                        <span class="evidence-score">${evidenceScore}% supported</span>
+                    </div>
+                    ${ga.breakdown ? `
+                        <div class="evidence-breakdown">
+                            <span>${ga.breakdown.relevantComments || 0} relevant comments analyzed</span>
+                            <span class="evidence-detail">
+                                <span class="supporting">${ga.breakdown.supportingCount || 0} supporting (${ga.breakdown.supportingPercentage || 0}%)</span>
+                                <span class="counter">${ga.breakdown.counterCount || 0} counter (${ga.breakdown.counterPercentage || 0}%)</span>
+                            </span>
+                        </div>
+                    ` : ''}
+                    ${ga.confidenceReason ? `<p class="confidence-reason">${escapeHtml(ga.confidenceReason)}</p>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Sentiment Analysis
+    if (analysis.sentimentAnalysis) {
+        const sa = analysis.sentimentAnalysis;
+        html += `
+            <div class="content-analysis-section">
+                <h3>Sentiment Analysis</h3>
+                <div class="sentiment-overview">
+                    <span class="sentiment-overall sentiment-${sa.overall || 'neutral'}">${(sa.overall || 'neutral').toUpperCase()}</span>
+                    ${sa.emotionalTone ? `<span class="emotional-tone">${escapeHtml(sa.emotionalTone)}</span>` : ''}
+                </div>
+                ${sa.breakdown ? `
+                    <div class="sentiment-bars">
+                        <div class="sentiment-bar-row">
+                            <span class="sentiment-label positive">Positive</span>
+                            <div class="sentiment-bar-track">
+                                <div class="sentiment-bar-fill positive" style="width: ${sa.breakdown.positive || 0}%"></div>
+                            </div>
+                            <span class="sentiment-percent">${sa.breakdown.positive || 0}%</span>
+                        </div>
+                        <div class="sentiment-bar-row">
+                            <span class="sentiment-label negative">Negative</span>
+                            <div class="sentiment-bar-track">
+                                <div class="sentiment-bar-fill negative" style="width: ${sa.breakdown.negative || 0}%"></div>
+                            </div>
+                            <span class="sentiment-percent">${sa.breakdown.negative || 0}%</span>
+                        </div>
+                        <div class="sentiment-bar-row">
+                            <span class="sentiment-label neutral">Neutral</span>
+                            <div class="sentiment-bar-track">
+                                <div class="sentiment-bar-fill neutral" style="width: ${sa.breakdown.neutral || 0}%"></div>
+                            </div>
+                            <span class="sentiment-percent">${sa.breakdown.neutral || 0}%</span>
+                        </div>
+                    </div>
+                ` : ''}
+                ${sa.drivers ? `
+                    <div class="sentiment-drivers">
+                        ${sa.drivers.positive && sa.drivers.positive.length > 0 ? `
+                            <div class="driver-col positive">
+                                <h4>Driving Positive</h4>
+                                <ul>${sa.drivers.positive.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>
+                            </div>
+                        ` : ''}
+                        ${sa.drivers.negative && sa.drivers.negative.length > 0 ? `
+                            <div class="driver-col negative">
+                                <h4>Driving Negative</h4>
+                                <ul>${sa.drivers.negative.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Topic Groups
+    if (analysis.topicGroups && analysis.topicGroups.length > 0) {
+        html += `
+            <div class="content-analysis-section">
+                <h3>Topic Breakdown</h3>
+                <div class="topic-groups-grid">
+                    ${analysis.topicGroups.map(tg => `
+                        <div class="topic-card">
+                            <div class="topic-header">
+                                <span class="topic-name">${escapeHtml(tg.topic)}</span>
+                                <span class="topic-sentiment sentiment-${tg.sentiment || 'neutral'}">${tg.sentiment || 'neutral'}</span>
+                            </div>
+                            <p class="topic-description">${escapeHtml(tg.description || '')}</p>
+                            <div class="topic-meta">
+                                <span>${tg.commentCount || 0} comments</span>
+                            </div>
+                            ${tg.keyPoints && tg.keyPoints.length > 0 ? `
+                                <div class="topic-key-points">
+                                    <ul>${tg.keyPoints.map(kp => `<li>${escapeHtml(kp)}</li>`).join('')}</ul>
+                                </div>
+                            ` : ''}
+                            ${tg.quotes && tg.quotes.length > 0 ? `
+                                <div class="topic-quotes">
+                                    ${tg.quotes.slice(0, 2).map(q => `
+                                        <div class="topic-quote">
+                                            <span class="quote-text">"${escapeHtml(q.text)}"</span>
+                                            <span class="quote-meta">— @${q.author || 'anon'} • ${q.score || 0} ${engagementLabel}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Key Quotes
+    if (analysis.keyQuotes && analysis.keyQuotes.length > 0) {
+        html += `
+            <div class="content-analysis-section">
+                <h3>Key Quotes</h3>
+                <div class="key-quotes-list">
+                    ${analysis.keyQuotes.map(q => `
+                        <div class="key-quote-card quote-type-${(q.type || 'insight').toLowerCase()}">
+                            <div class="quote-type-badge">${getQuoteTypeIcon(q.type)} ${q.type || 'INSIGHT'}</div>
+                            <p class="quote-text">"${escapeHtml(q.text)}"</p>
+                            <div class="quote-footer">
+                                <span class="quote-author">— @${q.author || 'anonymous'}</span>
+                                <span class="quote-score">${q.score || 0} ${engagementLabel}</span>
+                            </div>
+                            ${q.context ? `<p class="quote-context">${escapeHtml(q.context)}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Actionable Insights
+    if (analysis.actionableInsights && analysis.actionableInsights.length > 0) {
+        html += `
+            <div class="content-analysis-section">
+                <h3>Actionable Insights</h3>
+                <div class="actionable-insights-list">
+                    ${analysis.actionableInsights.map(ai => `
+                        <div class="actionable-insight-card priority-${ai.priority || 'medium'}">
+                            <div class="insight-header">
+                                <span class="insight-title">${escapeHtml(ai.title)}</span>
+                                <span class="priority-badge priority-${ai.priority || 'medium'}">${(ai.priority || 'medium').toUpperCase()}</span>
+                            </div>
+                            <p class="insight-description">${escapeHtml(ai.description)}</p>
+                            ${ai.relevanceToGoal ? `<p class="insight-relevance">${escapeHtml(ai.relevanceToGoal)}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Patterns
+    if (analysis.patterns && analysis.patterns.length > 0) {
+        html += `
+            <div class="content-analysis-section">
+                <h3>Patterns Observed</h3>
+                <div class="patterns-list">
+                    ${analysis.patterns.map(p => `
+                        <div class="pattern-card">
+                            <span class="pattern-name">${escapeHtml(p.pattern)}</span>
+                            <p class="pattern-description">${escapeHtml(p.description)}</p>
+                            ${p.frequency ? `<span class="pattern-frequency">${escapeHtml(p.frequency)}</span>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Go Deeper
+    if (analysis.goDeeper && analysis.goDeeper.suggestions && analysis.goDeeper.suggestions.length > 0) {
+        html += `
+            <div class="content-analysis-section">
+                <h3>Go Deeper</h3>
+                ${analysis.goDeeper.limitedData ? `<p class="limited-data-warning">⚠️ Limited data available. Consider these follow-up searches:</p>` : ''}
+                <div class="go-deeper-list">
+                    ${analysis.goDeeper.suggestions.map(s => `
+                        <div class="go-deeper-item">
+                            <span class="go-deeper-type">${s.type || 'search'}</span>
+                            <span class="go-deeper-query">${escapeHtml(s.query)}</span>
+                            ${s.reason ? `<span class="go-deeper-reason">${escapeHtml(s.reason)}</span>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Statistics
+    if (analysis.statistics) {
+        const stats = analysis.statistics;
+        html += `
+            <div class="content-analysis-section">
+                <h3>Statistics</h3>
+                <div class="stats-grid">
+                    ${stats.avgCommentScore !== undefined ? `
+                        <div class="stat-box">
+                            <span class="stat-value">${stats.avgCommentScore}</span>
+                            <span class="stat-label">Avg ${engagementLabel}</span>
+                        </div>
+                    ` : ''}
+                    ${stats.discussionDepth ? `
+                        <div class="stat-box">
+                            <span class="stat-value">${stats.discussionDepth}</span>
+                            <span class="stat-label">Discussion Depth</span>
+                        </div>
+                    ` : ''}
+                    ${stats.engagementQuality ? `
+                        <div class="stat-box">
+                            <span class="stat-value">${stats.engagementQuality}</span>
+                            <span class="stat-label">Engagement Quality</span>
+                        </div>
+                    ` : ''}
+                </div>
+                ${stats.topComment ? `
+                    <div class="top-comment-box">
+                        <strong>Top Comment (${stats.topComment.score || 0} ${engagementLabel}):</strong>
+                        <p>"${escapeHtml(stats.topComment.text || '')}"</p>
+                        <span class="top-comment-author">— @${stats.topComment.author || 'anonymous'}</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Model attribution
+    html += `<div class="model-attribution">Model: ${model || 'unknown'}</div>`;
+
+    document.getElementById('insightsContent').innerHTML = html;
+    document.getElementById('insightsCard').style.display = 'block';
+}
+
+/**
+ * Get CSS class for verdict
+ */
+function getVerdictClass(verdict) {
+    if (!verdict) return 'verdict-unknown';
+    const v = verdict.toLowerCase();
+    if (v.includes('strongly supported')) return 'verdict-strongly-supported';
+    if (v.includes('supported')) return 'verdict-supported';
+    if (v.includes('mixed')) return 'verdict-mixed';
+    if (v.includes('weakly')) return 'verdict-weakly-supported';
+    if (v.includes('not supported')) return 'verdict-not-supported';
+    if (v.includes('insufficient')) return 'verdict-insufficient';
+    return 'verdict-unknown';
+}
+
+/**
+ * Get icon for quote type
+ */
+function getQuoteTypeIcon(type) {
+    const icons = {
+        'INSIGHT': '💡',
+        'WARNING': '⚠️',
+        'TIP': '💬',
+        'COMPLAINT': '😤',
+        'PRAISE': '👏',
+        'QUESTION': '❓'
+    };
+    return icons[type] || '💬';
 }
 
 /**
