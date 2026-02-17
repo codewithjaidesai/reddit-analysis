@@ -14,88 +14,180 @@ const { analyzeWithGemini } = require('./gemini');
 
 /**
  * Format extracted data for AI analysis (supports both Reddit and YouTube)
+ * Returns structured JSON for rich UI display (similar to Analyze User)
  * @param {object} extractedData - Extracted post/video and comments
  * @param {string} role - User's role (e.g. Product Manager, Marketer, Founder)
  * @param {string} goal - User's goal (e.g. find pain points, validate idea)
- * @returns {string} Formatted prompt
+ * @returns {string} Formatted prompt requesting JSON output
  */
 function formatAnalysisPrompt(extractedData, role = null, goal = null) {
   const post = extractedData.post;
-  const comments = extractedData.valuableComments;
+  const comments = extractedData.valuableComments || [];
   const commentCount = comments.length;
   const source = extractedData.source || 'reddit';
 
   // Source-specific labels
   const isYouTube = source === 'youtube';
   const sourceLabel = isYouTube
-    ? `YouTube video by ${post.channelTitle || 'unknown channel'}`
+    ? `YouTube: ${post.channelTitle || 'unknown channel'}`
     : `r/${post.subreddit || 'unknown'}`;
-  const contentType = isYouTube ? 'VIDEO' : 'THREAD';
-  const contentDescription = isYouTube && post.viewCount
-    ? ` (${(post.viewCount / 1000).toFixed(0)}K views, ${post.score} likes)`
-    : '';
+  const contentType = isYouTube ? 'VIDEO' : 'POST';
   const engagementLabel = isYouTube ? 'likes' : 'pts';
-  const goDeeper = isYouTube
-    ? 'specific YouTube channels/videos to explore'
-    : 'specific subreddits/searches to try';
 
-  const prompt = `ROLE: ${role || 'Analyst'}
-GOAL: ${goal || 'Extract insights'}
-SOURCE: ${isYouTube ? 'YouTube' : 'Reddit'}
-DATA: ${commentCount} comments from ${sourceLabel}
+  // Format comments with attribution
+  const formattedComments = comments.map(c => {
+    const author = c.author || 'anonymous';
+    return `[${c.score} ${engagementLabel}, @${author}] ${c.body.substring(0, 350)}`;
+  }).join('\n');
 
-${contentType}: "${post.title}"${contentDescription}
-${post.selftext ? post.selftext.substring(0, 300) + '...' : ''}
+  // Video/post stats for context
+  const statsContext = isYouTube
+    ? `Views: ${post.viewCount?.toLocaleString() || 'N/A'} | Likes: ${post.score?.toLocaleString() || 'N/A'} | Comments: ${post.num_comments?.toLocaleString() || commentCount}`
+    : `Upvotes: ${post.score?.toLocaleString() || 'N/A'} | Comments: ${post.num_comments?.toLocaleString() || commentCount}`;
 
-COMMENTS:
-${comments.map((c) => `[${c.score} ${engagementLabel}] ${c.body.substring(0, 300)}`).join('\n---\n')}
+  const prompt = `You are an expert analyst performing a comprehensive analysis of a ${isYouTube ? 'YouTube video' : 'Reddit post'} and its comments.
+
+USER CONTEXT:
+- Role: ${role || 'Researcher'}
+- Goal: "${goal || 'Extract actionable insights'}"
+
+CONTENT TO ANALYZE:
+- Source: ${source.toUpperCase()} - ${sourceLabel}
+- ${contentType}: "${post.title}"
+- ${statsContext}
+- Published: ${post.created_utc ? new Date(post.created_utc * 1000).toISOString().split('T')[0] : 'Unknown'}
+${post.selftext ? `\nDescription/Content:\n${post.selftext.substring(0, 500)}${post.selftext.length > 500 ? '...' : ''}` : ''}
+
+COMMENTS (${commentCount} high-quality comments):
+${formattedComments}
 
 ===
 
-INSTRUCTIONS:
-1. Answer their GOAL directly. If they want recommendations, give recommendations. If they want content ideas, give content ideas. If they want insights, give insights.
-2. Be SHORT. Max 2 sentences per bullet.
-3. NO TABLES. Use bullet points only.
-4. If ${commentCount} < 15 comments, warn that data is limited and suggest specific follow-up searches.
-5. Include mention counts only if pattern appears 3+ times.
-6. IMPORTANT: Treat the user's GOAL as a hypothesis to validate with evidence.
+ANALYSIS INSTRUCTIONS:
+Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, no backticks).
 
-OUTPUT FORMAT:
+{
+  "executiveSummary": "2-4 sentence overview answering the user's goal directly. What's the bottom line?",
 
-## 🎯 ${goal || 'Key Findings'}
-[3-7 bullets directly answering their goal]
+  "goalAnalysis": {
+    "hypothesis": "Infer the main hypothesis/question from their goal",
+    "verdict": "Strongly Supported | Supported | Mixed Evidence | Weakly Supported | Not Supported | Insufficient Data",
+    "confidenceLevel": "high | medium | low",
+    "confidenceReason": "Why this confidence level based on data volume and consistency",
+    "evidenceScore": 73,
+    "breakdown": {
+      "totalComments": ${commentCount},
+      "relevantComments": 0,
+      "supportingCount": 0,
+      "supportingPercentage": 0,
+      "counterCount": 0,
+      "counterPercentage": 0
+    }
+  },
 
-## 📊 Evidence Analysis
-**Hypothesis:** [Infer the main claim from their goal]
-**Verdict:** [Strongly Supported / Supported / Mixed Evidence / Weakly Supported / Not Supported]
-**Evidence Score:** [X]% of relevant comments support this (N supporting, M contradicting)
+  "topicGroups": [
+    {
+      "topic": "Clear, descriptive topic name",
+      "description": "What people are saying about this topic",
+      "commentCount": 0,
+      "sentiment": "positive | negative | mixed | neutral",
+      "keyPoints": ["Main point 1", "Main point 2"],
+      "quotes": [
+        {
+          "text": "Exact quote from comments (max 200 chars)",
+          "score": 0,
+          "author": "username"
+        }
+      ]
+    }
+  ],
 
-**Supporting Evidence:**
-- "[Exact quote]" (X ${engagementLabel})
-- "[Exact quote]" (X ${engagementLabel})
+  "sentimentAnalysis": {
+    "overall": "positive | negative | mixed | neutral",
+    "breakdown": {
+      "positive": 35,
+      "negative": 45,
+      "neutral": 20
+    },
+    "emotionalTone": "Frustrated | Curious | Enthusiastic | Skeptical | Hopeful | Disappointed",
+    "drivers": {
+      "positive": ["What's driving positive sentiment"],
+      "negative": ["What's driving negative sentiment"]
+    }
+  },
 
-**Counter Evidence:**
-- "[Exact quote]" (X ${engagementLabel})
+  "keyQuotes": [
+    {
+      "type": "INSIGHT | WARNING | TIP | COMPLAINT | PRAISE | QUESTION",
+      "text": "Exact quote from comments (max 200 chars)",
+      "score": 0,
+      "author": "username",
+      "context": "Why this quote matters (1 sentence)"
+    }
+  ],
 
-**Confidence:** [High/Medium/Low] - [reason based on data volume]
+  "actionableInsights": [
+    {
+      "title": "Short title (3-6 words)",
+      "description": "1-2 sentence actionable insight",
+      "relevanceToGoal": "How this helps achieve the user's goal",
+      "priority": "high | medium | low"
+    }
+  ],
 
-## ⚡ Patterns
-[3-5 bullets if useful, skip if redundant]
+  "patterns": [
+    {
+      "pattern": "Pattern name",
+      "description": "What this pattern means",
+      "frequency": "How often it appears",
+      "significance": "Why it matters"
+    }
+  ],
 
-## 🔍 Go Deeper
-[Only if data is thin: ${goDeeper}]
+  "goDeeper": {
+    "limitedData": ${commentCount < 15},
+    "suggestions": [
+      {
+        "type": "search | subreddit | channel | video",
+        "query": "Suggested search or resource",
+        "reason": "Why this would help"
+      }
+    ]
+  },
 
-Keep it tight. No fluff.`;
+  "statistics": {
+    "avgCommentScore": 0,
+    "topComment": {
+      "text": "Highest scored comment (max 200 chars)",
+      "score": 0,
+      "author": "username"
+    },
+    "discussionDepth": "surface | moderate | deep",
+    "engagementQuality": "high | medium | low"
+  }
+}
+
+ANALYSIS RULES:
+1. executiveSummary: DIRECTLY answer the user's goal in 2-4 sentences. Be specific and actionable.
+2. goalAnalysis: Treat their goal as a hypothesis to validate. Calculate actual percentages from the data.
+3. topicGroups: Identify 3-7 distinct topics discussed. Group related comments together.
+4. keyQuotes: Pick 4-8 most impactful REAL quotes from the comments. Include author attribution.
+5. actionableInsights: 3-5 insights that DIRECTLY help the ${role || 'user'} achieve their goal: "${goal || 'insights'}".
+6. patterns: 2-4 recurring patterns you notice across comments.
+7. All quotes must be EXACT text from comments provided, not paraphrased.
+8. If data is limited (< 15 comments), acknowledge this and suggest follow-up research.
+9. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
 }
 
 /**
- * Generate AI insights from extracted Reddit data
- * @param {object} contentData - Extracted Reddit data
+ * Generate AI insights from extracted Reddit/YouTube data
+ * Returns structured JSON analysis (like Analyze User)
+ * @param {object} contentData - Extracted post/video data
  * @param {string} role - User's role (e.g. Product Manager, Marketer)
  * @param {string} goal - User's goal (e.g. find pain points, validate idea)
- * @returns {Promise<object>} AI analysis result
+ * @returns {Promise<object>} AI analysis result with structured data
  */
 async function generateAIInsights(contentData, role = null, goal = null) {
   console.log('Generating AI-powered insights with Gemini');
@@ -103,13 +195,14 @@ async function generateAIInsights(contentData, role = null, goal = null) {
     hasPost: !!contentData.post,
     commentsCount: contentData.valuableComments?.length || 0,
     hasStats: !!contentData.extractionStats,
+    source: contentData.source || 'reddit',
     role: role || 'not specified',
     goal: goal || 'not specified'
   });
 
   try {
     // Build analysis prompt with role/goal context
-    console.log('Building analysis prompt...');
+    console.log('Building structured analysis prompt...');
     const prompt = formatAnalysisPrompt(contentData, role, goal);
     console.log('Prompt length:', prompt.length, 'characters');
 
@@ -130,13 +223,46 @@ async function generateAIInsights(contentData, role = null, goal = null) {
       throw new Error(errorMsg);
     }
 
-    // Return AI analysis in compatible format
+    // Parse JSON response (like Analyze User)
+    let structuredAnalysis = null;
+    try {
+      let cleaned = aiResult.analysis.trim();
+
+      // Remove markdown code block wrappers
+      if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.slice(7);
+      } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.slice(3);
+      }
+      if (cleaned.endsWith('```')) {
+        cleaned = cleaned.slice(0, -3);
+      }
+      cleaned = cleaned.trim();
+
+      // Try to extract JSON if there's extra text around it
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleaned = jsonMatch[0];
+      }
+
+      structuredAnalysis = JSON.parse(cleaned);
+      console.log('Successfully parsed structured JSON response');
+    } catch (parseError) {
+      console.log('Failed to parse JSON, will use markdown fallback:', parseError.message);
+      console.log('Raw response preview:', aiResult.analysis.substring(0, 300));
+      // Keep structuredAnalysis as null, frontend will use markdown fallback
+    }
+
+    // Return analysis with both structured and raw fallback
     console.log('Returning AI analysis successfully');
     return {
       mode: 'ai_analysis',
       model: aiResult.model,
+      source: contentData.source || 'reddit',
+      structured: structuredAnalysis,
+      aiAnalysis: aiResult.analysis, // Raw fallback
+      // Legacy fields for backward compatibility
       totalInsights: 1,
-      aiAnalysis: aiResult.analysis,
       insights: [{
         type: 'ai_comprehensive',
         insight: 'AI-powered comprehensive analysis',

@@ -563,6 +563,208 @@ This is a "nice to have" — the core YouTube integration (Phases 1-5) should co
 
 ---
 
+## Future Tab Redesigns (Analysis & UI)
+
+The Phase 2 redesign focuses on the **Analyze URL** tab. Here are plans for redesigning the other tabs with similar structured, visual outputs.
+
+### Topic Search Tab - Redesign Ideas
+
+**Current State:** Combined analysis returns JSON with executiveSummary, topQuotes, keyInsights, quantitativeInsights, evidenceAnalysis. Display uses tabs (Qualitative Insights, Data Analysis, Generated Content).
+
+**Proposed Redesign:**
+
+```javascript
+{
+  "researchOverview": {
+    "question": "User's research question",
+    "sourcesAnalyzed": {
+      "reddit": { "posts": 15, "comments": 450, "subreddits": ["tech", "gadgets"] },
+      "youtube": { "videos": 8, "comments": 320, "channels": ["MKBHD", "LTT"] }
+    },
+    "confidenceScore": 85,
+    "dataQuality": "high | medium | low"
+  },
+
+  "answerToQuestion": {
+    "directAnswer": "2-3 sentence direct answer to their research question",
+    "verdict": "Clear | Mostly Clear | Mixed | Unclear | Insufficient Data",
+    "supportingPoints": ["Point 1", "Point 2", "Point 3"],
+    "caveats": ["Caveat 1", "Caveat 2"]
+  },
+
+  "themeAnalysis": [
+    {
+      "theme": "Theme name",
+      "prevalence": "high | medium | low",
+      "mentionCount": 45,
+      "sentiment": "positive | negative | mixed | neutral",
+      "redditPerspective": "What Reddit users say",
+      "youtubePerspective": "What YouTube commenters say",  // If YouTube present
+      "consensus": "Where both agree",
+      "divergence": "Where they differ",
+      "keyQuotes": [
+        { "text": "Quote", "source": "r/tech", "score": 234 }
+      ],
+      "actionableInsight": "What this means for the user's goal"
+    }
+  ],
+
+  "audienceInsights": {
+    "whoIsDiscussing": "Profile of people in this conversation",
+    "expertiseLevel": "Beginners | Mixed | Experts | Professionals",
+    "emotionalTone": "Frustrated | Curious | Enthusiastic | Skeptical",
+    "buyingIntent": "high | medium | low | none",  // For product research
+    "decisionFactors": ["Factor 1", "Factor 2"]
+  },
+
+  "competitorMentions": [  // Auto-detected competitor/alternative mentions
+    {
+      "name": "Competitor name",
+      "sentiment": "positive | negative | mixed",
+      "mentionCount": 12,
+      "comparedTo": "What it's compared against",
+      "strengths": ["Strength 1"],
+      "weaknesses": ["Weakness 1"]
+    }
+  ],
+
+  "contentOpportunities": [  // For Content Creators
+    {
+      "type": "Question | Gap | Controversy | Trend",
+      "topic": "Specific topic",
+      "engagement": "high | medium",
+      "suggestedAngle": "How to approach this",
+      "exampleTitle": "Suggested content title"
+    }
+  ],
+
+  "recommendedActions": [
+    {
+      "action": "Specific action",
+      "priority": "high | medium | low",
+      "basedOn": "Evidence this is based on",
+      "expectedImpact": "What this could achieve"
+    }
+  ],
+
+  "dataReliability": {
+    "sampleSize": "adequate | small | very small",
+    "recency": "Data mostly from last X months",
+    "diversity": "Single source heavy | Well distributed",
+    "biasWarnings": ["Potential bias 1"],
+    "suggestedFollowUp": ["Additional research suggestions"]
+  }
+}
+```
+
+**UI Components:**
+- Research Overview card with source breakdown
+- Direct Answer hero section with confidence meter
+- Theme cards in grid layout (like Topic Groups in Analyze User)
+- Audience insights visualization
+- Competitor comparison table
+- Action items checklist
+
+---
+
+### Community Pulse Tab - Redesign Ideas
+
+**Current State:** Returns community snapshot, themes with trends, language patterns, persona-specific insights.
+
+**Proposed Redesign:**
+
+```javascript
+{
+  "communityProfile": {
+    "subreddit": "r/technology",
+    "subscribers": 15000000,
+    "activityLevel": "Very Active",
+    "personality": "Tech-savvy early adopters who value privacy and performance",
+    "dominantDemographic": "25-40 year old professionals in tech",
+    "communityMood": "Skeptical but curious"
+  },
+
+  "trendingNow": {
+    "hotTopics": [
+      {
+        "topic": "AI tools",
+        "trend": "rising | stable | declining",
+        "velocity": "+45% this month",
+        "sentiment": "excited but cautious",
+        "keyPosts": [{ "title": "...", "score": 1200 }]
+      }
+    ],
+    "emergingTopics": ["Topic just starting to appear"],
+    "decliningTopics": ["Topic losing interest"]
+  },
+
+  "sentimentTimeline": [
+    {
+      "period": "Jan 2024",
+      "overallSentiment": 0.65,  // -1 to 1
+      "dominantEmotion": "optimistic",
+      "keyEvent": "CES announcements drove positive sentiment"
+    }
+  ],
+
+  "communityVoice": {
+    "commonPhrases": [
+      { "phrase": "Privacy nightmare", "count": 45, "sentiment": "negative" }
+    ],
+    "slang": ["Enshittification", "Tech bro"],
+    "insideJokes": ["Reference to specific memes"],
+    "tabooTopics": ["Topics that get downvoted"],
+    "heroTopics": ["Topics that get upvoted"]
+  },
+
+  "influencerAnalysis": {
+    "topContributors": [
+      { "user": "username", "karma": 50000, "specialty": "Security topics" }
+    ],
+    "trustedSources": ["Sites/sources the community trusts"],
+    "distrustedSources": ["Sites/sources the community distrusts"]
+  },
+
+  "opportunityMap": {
+    "contentGaps": ["Topics people ask about but don't get good answers"],
+    "unmetNeeds": ["Problems without solutions"],
+    "controversialDebates": ["Ongoing debates to weigh in on"],
+    "questionPatterns": ["Types of questions frequently asked"]
+  },
+
+  "forYourPersona": {
+    "persona": "Product Manager",
+    "relevantInsights": ["Insight 1", "Insight 2"],
+    "suggestedActions": ["Action 1", "Action 2"],
+    "warningsAndRisks": ["Risk 1", "Risk 2"],
+    "opportunityScore": 78  // 0-100
+  }
+}
+```
+
+**UI Components:**
+- Community profile card with mood indicator
+- Trending topics with sparkline charts
+- Sentiment timeline graph
+- Word cloud for community voice
+- Opportunity cards with icons
+- Persona-specific insights section
+
+---
+
+### Analyze User Tab - Already Redesigned ✅
+
+The Analyze User tab already has the structured output we're modeling Phase 2 after:
+- Profile Summary
+- Interest Profile (Primary, Secondary, Expertise)
+- Topic Groups with quotes and evolution
+- Behavior Patterns
+- Regulatory/Factual Updates
+- Topic Timeline
+- Statistics
+
+---
+
 ## Ideas Not Yet Requested (Future Enhancements)
 
 ### 1. Comment Thread Analysis
