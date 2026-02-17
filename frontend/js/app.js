@@ -938,6 +938,9 @@ async function checkSubredditActivity(subreddit) {
  * Format large numbers (e.g., 1500000 -> 1.5M)
  */
 function formatNumber(num) {
+    if (num === undefined || num === null) {
+        return '0';
+    }
     if (num >= 1000000) {
         return (num / 1000000).toFixed(1) + 'M';
     }
