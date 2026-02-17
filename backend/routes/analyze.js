@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { extractRedditData } = require('../services/reddit');
+const { extractYouTubeData } = require('../services/youtube');
+const { detectSource, getEnabledFeatures } = require('../services/sourceDetector');
 const { generateAIInsights, generateCombinedInsights, generateContent } = require('../services/insights');
 const { batchExtractPosts } = require('../services/mapReduceAnalysis');
 const { analyzeCommunityPulse, extractPostComments } = require('../services/communityPulse');
@@ -10,7 +12,8 @@ const { analyzeUserData } = require('../services/userAnalysis');
 
 /**
  * POST /api/analyze/extract
- * Extract high-value comments from a Reddit URL
+ * Extract high-value comments from a Reddit or YouTube URL
+ * Auto-detects source from URL
  */
 router.post('/extract', async (req, res) => {
   try {
@@ -23,10 +26,57 @@ router.post('/extract', async (req, res) => {
       });
     }
 
-    console.log('Extracting Reddit data from:', url);
+    // Detect source from URL
+    const sourceInfo = detectSource(url);
 
-    // Extract Reddit data
-    const result = await extractRedditData(url);
+    if (!sourceInfo.isSupported) {
+      return res.status(400).json({
+        success: false,
+        error: sourceInfo.error || 'Unsupported URL format',
+        detectedSource: sourceInfo.source
+      });
+    }
+
+    console.log(`Extracting ${sourceInfo.source} data from:`, url);
+
+    let result;
+
+    if (sourceInfo.source === 'youtube') {
+      // Extract YouTube data
+      result = await extractYouTubeData(url);
+
+      if (result.success && result.data) {
+        // Transform YouTube data to match Reddit format for unified analysis
+        result.data = {
+          source: 'youtube',
+          post: {
+            id: result.data.video.id,
+            title: result.data.video.title,
+            selftext: result.data.video.description,
+            author: result.data.video.channelTitle,
+            subreddit: `YouTube: ${result.data.video.channelTitle}`, // For display compatibility
+            score: result.data.video.likeCount,
+            num_comments: result.data.video.commentCount,
+            created_utc: new Date(result.data.video.publishedAt).getTime() / 1000,
+            permalink: `https://youtube.com/watch?v=${result.data.video.id}`,
+            // YouTube-specific fields
+            viewCount: result.data.video.viewCount,
+            channelId: result.data.video.channelId,
+            channelTitle: result.data.video.channelTitle
+          },
+          valuableComments: result.data.valuableComments,
+          extractionStats: result.data.extractionStats
+        };
+      }
+    } else {
+      // Extract Reddit data (default)
+      result = await extractRedditData(url);
+
+      if (result.success && result.data) {
+        // Add source marker for consistency
+        result.data.source = 'reddit';
+      }
+    }
 
     if (!result.success) {
       return res.status(400).json(result);
@@ -89,6 +139,7 @@ router.post('/insights', async (req, res) => {
 /**
  * POST /api/analyze/full
  * Extract data AND generate insights in one call with role/goal context
+ * Supports both Reddit and YouTube URLs (auto-detected)
  */
 router.post('/full', async (req, res) => {
   try {
@@ -101,16 +152,57 @@ router.post('/full', async (req, res) => {
       });
     }
 
-    console.log('Full analysis for:', url);
-    if (role) {
-      console.log('User role:', role);
-    }
-    if (goal) {
-      console.log('User goal:', goal);
+    // Detect source from URL
+    const sourceInfo = detectSource(url);
+
+    if (!sourceInfo.isSupported) {
+      return res.status(400).json({
+        success: false,
+        error: sourceInfo.error || 'Unsupported URL format',
+        detectedSource: sourceInfo.source
+      });
     }
 
-    // Step 1: Extract Reddit data
-    const extractResult = await extractRedditData(url);
+    console.log(`Full analysis for ${sourceInfo.source}:`, url);
+    if (role) console.log('User role:', role);
+    if (goal) console.log('User goal:', goal);
+
+    let extractResult;
+
+    if (sourceInfo.source === 'youtube') {
+      // Extract YouTube data
+      extractResult = await extractYouTubeData(url);
+
+      if (extractResult.success && extractResult.data) {
+        // Transform to unified format
+        extractResult.data = {
+          source: 'youtube',
+          post: {
+            id: extractResult.data.video.id,
+            title: extractResult.data.video.title,
+            selftext: extractResult.data.video.description,
+            author: extractResult.data.video.channelTitle,
+            subreddit: `YouTube: ${extractResult.data.video.channelTitle}`,
+            score: extractResult.data.video.likeCount,
+            num_comments: extractResult.data.video.commentCount,
+            created_utc: new Date(extractResult.data.video.publishedAt).getTime() / 1000,
+            permalink: `https://youtube.com/watch?v=${extractResult.data.video.id}`,
+            viewCount: extractResult.data.video.viewCount,
+            channelId: extractResult.data.video.channelId,
+            channelTitle: extractResult.data.video.channelTitle
+          },
+          valuableComments: extractResult.data.valuableComments,
+          extractionStats: extractResult.data.extractionStats
+        };
+      }
+    } else {
+      // Extract Reddit data
+      extractResult = await extractRedditData(url);
+
+      if (extractResult.success && extractResult.data) {
+        extractResult.data.source = 'reddit';
+      }
+    }
 
     if (!extractResult.success) {
       return res.status(400).json(extractResult);
@@ -526,6 +618,18 @@ router.post('/user', async (req, res) => {
       error: error.message
     });
   }
+});
+
+/**
+ * GET /api/analyze/features
+ * Get enabled features for the frontend
+ */
+router.get('/features', (req, res) => {
+  const features = getEnabledFeatures();
+  res.json({
+    success: true,
+    features
+  });
 });
 
 module.exports = router;
