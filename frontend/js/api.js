@@ -131,6 +131,13 @@ async function generateContent(params) {
 }
 
 /**
+ * Analyze a Reddit user's complete activity
+ */
+async function analyzeUser(username) {
+    return await callAPI(API_CONFIG.endpoints.userAnalysis, { username });
+}
+
+/**
  * Get subreddit info for activity detection (Community Pulse)
  */
 async function getSubredditInfo(subreddit) {

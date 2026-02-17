@@ -51,78 +51,111 @@
 
             <!-- Tab 1: URL Analysis -->
             <div id="urlTab" class="tab-content" style="display: none;">
-                <div class="input-section">
-                    <h2>Analyze Single Reddit Post</h2>
-                    <div class="input-group">
-                        <input
-                            type="text"
-                            id="redditUrl"
-                            placeholder="Paste Reddit post URL here..."
-                            class="url-input"
-                        />
-                    </div>
-                    <p class="hint">Example: https://www.reddit.com/r/AskReddit/comments/...</p>
+                <!-- Sub-tab switcher: Post vs User -->
+                <div class="url-subtab-nav">
+                    <button class="url-subtab-btn active" onclick="switchUrlSubtab('post')" id="subtabPostBtn">Analyze Post</button>
+                    <button class="url-subtab-btn" onclick="switchUrlSubtab('user')" id="subtabUserBtn">Analyze User</button>
+                </div>
 
-                    <!-- Research Goal Section -->
-                    <div class="research-goal-section">
-                        <h3 class="section-label">Research Goal</h3>
+                <!-- Sub-tab 1: Analyze Post (existing) -->
+                <div id="urlPostSubtab" class="url-subtab-content">
+                    <div class="input-section">
+                        <h2>Analyze Single Reddit Post</h2>
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                id="redditUrl"
+                                placeholder="Paste Reddit post URL here..."
+                                class="url-input"
+                            />
+                        </div>
+                        <p class="hint">Example: https://www.reddit.com/r/AskReddit/comments/...</p>
 
-                        <div class="persona-outcome-container">
-                            <!-- Persona Selection -->
-                            <div class="persona-selection">
-                                <label class="selection-label">SELECT PERSONA</label>
-                                <div class="persona-cards" id="urlPersonaCards">
-                                    <div class="persona-card" data-persona="product_manager" onclick="selectPersona('url', 'product_manager')">
-                                        <span class="persona-icon">PM</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Product Manager</span>
-                                            <span class="persona-desc">Find market gaps & validate features</span>
+                        <!-- Research Goal Section -->
+                        <div class="research-goal-section">
+                            <h3 class="section-label">Research Goal</h3>
+
+                            <div class="persona-outcome-container">
+                                <!-- Persona Selection -->
+                                <div class="persona-selection">
+                                    <label class="selection-label">SELECT PERSONA</label>
+                                    <div class="persona-cards" id="urlPersonaCards">
+                                        <div class="persona-card" data-persona="product_manager" onclick="selectPersona('url', 'product_manager')">
+                                            <span class="persona-icon">PM</span>
+                                            <div class="persona-info">
+                                                <span class="persona-name">Product Manager</span>
+                                                <span class="persona-desc">Find market gaps & validate features</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="persona-card" data-persona="marketer" onclick="selectPersona('url', 'marketer')">
-                                        <span class="persona-icon">MK</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Marketer / Copywriter</span>
-                                            <span class="persona-desc">Find hooks & customer language</span>
+                                        <div class="persona-card" data-persona="marketer" onclick="selectPersona('url', 'marketer')">
+                                            <span class="persona-icon">MK</span>
+                                            <div class="persona-info">
+                                                <span class="persona-name">Marketer / Copywriter</span>
+                                                <span class="persona-desc">Find hooks & customer language</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="persona-card" data-persona="content_creator" onclick="selectPersona('url', 'content_creator')">
-                                        <span class="persona-icon">CC</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Content Creator</span>
-                                            <span class="persona-desc">Find video ideas & trending topics</span>
+                                        <div class="persona-card" data-persona="content_creator" onclick="selectPersona('url', 'content_creator')">
+                                            <span class="persona-icon">CC</span>
+                                            <div class="persona-info">
+                                                <span class="persona-name">Content Creator</span>
+                                                <span class="persona-desc">Find video ideas & trending topics</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="persona-card" data-persona="custom" onclick="selectPersona('url', 'custom')">
-                                        <span class="persona-icon">+</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Custom / Other</span>
-                                            <span class="persona-desc">Define your own research parameters</span>
+                                        <div class="persona-card" data-persona="custom" onclick="selectPersona('url', 'custom')">
+                                            <span class="persona-icon">+</span>
+                                            <div class="persona-info">
+                                                <span class="persona-name">Custom / Other</span>
+                                                <span class="persona-desc">Define your own research parameters</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Outcome Selection -->
-                            <div class="outcome-selection" id="urlOutcomeSelection" style="display: none;">
-                                <label class="selection-label" id="urlOutcomeLabel">SELECT SPECIFIC OUTCOME</label>
-                                <div class="outcome-options" id="urlOutcomeOptions">
-                                    <!-- Options populated by JS based on persona -->
+                                <!-- Outcome Selection -->
+                                <div class="outcome-selection" id="urlOutcomeSelection" style="display: none;">
+                                    <label class="selection-label" id="urlOutcomeLabel">SELECT SPECIFIC OUTCOME</label>
+                                    <div class="outcome-options" id="urlOutcomeOptions">
+                                        <!-- Options populated by JS based on persona -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Hidden fields to store role/goal values -->
+                        <input type="hidden" id="urlUserRole" />
+                        <input type="hidden" id="urlUserGoal" />
+
+                        <button id="analyzeBtn" class="analyze-btn start-research-btn" onclick="handleAnalyzeUrl()">
+                            <span class="btn-text">Start Research →</span>
+                            <span class="btn-loader" style="display: none;">
+                                <span class="spinner"></span>
+                            </span>
+                        </button>
                     </div>
+                </div>
 
-                    <!-- Hidden fields to store role/goal values -->
-                    <input type="hidden" id="urlUserRole" />
-                    <input type="hidden" id="urlUserGoal" />
+                <!-- Sub-tab 2: Analyze User (new) -->
+                <div id="urlUserSubtab" class="url-subtab-content" style="display: none;">
+                    <div class="input-section">
+                        <h2>Analyze Reddit User</h2>
+                        <p class="tab-subtitle">Deep-dive into any Reddit user's activity - topics, interests, patterns, and more</p>
+                        <div class="input-group">
+                            <input
+                                type="text"
+                                id="redditUsername"
+                                placeholder="Enter username or profile URL (e.g. spez or https://reddit.com/user/spez)"
+                                class="url-input"
+                            />
+                        </div>
+                        <p class="hint">Accepts: username, u/username, or full profile URL</p>
 
-                    <button id="analyzeBtn" class="analyze-btn start-research-btn" onclick="handleAnalyzeUrl()">
-                        <span class="btn-text">Start Research →</span>
-                        <span class="btn-loader" style="display: none;">
-                            <span class="spinner"></span>
-                        </span>
-                    </button>
+                        <button id="userAnalyzeBtn" class="analyze-btn start-research-btn" onclick="handleAnalyzeUser()">
+                            <span class="btn-text">Analyze User →</span>
+                            <span class="btn-loader" style="display: none;">
+                                <span class="spinner"></span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -504,6 +537,38 @@
 
                 <!-- Multi-Post Results -->
                 <div id="multiPostResults" style="display: none;"></div>
+            </section>
+
+            <!-- User Analysis Results Section -->
+            <section id="userResultsSection" class="results-section" style="display: none;">
+                <!-- User Profile Card -->
+                <div id="userProfileCard" class="result-card" style="display: none;">
+                    <div class="card-header">
+                        <h2>User Profile</h2>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="export-btn" onclick="exportUserRawPDF()" style="background: #ed8936;">Raw Data PDF</button>
+                            <button class="export-btn" onclick="exportUserAnalysisPDF()" style="background: #667eea;">Analysis PDF</button>
+                        </div>
+                    </div>
+                    <div id="userProfileContent"></div>
+                </div>
+
+                <!-- User AI Analysis Card -->
+                <div id="userAnalysisCard" class="result-card" style="display: none;">
+                    <div class="card-header">
+                        <h2>AI Analysis</h2>
+                    </div>
+                    <div id="userAnalysisContent"></div>
+                </div>
+
+                <!-- User Raw Data Card (collapsible) -->
+                <div id="userRawDataCard" class="result-card" style="display: none;">
+                    <div class="card-header" style="cursor: pointer;" onclick="toggleUserRawData()">
+                        <h2>Raw Comments & Posts</h2>
+                        <span id="userRawToggle" style="font-size: 18px; color: var(--text-secondary);">Show ▼</span>
+                    </div>
+                    <div id="userRawDataContent" style="display: none;"></div>
+                </div>
             </section>
 
             <!-- Error Section -->

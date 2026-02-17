@@ -278,6 +278,9 @@ function hideAll() {
     document.getElementById('insightsCard').style.display = 'none';
     document.getElementById('errorSection').style.display = 'none';
     document.getElementById('multiPostResults').style.display = 'none';
+    // User analysis results
+    const userResults = document.getElementById('userResultsSection');
+    if (userResults) userResults.style.display = 'none';
 }
 
 /**

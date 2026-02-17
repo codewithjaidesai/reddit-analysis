@@ -4904,3 +4904,642 @@ footer a {
 .other-relevant-link:hover {
     color: var(--primary);
 }
+
+/* ============================================
+   USER ANALYSIS FEATURE - Sub-tab Navigation
+   ============================================ */
+
+.url-subtab-nav {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 4px;
+    border: 1px solid var(--border);
+}
+
+.url-subtab-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.url-subtab-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.url-subtab-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+.url-subtab-content {
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   USER ANALYSIS - Profile Card
+   ============================================ */
+
+.user-profile-header {
+    margin-bottom: 20px;
+}
+
+.user-profile-name {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.user-profile-meta {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.user-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.user-stats-grid .stat-item {
+    text-align: center;
+    padding: 16px;
+    background: var(--bg-elevated);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.user-stats-grid .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-light);
+}
+
+.user-stats-grid .stat-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Top Subreddits Bar Chart */
+
+.user-top-subs {
+    margin-top: 24px;
+}
+
+.user-top-subs h4 {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.user-sub-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.user-sub-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-sub-bar-label {
+    flex: 0 0 140px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-sub-bar-track {
+    flex: 1;
+    height: 20px;
+    background: var(--bg-elevated);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.user-sub-bar-fill {
+    height: 100%;
+    background: var(--accent-gradient);
+    border-radius: 4px;
+    min-width: 4px;
+    transition: width 0.3s ease;
+}
+
+.user-sub-bar-count {
+    flex: 0 0 40px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: right;
+}
+
+/* ============================================
+   USER ANALYSIS - AI Analysis Sections
+   ============================================ */
+
+.user-analysis-section {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.user-analysis-section:last-child {
+    border-bottom: none;
+}
+
+.user-analysis-section h3 {
+    font-size: 1.15rem;
+    color: var(--primary-light);
+    margin-bottom: 14px;
+    padding-left: 12px;
+    border-left: 3px solid var(--primary);
+}
+
+.user-profile-summary-text {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+/* Interest Grid */
+
+.user-interest-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.user-interest-col {
+    background: var(--bg-elevated);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.user-interest-col h4 {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.user-interest-col ul {
+    list-style: none;
+    padding: 0;
+}
+
+.user-interest-col li {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.user-interest-col li:last-child {
+    border-bottom: none;
+}
+
+/* Topic Groups */
+
+.user-topic-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.user-topic-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.user-topic-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.user-topic-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.user-topic-sentiment {
+    font-size: 0.78rem;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.sentiment-positive { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.sentiment-negative { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.sentiment-mixed { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.sentiment-neutral { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+
+.user-topic-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.user-topic-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.user-topic-points {
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+.user-topic-points strong {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.user-topic-points ul {
+    padding-left: 18px;
+    margin-top: 6px;
+}
+
+.user-topic-points li {
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+.user-topic-quotes {
+    margin-top: 12px;
+}
+
+.user-quote {
+    border-left: 3px solid var(--primary);
+    padding: 8px 12px;
+    margin: 8px 0;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 0 6px 6px 0;
+}
+
+.user-quote-text {
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    font-style: italic;
+    display: block;
+}
+
+.user-quote-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    display: block;
+}
+
+.user-topic-evolution {
+    margin-top: 10px;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    padding: 10px;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+}
+
+/* Behavior Patterns */
+
+.user-behavior-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.user-behavior-item {
+    background: var(--bg-elevated);
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.user-behavior-item strong {
+    color: var(--primary-light);
+}
+
+/* Information Updates */
+
+.user-updates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.user-update-card {
+    background: var(--bg-elevated);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.user-update-card.significance-high {
+    border-left: 4px solid #ef4444;
+}
+
+.user-update-card.significance-medium {
+    border-left: 4px solid #f59e0b;
+}
+
+.user-update-card.significance-low {
+    border-left: 4px solid #64748b;
+}
+
+.user-update-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-hover);
+}
+
+.user-update-topic {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.user-update-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.badge-high { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.badge-medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.badge-low { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+
+.user-update-body {
+    padding: 12px 16px;
+}
+
+.user-update-row {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.user-update-label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    margin-bottom: 2px;
+}
+
+/* Topic Timeline */
+
+.user-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.user-timeline-topic h4 {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+
+.user-timeline-entries {
+    position: relative;
+    padding-left: 24px;
+    border-left: 2px solid var(--border);
+}
+
+.user-timeline-entry {
+    position: relative;
+    padding: 10px 0 10px 16px;
+    margin-bottom: 4px;
+}
+
+.user-timeline-entry::before {
+    content: '';
+    position: absolute;
+    left: -29px;
+    top: 15px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+    border: 2px solid var(--bg-card);
+}
+
+.user-timeline-entry.has-change::before {
+    background: var(--warning);
+}
+
+.user-timeline-date {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.user-timeline-summary {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.user-timeline-change {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    background: rgba(245, 158, 11, 0.1);
+    border-left: 3px solid var(--warning);
+    border-radius: 0 6px 6px 0;
+    color: var(--text-secondary);
+}
+
+/* Statistics */
+
+.user-stats-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.user-stat-detail {
+    background: var(--bg-elevated);
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.user-stat-detail .label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.user-stat-detail .value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-light);
+}
+
+.user-highlight-box {
+    background: var(--bg-elevated);
+    border-left: 3px solid var(--primary);
+    padding: 14px;
+    margin: 12px 0;
+    border-radius: 0 8px 8px 0;
+}
+
+.user-highlight-box strong {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.user-highlight-box p {
+    margin-top: 6px;
+    font-style: italic;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+/* ============================================
+   USER ANALYSIS - Raw Data Section
+   ============================================ */
+
+.user-raw-section h3 {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.user-raw-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.user-raw-item {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.user-raw-item-header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+}
+
+.user-raw-idx {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.user-raw-sub {
+    color: var(--primary-light);
+}
+
+.user-raw-score {
+    color: var(--text-secondary);
+}
+
+.user-raw-date {
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.user-raw-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.92rem;
+    margin-bottom: 4px;
+}
+
+.user-raw-context {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 4px;
+}
+
+.user-raw-body {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* ============================================
+   Responsive - User Analysis
+   ============================================ */
+
+@media (max-width: 768px) {
+    .user-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .user-interest-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .user-stats-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .user-sub-bar-label {
+        flex: 0 0 100px;
+        font-size: 0.78rem;
+    }
+}

@@ -20,6 +20,7 @@ const API_CONFIG = {
         auto: '/api/analyze/auto',
         reanalyze: '/api/analyze/reanalyze',
         generate: '/api/analyze/generate',
-        prescreen: '/api/search/prescreen'
+        prescreen: '/api/search/prescreen',
+        userAnalysis: '/api/analyze/user'
     }
 };

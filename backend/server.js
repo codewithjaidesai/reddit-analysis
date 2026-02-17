@@ -36,6 +36,7 @@ app.get('/', (req, res) => {
       analyze_insights: 'POST /api/analyze/insights',
       analyze_full: 'POST /api/analyze/full',
       analyze_auto: 'POST /api/analyze/auto',
+      analyze_user: 'POST /api/analyze/user',
       search_topic: 'POST /api/search/topic',
       search_subreddit: 'POST /api/search/subreddit',
       search_prescreen: 'POST /api/search/prescreen',
