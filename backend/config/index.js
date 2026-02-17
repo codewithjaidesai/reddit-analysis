@@ -45,5 +45,20 @@ module.exports = {
   cors: {
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true
+  },
+
+  // YouTube API Configuration
+  youtube: {
+    apiKey: process.env.YOUTUBE_API_KEY,
+    enabled: process.env.ENABLE_YOUTUBE !== 'false', // Enabled by default if key exists
+    maxComments: parseInt(process.env.YOUTUBE_MAX_COMMENTS) || 200,
+    maxRepliesPerComment: parseInt(process.env.YOUTUBE_MAX_REPLIES) || 10,
+    searchMaxResults: parseInt(process.env.YOUTUBE_SEARCH_MAX_RESULTS) || 10
+  },
+
+  // Feature Flags
+  features: {
+    youtube: process.env.ENABLE_YOUTUBE !== 'false' && !!process.env.YOUTUBE_API_KEY,
+    reddit: true // Always enabled
   }
 };

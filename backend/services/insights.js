@@ -13,8 +13,8 @@ const { analyzeWithGemini } = require('./gemini');
  */
 
 /**
- * Format extracted Reddit data for AI analysis
- * @param {object} extractedData - Extracted Reddit post and comments
+ * Format extracted data for AI analysis (supports both Reddit and YouTube)
+ * @param {object} extractedData - Extracted post/video and comments
  * @param {string} role - User's role (e.g. Product Manager, Marketer, Founder)
  * @param {string} goal - User's goal (e.g. find pain points, validate idea)
  * @returns {string} Formatted prompt
@@ -23,16 +23,32 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
   const post = extractedData.post;
   const comments = extractedData.valuableComments;
   const commentCount = comments.length;
+  const source = extractedData.source || 'reddit';
+
+  // Source-specific labels
+  const isYouTube = source === 'youtube';
+  const sourceLabel = isYouTube
+    ? `YouTube video by ${post.channelTitle || 'unknown channel'}`
+    : `r/${post.subreddit || 'unknown'}`;
+  const contentType = isYouTube ? 'VIDEO' : 'THREAD';
+  const contentDescription = isYouTube && post.viewCount
+    ? ` (${(post.viewCount / 1000).toFixed(0)}K views, ${post.score} likes)`
+    : '';
+  const engagementLabel = isYouTube ? 'likes' : 'pts';
+  const goDeeper = isYouTube
+    ? 'specific YouTube channels/videos to explore'
+    : 'specific subreddits/searches to try';
 
   const prompt = `ROLE: ${role || 'Analyst'}
 GOAL: ${goal || 'Extract insights'}
-DATA: ${commentCount} comments from r/${post.subreddit || 'unknown'}
+SOURCE: ${isYouTube ? 'YouTube' : 'Reddit'}
+DATA: ${commentCount} comments from ${sourceLabel}
 
-THREAD: "${post.title}"
+${contentType}: "${post.title}"${contentDescription}
 ${post.selftext ? post.selftext.substring(0, 300) + '...' : ''}
 
 COMMENTS:
-${comments.map((c) => `[${c.score} pts] ${c.body.substring(0, 300)}`).join('\n---\n')}
+${comments.map((c) => `[${c.score} ${engagementLabel}] ${c.body.substring(0, 300)}`).join('\n---\n')}
 
 ===
 
@@ -55,11 +71,11 @@ OUTPUT FORMAT:
 **Evidence Score:** [X]% of relevant comments support this (N supporting, M contradicting)
 
 **Supporting Evidence:**
-- "[Exact quote]" (X pts)
-- "[Exact quote]" (X pts)
+- "[Exact quote]" (X ${engagementLabel})
+- "[Exact quote]" (X ${engagementLabel})
 
 **Counter Evidence:**
-- "[Exact quote]" (X pts)
+- "[Exact quote]" (X ${engagementLabel})
 
 **Confidence:** [High/Medium/Low] - [reason based on data volume]
 
@@ -67,7 +83,7 @@ OUTPUT FORMAT:
 [3-5 bullets if useful, skip if redundant]
 
 ## 🔍 Go Deeper
-[Only if data is thin: specific subreddits/searches to try]
+[Only if data is thin: ${goDeeper}]
 
 Keep it tight. No fluff.`;
 
@@ -136,31 +152,67 @@ async function generateAIInsights(contentData, role = null, goal = null) {
 }
 
 /**
- * Format combined analysis prompt for multiple posts - returns structured JSON
- * @param {array} postsData - Array of extracted data from multiple posts
+ * Format combined analysis prompt for multiple posts/videos - returns structured JSON
+ * Supports mixed sources (Reddit + YouTube)
+ * @param {array} postsData - Array of extracted data from multiple posts/videos
  * @param {string} role - User's role
  * @param {string} goal - User's goal
  * @returns {string} Formatted prompt
  */
 function formatCombinedAnalysisPrompt(postsData, role = null, goal = null) {
   const totalComments = postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
-  const subreddits = [...new Set(postsData.map(p => p.post?.subreddit).filter(Boolean))];
   const postCount = postsData.length;
 
-  // Build posts summary with subreddit attribution for quotes
+  // Detect sources present in the data
+  const sources = {
+    reddit: postsData.filter(p => p.source !== 'youtube'),
+    youtube: postsData.filter(p => p.source === 'youtube')
+  };
+  const hasReddit = sources.reddit.length > 0;
+  const hasYouTube = sources.youtube.length > 0;
+  const isMixedSource = hasReddit && hasYouTube;
+
+  // Build source attribution strings
+  const subreddits = [...new Set(sources.reddit.map(p => p.post?.subreddit).filter(Boolean))];
+  const channels = [...new Set(sources.youtube.map(p => p.post?.channelTitle).filter(Boolean))];
+
+  let sourceDescription = '';
+  if (isMixedSource) {
+    sourceDescription = `Reddit (${subreddits.map(s => 'r/' + s).join(', ')}) and YouTube (${channels.join(', ')})`;
+  } else if (hasYouTube) {
+    sourceDescription = `YouTube channels: ${channels.join(', ')}`;
+  } else {
+    sourceDescription = subreddits.map(s => 'r/' + s).join(', ');
+  }
+
+  // Build posts/videos content with source attribution
   const postsContent = postsData.map((data, idx) => {
     const post = data.post;
     const comments = data.valuableComments || [];
-    return `
+    const isYouTube = data.source === 'youtube';
+
+    if (isYouTube) {
+      const viewStats = post.viewCount ? ` • ${(post.viewCount / 1000).toFixed(0)}K views` : '';
+      return `
+VIDEO ${idx + 1}: "${post.title}"
+YouTube: ${post.channelTitle}${viewStats} • ${post.score} likes • ${comments.length} comments
+${comments.map(c => `[YouTube: ${post.channelTitle}, ${c.score} likes] ${c.body.substring(0, 300)}`).join('\n')}`;
+    } else {
+      return `
 POST ${idx + 1}: "${post.title}"
 r/${post.subreddit} • ${post.score} upvotes • ${comments.length} comments
 ${comments.map(c => `[r/${post.subreddit}, ${c.score} pts] ${c.body.substring(0, 300)}`).join('\n')}`;
+    }
   }).join('\n---\n');
 
-  const prompt = `You are analyzing Reddit comments for a ${role || 'researcher'}.
+  // Source type for prompt
+  const contentTypeLabel = isMixedSource ? 'posts/videos' : (hasYouTube ? 'videos' : 'posts');
+  const platformLabel = isMixedSource ? 'Reddit and YouTube comments' : (hasYouTube ? 'YouTube comments' : 'Reddit comments');
+
+  const prompt = `You are analyzing ${platformLabel} for a ${role || 'researcher'}.
 Their GOAL: "${goal || 'Extract insights'}"
 
-DATA: ${postCount} posts, ${totalComments} comments from: ${subreddits.map(s => 'r/' + s).join(', ')}
+DATA: ${postCount} ${contentTypeLabel}, ${totalComments} comments from: ${sourceDescription}
 
 ${postsContent}
 
@@ -174,7 +226,7 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
     {
       "type": "INSIGHT or WARNING or TIP or COMPLAINT",
       "quote": "Exact quote from comments (max 200 chars)",
-      "subreddit": "SubredditName"
+      "source": "r/SubredditName or YouTube: ChannelName"
     }
   ],
   "keyInsights": [
@@ -230,7 +282,7 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
       "percentage": 82,
       "keyPoints": ["Point 1 from data", "Point 2 from data"],
       "quotes": [
-        {"text": "Exact quote supporting the claim (max 150 chars)", "score": 234, "subreddit": "SubredditName"}
+        {"text": "Exact quote supporting the claim (max 150 chars)", "score": 234, "source": "r/SubredditName or YouTube: ChannelName"}
       ]
     },
     "counter": {
@@ -238,7 +290,7 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
       "percentage": 18,
       "keyPoints": ["Counter point 1", "Counter point 2"],
       "quotes": [
-        {"text": "Exact quote contradicting the claim (max 150 chars)", "score": 45, "subreddit": "SubredditName"}
+        {"text": "Exact quote contradicting the claim (max 150 chars)", "score": 45, "source": "r/SubredditName or YouTube: ChannelName"}
       ]
     },
     "nuances": ["Important nuance or caveat about this evidence"],
@@ -255,7 +307,7 @@ ANALYSIS APPROACH (think through these phases before producing output):
 5. SYNTHESIZE: Connect the dots across themes to form your final analysis
 
 RULES:
-1. topQuotes: Pick 4-6 most impactful REAL quotes from the comments. Include subreddit name.
+1. topQuotes: Pick 4-6 most impactful REAL quotes from the comments. Include source (r/SubredditName or YouTube: ChannelName).
 2. keyInsights: 3-5 insights. Title should be catchy. Focus on what matters for their GOAL.
 3. forYourGoal: 3-5 bullets that DIRECTLY answer what the ${role || 'user'} asked for: "${goal || 'insights'}"
 4. quantitativeInsights: Analyze the data quantitatively:
@@ -337,12 +389,23 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
       // Keep structuredAnalysis as null, frontend will use markdown fallback
     }
 
+    // Extract sources for metadata
+    const redditPosts = postsData.filter(p => p.source !== 'youtube');
+    const youtubePosts = postsData.filter(p => p.source === 'youtube');
+    const subreddits = [...new Set(redditPosts.map(p => p.post?.subreddit).filter(Boolean))];
+    const channels = [...new Set(youtubePosts.map(p => p.post?.channelTitle).filter(Boolean))];
+
     return {
       mode: 'combined_analysis',
       model: aiResult.model,
       postCount: postsData.length,
       totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0),
-      subreddits: [...new Set(postsData.map(p => p.post?.subreddit).filter(Boolean))],
+      subreddits: subreddits, // Reddit subreddits
+      channels: channels, // YouTube channels
+      sources: {
+        reddit: redditPosts.length,
+        youtube: youtubePosts.length
+      },
       structured: structuredAnalysis,
       aiAnalysis: aiResult.analysis // Keep raw response as fallback
     };
@@ -396,16 +459,23 @@ function buildContentPrompt(type, typeLabel, focus, tone, length, role, goal, in
   const forYourGoal = insights?.forYourGoal || [];
   const topQuotes = insights?.topQuotes || [];
 
-  // Get real quotes from raw data
+  // Get real quotes from raw data (supports both Reddit and YouTube)
   const realQuotes = [];
   if (postsData && postsData.length > 0) {
     postsData.forEach(post => {
       const comments = post.valuableComments || [];
+      const isYouTube = post.source === 'youtube';
+      const sourceLabel = isYouTube
+        ? `YouTube: ${post.post?.channelTitle || 'unknown'}`
+        : `r/${post.post?.subreddit || 'unknown'}`;
+      const engagementLabel = isYouTube ? 'likes' : 'upvotes';
+
       comments.forEach(c => {
         realQuotes.push({
           text: c.body.substring(0, 400),
           score: c.score,
-          subreddit: post.post?.subreddit || 'unknown'
+          source: sourceLabel,
+          engagementLabel: engagementLabel
         });
       });
     });
@@ -538,12 +608,12 @@ ${keyInsights.map(i => `- ${i.title}: ${i.description}`).join('\n')}
 USER RECOMMENDATIONS:
 ${forYourGoal.map(g => `- ${g}`).join('\n')}
 
-REAL QUOTES FROM REDDIT USERS (use these for authenticity):
-${realQuotes.slice(0, 15).map(q => `[${q.score} upvotes, r/${q.subreddit}]: "${q.text}"`).join('\n\n')}
+REAL QUOTES FROM USERS (use these for authenticity):
+${realQuotes.slice(0, 15).map(q => `[${q.score} ${q.engagementLabel}, ${q.source}]: "${q.text}"`).join('\n\n')}
 
 ${topQuotes.length > 0 ? `
 HIGHLIGHTED QUOTES:
-${topQuotes.map(q => `[${q.type}] "${q.quote}" - r/${q.subreddit}`).join('\n')}
+${topQuotes.map(q => `[${q.type}] "${q.quote}" - ${q.source || q.subreddit}`).join('\n')}
 ` : ''}
 
 INSTRUCTIONS:
