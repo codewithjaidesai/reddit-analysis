@@ -5,6 +5,8 @@ const { generateAIInsights, generateCombinedInsights, generateContent } = requir
 const { batchExtractPosts } = require('../services/mapReduceAnalysis');
 const { analyzeCommunityPulse, extractPostComments } = require('../services/communityPulse');
 const { fetchTimeBucketedPosts, getSubredditInfo, samplePostsForComments, fetchCommentsForPosts } = require('../services/search');
+const { scrapeUserData } = require('../services/userScraper');
+const { analyzeUserData } = require('../services/userAnalysis');
 
 /**
  * POST /api/analyze/extract
@@ -463,6 +465,63 @@ router.post('/community-pulse', async (req, res) => {
   } catch (error) {
     console.error('Community pulse error:', error);
     res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/analyze/user
+ * Scrape a Reddit user's full activity and generate AI analysis
+ * Accepts username or profile URL
+ */
+router.post('/user', async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        error: 'Username or profile URL is required'
+      });
+    }
+
+    console.log(`\n=== USER ANALYSIS: ${username} ===`);
+
+    // Step 1: Scrape all user data
+    console.log('Step 1: Scraping user data...');
+    const userData = await scrapeUserData(username);
+
+    console.log(`Scraped: ${userData.stats.totalComments} comments, ${userData.stats.totalPosts} posts across ${userData.stats.uniqueSubreddits} subreddits`);
+
+    if (userData.stats.totalComments === 0 && userData.stats.totalPosts === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No public activity found for this user. The account may be private, suspended, or have no posts/comments.'
+      });
+    }
+
+    // Step 2: AI analysis
+    console.log('Step 2: Running AI analysis...');
+    const analysis = await analyzeUserData(userData);
+
+    res.json({
+      success: true,
+      userData: {
+        profile: userData.profile,
+        stats: userData.stats,
+        subredditActivity: userData.subredditActivity,
+        monthlyActivity: userData.monthlyActivity,
+        comments: userData.comments,
+        posts: userData.posts
+      },
+      analysis: analysis
+    });
+
+  } catch (error) {
+    console.error('User analysis error:', error);
+    res.status(error.message.includes('not found') ? 404 : 500).json({
       success: false,
       error: error.message
     });

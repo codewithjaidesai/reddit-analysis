@@ -4027,3 +4027,646 @@ function deleteGeneratedContent(index) {
         displayCombinedResults(currentResult, role, goal, false, true);
     }
 }
+
+// ============================================
+// USER ANALYSIS FEATURE
+// ============================================
+
+/**
+ * Switch between Post and User sub-tabs within the Analyze URL tab
+ */
+function switchUrlSubtab(subtab) {
+    const postSubtab = document.getElementById('urlPostSubtab');
+    const userSubtab = document.getElementById('urlUserSubtab');
+    const postBtn = document.getElementById('subtabPostBtn');
+    const userBtn = document.getElementById('subtabUserBtn');
+
+    if (subtab === 'post') {
+        postSubtab.style.display = 'block';
+        userSubtab.style.display = 'none';
+        postBtn.classList.add('active');
+        userBtn.classList.remove('active');
+    } else {
+        postSubtab.style.display = 'none';
+        userSubtab.style.display = 'block';
+        postBtn.classList.remove('active');
+        userBtn.classList.add('active');
+    }
+
+    // Hide all result sections when switching
+    hideAll();
+    document.getElementById('userResultsSection').style.display = 'none';
+}
+
+/**
+ * Handle Analyze User button click
+ */
+async function handleAnalyzeUser() {
+    const input = document.getElementById('redditUsername').value.trim();
+
+    if (!input) {
+        showError('Please enter a Reddit username or profile URL');
+        return;
+    }
+
+    // Reset UI
+    hideAll();
+    document.getElementById('userResultsSection').style.display = 'none';
+    setButtonLoading('userAnalyzeBtn', true);
+    resetStatusTimer();
+    showStatus('Fetching user data from Reddit...', 10);
+    setEstimatedTime(45);
+
+    try {
+        showStatus('Scraping posts and comments...', 25);
+
+        const result = await analyzeUser(input);
+
+        if (!result.success) {
+            throw new Error(result.error || 'User analysis failed');
+        }
+
+        showStatus('AI is analyzing user activity...', 60);
+        await sleep(500);
+
+        showStatus('Organizing topics and building timeline...', 85);
+        await sleep(500);
+
+        showStatus('Complete!', 100);
+        await sleep(500);
+
+        // Store data globally for exports
+        window.currentUserData = result.userData;
+        window.currentUserAnalysis = result.analysis;
+
+        // Display results
+        hideAll();
+        displayUserResults(result.userData, result.analysis);
+
+    } catch (error) {
+        console.error('User analysis error:', error);
+        showError(error.message || 'Failed to analyze user');
+    } finally {
+        setButtonLoading('userAnalyzeBtn', false);
+    }
+}
+
+/**
+ * Display full user analysis results
+ */
+function displayUserResults(userData, analysis) {
+    const section = document.getElementById('userResultsSection');
+    section.style.display = 'block';
+
+    // Display profile card
+    displayUserProfile(userData);
+
+    // Display AI analysis
+    if (analysis && analysis.structured) {
+        displayUserAnalysis(analysis.structured, analysis.model);
+    } else if (analysis && analysis.rawAnalysis) {
+        // Fallback to raw markdown
+        const card = document.getElementById('userAnalysisCard');
+        card.style.display = 'block';
+        document.getElementById('userAnalysisContent').innerHTML = formatMarkdown(analysis.rawAnalysis);
+    }
+
+    // Display raw data (collapsed)
+    displayUserRawData(userData);
+}
+
+/**
+ * Display user profile summary card
+ */
+function displayUserProfile(userData) {
+    const { profile, stats, subredditActivity } = userData;
+    const card = document.getElementById('userProfileCard');
+    card.style.display = 'block';
+
+    const topSubs = subredditActivity.slice(0, 10);
+
+    const html = `
+        <div class="user-profile-header">
+            <div class="user-profile-name">u/${escapeHtml(profile.username)}</div>
+            <div class="user-profile-meta">
+                Account age: ~${profile.accountAge} years &bull;
+                Link karma: ${formatNumber(profile.link_karma)} &bull;
+                Comment karma: ${formatNumber(profile.comment_karma)}
+            </div>
+        </div>
+        <div class="user-stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">${stats.totalComments}</div>
+                <div class="stat-label">Comments Analyzed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.totalPosts}</div>
+                <div class="stat-label">Posts Analyzed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${stats.uniqueSubreddits}</div>
+                <div class="stat-label">Subreddits</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${formatNumber(stats.totalKarmaFromData)}</div>
+                <div class="stat-label">Karma (in data)</div>
+            </div>
+        </div>
+        <div class="user-top-subs">
+            <h4>Most Active Subreddits</h4>
+            <div class="user-sub-bars">
+                ${topSubs.map(s => {
+                    const maxActivity = topSubs[0].totalActivity;
+                    const pct = Math.round((s.totalActivity / maxActivity) * 100);
+                    return `
+                        <div class="user-sub-bar-row">
+                            <span class="user-sub-bar-label">r/${escapeHtml(s.subreddit)}</span>
+                            <div class="user-sub-bar-track">
+                                <div class="user-sub-bar-fill" style="width: ${pct}%"></div>
+                            </div>
+                            <span class="user-sub-bar-count">${s.totalActivity}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('userProfileContent').innerHTML = html;
+}
+
+/**
+ * Display structured AI user analysis
+ */
+function displayUserAnalysis(analysis, model) {
+    const card = document.getElementById('userAnalysisCard');
+    card.style.display = 'block';
+
+    let html = '';
+
+    // Profile Summary
+    if (analysis.profileSummary) {
+        html += `
+            <div class="user-analysis-section">
+                <h3>Profile Summary</h3>
+                <p class="user-profile-summary-text">${escapeHtml(analysis.profileSummary)}</p>
+            </div>
+        `;
+    }
+
+    // Interest Profile
+    if (analysis.interestProfile) {
+        const ip = analysis.interestProfile;
+        html += `
+            <div class="user-analysis-section">
+                <h3>Interest Profile</h3>
+                <div class="user-interest-grid">
+                    <div class="user-interest-col">
+                        <h4>Primary Interests</h4>
+                        <ul>${(ip.primaryInterests || []).map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+                    </div>
+                    <div class="user-interest-col">
+                        <h4>Secondary Interests</h4>
+                        <ul>${(ip.secondaryInterests || []).map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+                    </div>
+                    <div class="user-interest-col">
+                        <h4>Areas of Expertise</h4>
+                        <ul>${(ip.expertise || []).map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+                    </div>
+                </div>
+                ${ip.communityRole ? `<p style="margin-top: 12px; color: var(--text-secondary);"><strong>Community role:</strong> ${escapeHtml(ip.communityRole)}</p>` : ''}
+            </div>
+        `;
+    }
+
+    // Topic Groups
+    if (analysis.topicGroups && analysis.topicGroups.length > 0) {
+        html += `
+            <div class="user-analysis-section">
+                <h3>Topic Groups</h3>
+                <div class="user-topic-groups">
+                    ${analysis.topicGroups.map((tg, idx) => `
+                        <div class="user-topic-card">
+                            <div class="user-topic-header">
+                                <span class="user-topic-name">${escapeHtml(tg.topic)}</span>
+                                <span class="user-topic-sentiment sentiment-${tg.sentiment || 'neutral'}">${tg.sentiment || 'neutral'}</span>
+                            </div>
+                            <p class="user-topic-desc">${escapeHtml(tg.description || '')}</p>
+                            <div class="user-topic-meta">
+                                <span>Subreddits: ${(tg.subreddits || []).map(s => 'r/' + s).join(', ')}</span>
+                                ${tg.commentCount ? `<span>${tg.commentCount} comments</span>` : ''}
+                            </div>
+                            ${tg.keyPoints && tg.keyPoints.length > 0 ? `
+                                <div class="user-topic-points">
+                                    <strong>Key points:</strong>
+                                    <ul>${tg.keyPoints.map(kp => `<li>${escapeHtml(kp)}</li>`).join('')}</ul>
+                                </div>
+                            ` : ''}
+                            ${tg.sampleQuotes && tg.sampleQuotes.length > 0 ? `
+                                <div class="user-topic-quotes">
+                                    ${tg.sampleQuotes.slice(0, 3).map(q => `
+                                        <div class="user-quote">
+                                            <span class="user-quote-text">"${escapeHtml(q.text)}"</span>
+                                            <span class="user-quote-meta">r/${q.subreddit || '?'} &bull; ${q.date || ''} &bull; ${q.score || 0} pts</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            ${tg.evolution ? `
+                                <div class="user-topic-evolution">
+                                    <strong>Evolution:</strong> ${escapeHtml(tg.evolution)}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Behavior Patterns
+    if (analysis.behaviorPatterns) {
+        const bp = analysis.behaviorPatterns;
+        html += `
+            <div class="user-analysis-section">
+                <h3>Behavior Patterns</h3>
+                <div class="user-behavior-grid">
+                    ${bp.engagementStyle ? `<div class="user-behavior-item"><strong>Engagement Style:</strong> ${escapeHtml(bp.engagementStyle)}</div>` : ''}
+                    ${bp.activityPattern ? `<div class="user-behavior-item"><strong>Activity Pattern:</strong> ${escapeHtml(bp.activityPattern)}</div>` : ''}
+                    ${bp.highPerformingContent ? `<div class="user-behavior-item"><strong>High-Performing Content:</strong> ${escapeHtml(bp.highPerformingContent)}</div>` : ''}
+                </div>
+                ${bp.controversialTopics && bp.controversialTopics.length > 0 ? `
+                    <div style="margin-top: 12px;">
+                        <strong>Controversial/Strong Stances:</strong>
+                        <ul>${bp.controversialTopics.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Regulatory & Factual Updates
+    if (analysis.regulatoryAndFactualUpdates && analysis.regulatoryAndFactualUpdates.length > 0) {
+        html += `
+            <div class="user-analysis-section">
+                <h3>Information Updates & Changes</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px;">
+                    Topics where information may have changed since the user last discussed them
+                </p>
+                <div class="user-updates-list">
+                    ${analysis.regulatoryAndFactualUpdates.map(u => `
+                        <div class="user-update-card significance-${u.significance || 'low'}">
+                            <div class="user-update-header">
+                                <span class="user-update-topic">${escapeHtml(u.topic)}</span>
+                                <span class="user-update-badge badge-${u.significance || 'low'}">${(u.significance || 'low').toUpperCase()}</span>
+                            </div>
+                            <div class="user-update-body">
+                                <div class="user-update-row">
+                                    <span class="user-update-label">User said (${u.userLastMentioned || '?'}):</span>
+                                    <span>${escapeHtml(u.whatUserSaid || '')}</span>
+                                </div>
+                                <div class="user-update-row">
+                                    <span class="user-update-label">Current status:</span>
+                                    <span>${escapeHtml(u.currentStatus || '')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Topic Timeline
+    if (analysis.topicTimeline && analysis.topicTimeline.length > 0) {
+        html += `
+            <div class="user-analysis-section">
+                <h3>Topic Timeline</h3>
+                <div class="user-timeline">
+                    ${analysis.topicTimeline.map(tt => `
+                        <div class="user-timeline-topic">
+                            <h4>${escapeHtml(tt.topic)}</h4>
+                            <div class="user-timeline-entries">
+                                ${(tt.entries || []).map(e => `
+                                    <div class="user-timeline-entry ${e.notableChange ? 'has-change' : ''}">
+                                        <span class="user-timeline-date">${e.date || '?'}</span>
+                                        <span class="user-timeline-summary">${escapeHtml(e.summary || '')}</span>
+                                        ${e.notableChange ? `<div class="user-timeline-change">${escapeHtml(e.notableChange)}</div>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Statistics
+    if (analysis.statistics) {
+        const s = analysis.statistics;
+        html += `
+            <div class="user-analysis-section">
+                <h3>Statistics</h3>
+                <div class="user-stats-detail-grid">
+                    ${s.mostActiveSubreddit ? `<div class="user-stat-detail"><span class="label">Most Active In</span><span class="value">r/${escapeHtml(s.mostActiveSubreddit)}</span></div>` : ''}
+                    ${s.averageCommentLength ? `<div class="user-stat-detail"><span class="label">Avg Comment Length</span><span class="value">${s.averageCommentLength} chars</span></div>` : ''}
+                    ${s.activityTrend ? `<div class="user-stat-detail"><span class="label">Activity Trend</span><span class="value">${escapeHtml(s.activityTrend)}</span></div>` : ''}
+                </div>
+                ${s.highestScoredComment ? `
+                    <div class="user-highlight-box">
+                        <strong>Top Comment (${s.highestScoredComment.score} pts in r/${s.highestScoredComment.subreddit || '?'}):</strong>
+                        <p>"${escapeHtml(s.highestScoredComment.text || '')}"</p>
+                    </div>
+                ` : ''}
+                ${s.highestScoredPost ? `
+                    <div class="user-highlight-box">
+                        <strong>Top Post (${s.highestScoredPost.score} pts in r/${s.highestScoredPost.subreddit || '?'}):</strong>
+                        <p>"${escapeHtml(s.highestScoredPost.title || '')}"</p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    html += `<div style="text-align: right; margin-top: 16px; font-size: 0.8rem; color: var(--text-muted);">Model: ${model || 'unknown'}</div>`;
+
+    document.getElementById('userAnalysisContent').innerHTML = html;
+}
+
+/**
+ * Display user raw data (comments and posts, collapsed by default)
+ */
+function displayUserRawData(userData) {
+    const card = document.getElementById('userRawDataCard');
+    card.style.display = 'block';
+
+    const { comments, posts } = userData;
+
+    let html = `<div class="user-raw-section">`;
+
+    // Posts
+    html += `<h3>Posts (${posts.length})</h3>`;
+    if (posts.length > 0) {
+        html += `<div class="user-raw-items">`;
+        posts.forEach((p, i) => {
+            const date = new Date(p.created_utc * 1000).toLocaleDateString();
+            html += `
+                <div class="user-raw-item">
+                    <div class="user-raw-item-header">
+                        <span class="user-raw-idx">#${i + 1}</span>
+                        <span class="user-raw-sub">r/${escapeHtml(p.subreddit)}</span>
+                        <span class="user-raw-score">${p.score} pts</span>
+                        <span class="user-raw-date">${date}</span>
+                    </div>
+                    <div class="user-raw-title">${escapeHtml(p.title)}</div>
+                    ${p.selftext ? `<div class="user-raw-body">${escapeHtml(p.selftext.substring(0, 300))}${p.selftext.length > 300 ? '...' : ''}</div>` : ''}
+                </div>
+            `;
+        });
+        html += `</div>`;
+    } else {
+        html += `<p style="color: var(--text-muted);">No posts found</p>`;
+    }
+
+    // Comments
+    html += `<h3 style="margin-top: 24px;">Comments (${comments.length})</h3>`;
+    if (comments.length > 0) {
+        html += `<div class="user-raw-items">`;
+        comments.forEach((c, i) => {
+            const date = new Date(c.created_utc * 1000).toLocaleDateString();
+            html += `
+                <div class="user-raw-item">
+                    <div class="user-raw-item-header">
+                        <span class="user-raw-idx">#${i + 1}</span>
+                        <span class="user-raw-sub">r/${escapeHtml(c.subreddit)}</span>
+                        <span class="user-raw-score">${c.score} pts</span>
+                        <span class="user-raw-date">${date}</span>
+                    </div>
+                    ${c.link_title ? `<div class="user-raw-context">Re: ${escapeHtml(c.link_title)}</div>` : ''}
+                    <div class="user-raw-body">${escapeHtml(c.body.substring(0, 400))}${c.body.length > 400 ? '...' : ''}</div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    } else {
+        html += `<p style="color: var(--text-muted);">No comments found</p>`;
+    }
+
+    html += `</div>`;
+    document.getElementById('userRawDataContent').innerHTML = html;
+}
+
+/**
+ * Toggle raw data visibility
+ */
+function toggleUserRawData() {
+    const content = document.getElementById('userRawDataContent');
+    const toggle = document.getElementById('userRawToggle');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.textContent = 'Hide ▲';
+    } else {
+        content.style.display = 'none';
+        toggle.textContent = 'Show ▼';
+    }
+}
+
+/**
+ * Export user raw data as PDF
+ */
+function exportUserRawPDF() {
+    if (!window.currentUserData) {
+        alert('No user data to export');
+        return;
+    }
+
+    const { profile, comments, posts, stats } = window.currentUserData;
+    const printWindow = window.open('', '', 'width=900,height=700');
+
+    let postsHtml = posts.map((p, i) => {
+        const date = new Date(p.created_utc * 1000).toLocaleDateString();
+        return `
+            <div class="item">
+                <div class="item-header">#${i + 1} &bull; r/${p.subreddit} &bull; ${p.score} pts &bull; ${date}</div>
+                <div class="item-title">${escapeHtml(p.title)}</div>
+                ${p.selftext ? `<div class="item-body">${escapeHtml(p.selftext.substring(0, 500))}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    let commentsHtml = comments.map((c, i) => {
+        const date = new Date(c.created_utc * 1000).toLocaleDateString();
+        return `
+            <div class="item">
+                <div class="item-header">#${i + 1} &bull; r/${c.subreddit} &bull; ${c.score} pts &bull; ${date}</div>
+                ${c.link_title ? `<div class="item-context">Re: ${escapeHtml(c.link_title)}</div>` : ''}
+                <div class="item-body">${escapeHtml(c.body)}</div>
+            </div>
+        `;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><title>u/${escapeHtml(profile.username)} - Raw Data</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 850px; margin: 20px; color: #333; }
+        h1 { color: #2d3748; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
+        h2 { color: #4a5568; margin-top: 30px; border-left: 4px solid #667eea; padding-left: 12px; }
+        .meta { background: #f7fafc; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+        .stat { text-align: center; padding: 15px; background: #edf2f7; border-radius: 6px; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 12px; color: #718096; margin-top: 5px; }
+        .item { border-left: 4px solid #667eea; padding: 12px; margin: 15px 0; background: #f7fafc; page-break-inside: avoid; }
+        .item-header { font-size: 12px; color: #718096; margin-bottom: 6px; }
+        .item-title { font-weight: bold; color: #2d3748; }
+        .item-context { font-size: 12px; color: #a0aec0; font-style: italic; margin-bottom: 4px; }
+        .item-body { white-space: pre-wrap; word-wrap: break-word; margin-top: 6px; }
+        @media print { body { margin: 0; } .no-print { display: none; } }
+    </style></head><body>
+        <h1>u/${escapeHtml(profile.username)} - Raw Reddit Data</h1>
+        <div class="meta">
+            Account age: ~${profile.accountAge} years &bull;
+            Link karma: ${formatNumber(profile.link_karma)} &bull;
+            Comment karma: ${formatNumber(profile.comment_karma)}
+        </div>
+        <div class="stats">
+            <div class="stat"><div class="stat-value">${stats.totalComments}</div><div class="stat-label">Comments</div></div>
+            <div class="stat"><div class="stat-value">${stats.totalPosts}</div><div class="stat-label">Posts</div></div>
+            <div class="stat"><div class="stat-value">${stats.uniqueSubreddits}</div><div class="stat-label">Subreddits</div></div>
+            <div class="stat"><div class="stat-value">${formatNumber(stats.totalKarmaFromData)}</div><div class="stat-label">Karma</div></div>
+        </div>
+        <h2>Posts (${posts.length})</h2>
+        ${postsHtml || '<p>No posts found</p>'}
+        <h2>Comments (${comments.length})</h2>
+        ${commentsHtml || '<p>No comments found</p>'}
+        <div class="meta" style="margin-top: 30px; text-align: center; font-size: 12px;">
+            Exported: ${new Date().toLocaleString()} &bull; Reddit Analyzer v2.0
+        </div>
+        <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">Print / Save as PDF</button>
+            <button onclick="window.close()" style="padding: 10px 20px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px;">Close</button>
+        </div>
+    </body></html>`;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
+
+/**
+ * Export user AI analysis as PDF
+ */
+function exportUserAnalysisPDF() {
+    if (!window.currentUserAnalysis || !window.currentUserData) {
+        alert('No analysis to export');
+        return;
+    }
+
+    const { profile } = window.currentUserData;
+    const analysis = window.currentUserAnalysis.structured;
+    const printWindow = window.open('', '', 'width=900,height=700');
+
+    let bodyHtml = '';
+
+    // Profile Summary
+    if (analysis?.profileSummary) {
+        bodyHtml += `<h2>Profile Summary</h2><p>${escapeHtml(analysis.profileSummary)}</p>`;
+    }
+
+    // Interest Profile
+    if (analysis?.interestProfile) {
+        const ip = analysis.interestProfile;
+        bodyHtml += `<h2>Interest Profile</h2>`;
+        if (ip.primaryInterests?.length) bodyHtml += `<h3>Primary Interests</h3><ul>${ip.primaryInterests.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+        if (ip.secondaryInterests?.length) bodyHtml += `<h3>Secondary Interests</h3><ul>${ip.secondaryInterests.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+        if (ip.expertise?.length) bodyHtml += `<h3>Areas of Expertise</h3><ul>${ip.expertise.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+        if (ip.communityRole) bodyHtml += `<p><strong>Community Role:</strong> ${escapeHtml(ip.communityRole)}</p>`;
+    }
+
+    // Topic Groups
+    if (analysis?.topicGroups?.length) {
+        bodyHtml += `<h2>Topic Groups</h2>`;
+        analysis.topicGroups.forEach(tg => {
+            bodyHtml += `<div class="topic-box"><h3>${escapeHtml(tg.topic)} <span class="sentiment">(${tg.sentiment || 'neutral'})</span></h3>`;
+            bodyHtml += `<p>${escapeHtml(tg.description || '')}</p>`;
+            if (tg.subreddits?.length) bodyHtml += `<p class="small">Subreddits: ${tg.subreddits.map(s => 'r/' + s).join(', ')}</p>`;
+            if (tg.keyPoints?.length) bodyHtml += `<ul>${tg.keyPoints.map(kp => `<li>${escapeHtml(kp)}</li>`).join('')}</ul>`;
+            if (tg.sampleQuotes?.length) {
+                tg.sampleQuotes.slice(0, 3).forEach(q => {
+                    bodyHtml += `<blockquote>"${escapeHtml(q.text)}" <span class="small">- r/${q.subreddit || '?'}, ${q.date || ''}, ${q.score || 0} pts</span></blockquote>`;
+                });
+            }
+            if (tg.evolution) bodyHtml += `<p><strong>Evolution:</strong> ${escapeHtml(tg.evolution)}</p>`;
+            bodyHtml += `</div>`;
+        });
+    }
+
+    // Behavior Patterns
+    if (analysis?.behaviorPatterns) {
+        const bp = analysis.behaviorPatterns;
+        bodyHtml += `<h2>Behavior Patterns</h2>`;
+        if (bp.engagementStyle) bodyHtml += `<p><strong>Engagement Style:</strong> ${escapeHtml(bp.engagementStyle)}</p>`;
+        if (bp.activityPattern) bodyHtml += `<p><strong>Activity Pattern:</strong> ${escapeHtml(bp.activityPattern)}</p>`;
+        if (bp.highPerformingContent) bodyHtml += `<p><strong>High-Performing Content:</strong> ${escapeHtml(bp.highPerformingContent)}</p>`;
+        if (bp.controversialTopics?.length) bodyHtml += `<p><strong>Controversial Topics:</strong></p><ul>${bp.controversialTopics.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>`;
+    }
+
+    // Regulatory Updates
+    if (analysis?.regulatoryAndFactualUpdates?.length) {
+        bodyHtml += `<h2>Information Updates & Changes</h2>`;
+        analysis.regulatoryAndFactualUpdates.forEach(u => {
+            bodyHtml += `<div class="update-box ${u.significance || 'low'}">`;
+            bodyHtml += `<h3>${escapeHtml(u.topic)} <span class="badge">${(u.significance || 'low').toUpperCase()}</span></h3>`;
+            bodyHtml += `<p><strong>User said (${u.userLastMentioned || '?'}):</strong> ${escapeHtml(u.whatUserSaid || '')}</p>`;
+            bodyHtml += `<p><strong>Current status:</strong> ${escapeHtml(u.currentStatus || '')}</p>`;
+            bodyHtml += `</div>`;
+        });
+    }
+
+    // Statistics
+    if (analysis?.statistics) {
+        const s = analysis.statistics;
+        bodyHtml += `<h2>Statistics</h2>`;
+        if (s.mostActiveSubreddit) bodyHtml += `<p><strong>Most Active In:</strong> r/${escapeHtml(s.mostActiveSubreddit)}</p>`;
+        if (s.activityTrend) bodyHtml += `<p><strong>Activity Trend:</strong> ${escapeHtml(s.activityTrend)}</p>`;
+        if (s.highestScoredComment) bodyHtml += `<blockquote><strong>Top Comment (${s.highestScoredComment.score} pts):</strong> "${escapeHtml(s.highestScoredComment.text || '')}"</blockquote>`;
+        if (s.highestScoredPost) bodyHtml += `<blockquote><strong>Top Post (${s.highestScoredPost.score} pts):</strong> "${escapeHtml(s.highestScoredPost.title || '')}"</blockquote>`;
+    }
+
+    const html = `<!DOCTYPE html><html><head><title>u/${escapeHtml(profile.username)} - AI Analysis</title>
+    <style>
+        body { font-family: Georgia, serif; line-height: 1.8; max-width: 850px; margin: 20px; color: #2d3748; }
+        h1 { color: #1a202c; border-bottom: 3px solid #667eea; padding-bottom: 15px; }
+        h2 { color: #2d3748; margin-top: 30px; border-left: 4px solid #667eea; padding-left: 12px; }
+        h3 { color: #4a5568; margin-top: 20px; }
+        .meta { background: #f7fafc; padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 14px; color: #718096; }
+        .topic-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; }
+        .update-box { border-left: 4px solid #a0aec0; padding: 12px; margin: 12px 0; background: #f7fafc; }
+        .update-box.high { border-left-color: #e53e3e; }
+        .update-box.medium { border-left-color: #ed8936; }
+        blockquote { border-left: 3px solid #667eea; padding: 8px 16px; margin: 12px 0; background: #f7fafc; font-style: italic; }
+        .sentiment { font-size: 14px; color: #718096; font-weight: normal; }
+        .badge { font-size: 11px; background: #edf2f7; padding: 2px 8px; border-radius: 10px; }
+        .small { font-size: 13px; color: #718096; }
+        ul { padding-left: 24px; }
+        li { margin: 6px 0; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #a0aec0; }
+        @media print { body { margin: 0; padding: 20px; } .no-print { display: none; } }
+    </style></head><body>
+        <h1>u/${escapeHtml(profile.username)} - AI Analysis Report</h1>
+        <div class="meta">
+            <strong>Account:</strong> u/${escapeHtml(profile.username)} (~${profile.accountAge} years old)<br>
+            <strong>Karma:</strong> ${formatNumber(profile.link_karma)} link / ${formatNumber(profile.comment_karma)} comment<br>
+            <strong>Generated:</strong> ${new Date().toLocaleString()}<br>
+            <strong>Tool:</strong> Reddit Analyzer v2.0
+        </div>
+        ${bodyHtml}
+        <div class="footer">Reddit Analyzer v2.0 &bull; AI-Powered User Analysis &bull; ${new Date().toISOString()}</div>
+        <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
+            <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">Print / Save as PDF</button>
+            <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px;">Close</button>
+        </div>
+    </body></html>`;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+}
