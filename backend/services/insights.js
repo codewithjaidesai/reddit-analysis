@@ -48,10 +48,19 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
 
   // Build transcript section for YouTube videos
   const hasTranscript = isYouTube && transcript?.textForAnalysis;
-  const transcriptSection = hasTranscript
-    ? `\nVIDEO TRANSCRIPT (${Math.round(transcript.durationSeconds / 60)} min):
-${transcript.textForAnalysis}${transcript.fullText.length > 8000 ? '...[truncated]' : ''}`
-    : '';
+  // Check if description is substantial (has timestamps, topics, or >200 chars)
+  const hasDescription = isYouTube && post.selftext && post.selftext.length > 100;
+  const descriptionHasTimestamps = hasDescription && /\d{1,2}:\d{2}/.test(post.selftext);
+
+  let videoContentSection = '';
+  if (hasTranscript) {
+    videoContentSection = `\nVIDEO TRANSCRIPT (${Math.round(transcript.durationSeconds / 60)} min):
+${transcript.textForAnalysis}${transcript.fullText.length > 8000 ? '...[truncated]' : ''}`;
+  } else if (hasDescription) {
+    // Use description as fallback - include more of it since we don't have transcript
+    videoContentSection = `\nVIDEO DESCRIPTION${descriptionHasTimestamps ? ' (includes timestamps/topics)' : ''}:
+${post.selftext.substring(0, 2000)}${post.selftext.length > 2000 ? '...[truncated]' : ''}`;
+  }
 
   const prompt = `You are an expert analyst performing a comprehensive analysis of a ${isYouTube ? 'YouTube video' : 'Reddit post'} and its comments.
 
@@ -64,8 +73,8 @@ CONTENT TO ANALYZE:
 - ${contentType}: "${post.title}"
 - ${statsContext}
 - Published: ${post.created_utc ? new Date(post.created_utc * 1000).toISOString().split('T')[0] : 'Unknown'}
-${post.selftext ? `\nDescription/Content:\n${post.selftext.substring(0, 500)}${post.selftext.length > 500 ? '...' : ''}` : ''}
-${transcriptSection}
+${!isYouTube && post.selftext ? `\nDescription/Content:\n${post.selftext.substring(0, 500)}${post.selftext.length > 500 ? '...' : ''}` : ''}
+${videoContentSection}
 
 COMMENTS (${commentCount} high-quality comments):
 ${formattedComments}
@@ -91,7 +100,17 @@ Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, n
     ],
     "summary": "2-3 sentence summary of what the video covers and its main message"
   },
-` : ''}
+` : (hasDescription ? `
+  "videoOverview": {
+    "contentType": "educational | entertainment | music | tutorial | review | podcast | news | other",
+    "topicsFromDescription": [
+      "Topic or section mentioned in the description",
+      "Another topic if the description outlines multiple sections"
+    ],
+    "summary": "Brief summary of what the video appears to cover based on title and description. Be clear this is inferred, not from watching.",
+    "note": "Based on description only - transcript unavailable"
+  },
+` : '')}
   "executiveSummary": "2-4 sentence overview answering the user's goal directly. What's the bottom line?",
 
   "goalAnalysis": {
@@ -199,7 +218,13 @@ ANALYSIS RULES:${hasTranscript ? `
    - contentType: Classify the video accurately (educational, music, tutorial, etc.)
    - For MUSIC videos: Instead of key points, describe the song's theme, mood, and message.
    - For TUTORIALS: Focus on the main steps or techniques taught.
-   - For EDUCATIONAL: Extract the core learnings and any frameworks/concepts introduced.` : ''}
+   - For EDUCATIONAL: Extract the core learnings and any frameworks/concepts introduced.` : (hasDescription ? `
+0. videoOverview (for YouTube WITHOUT transcript, using description):
+   - This video has NO transcript available, but has a description we can analyze.
+   - topicsFromDescription: Extract 2-5 topics/sections mentioned in the description (especially if it has timestamps).
+   - summary: Summarize what the video APPEARS to cover based on title + description. Be clear this is inferred.
+   - Do NOT copy-paste the description - synthesize and summarize at a high level.
+   - Always include the note field acknowledging this is from description only.` : '')}
 1. executiveSummary: DIRECTLY answer the user's goal in 2-4 sentences. Be specific and actionable.
 2. goalAnalysis: Treat their goal as a hypothesis to validate. Calculate actual percentages from the data.
 3. topicGroups: Identify 3-7 distinct topics discussed. Group related comments together.
