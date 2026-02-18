@@ -2,14 +2,68 @@ const express = require('express');
 const router = express.Router();
 const { searchRedditByTopic, searchSubredditTopPosts, getSubredditInfo, fetchTimeBucketedPosts } = require('../services/search');
 const { preScreenPosts } = require('../services/mapReduceAnalysis');
+const { searchVideos, timeRangeToPublishedAfter } = require('../services/youtube');
+const { canAffordSearch, getQuotaStatus } = require('../services/youtubeQuota');
+const config = require('../config');
+
+/**
+ * Normalize a YouTube search result video into the same shape as a Reddit post.
+ * This allows pre-screening, selection, and analysis flows to work unchanged.
+ * @param {object} video - Video object from searchVideos()
+ * @returns {object} Normalized post-shaped object
+ */
+function normalizeYouTubeVideo(video) {
+  const engagementScore = Math.round(video.viewCount / 1000 + video.commentCount * 2 + video.likeCount);
+
+  let engagementTier = 'low';
+  let engagementStars = 2;
+  if (video.viewCount >= 100000 || video.likeCount >= 5000) {
+    engagementTier = 'viral'; engagementStars = 5;
+  } else if (video.viewCount >= 50000 || video.likeCount >= 1000) {
+    engagementTier = 'high'; engagementStars = 4;
+  } else if (video.viewCount >= 10000 || video.likeCount >= 100) {
+    engagementTier = 'medium'; engagementStars = 3;
+  }
+
+  const publishedDate = new Date(video.publishedAt);
+  const ageHours = (Date.now() - publishedDate.getTime()) / (1000 * 60 * 60);
+  let ageText = '';
+  if (ageHours < 24) ageText = Math.floor(ageHours) + ' hours ago';
+  else if (ageHours < 24 * 30) ageText = Math.floor(ageHours / 24) + ' days ago';
+  else if (ageHours < 24 * 365) ageText = Math.floor(ageHours / (24 * 30)) + ' months ago';
+  else ageText = Math.floor(ageHours / (24 * 365)) + ' years ago';
+
+  return {
+    id: video.id,
+    title: video.title,
+    subreddit: `YouTube: ${video.channelTitle}`,
+    score: video.likeCount,
+    num_comments: video.commentCount,
+    url: video.url,
+    selftext: (video.description || '').substring(0, 200),
+    engagementScore,
+    engagementTier,
+    engagementStars,
+    ageText,
+    ageHours,
+    created_utc: Math.floor(publishedDate.getTime() / 1000),
+    // YouTube-specific metadata (preserved for downstream use)
+    _source: 'youtube',
+    _viewCount: video.viewCount,
+    _channelTitle: video.channelTitle,
+    _channelId: video.channelId,
+    _thumbnailUrl: video.thumbnailUrl
+  };
+}
 
 /**
  * POST /api/search/topic
- * Search Reddit by topic/keywords with optional role/goal context
+ * Search Reddit and/or YouTube by topic/keywords
+ * @param {string} sources - 'both' (default), 'reddit', 'youtube'
  */
 router.post('/topic', async (req, res) => {
   try {
-    const { topic, timeRange, subreddits, limit, role, goal } = req.body;
+    const { topic, timeRange, subreddits, limit, role, goal, sources } = req.body;
 
     if (!topic) {
       return res.status(400).json({
@@ -18,22 +72,100 @@ router.post('/topic', async (req, res) => {
       });
     }
 
-    console.log('Topic search:', topic, 'Role:', role || 'not specified', 'Goal:', goal || 'not specified');
+    const sourceMode = sources || 'both';
+    const youtubeEnabled = config.features?.youtube === true;
 
-    const result = await searchRedditByTopic(
-      topic,
-      timeRange || 'week',
-      subreddits || '',
-      limit || 15
-    );
+    console.log('Topic search:', topic, 'Sources:', sourceMode, 'Role:', role || 'not specified');
 
-    // Add role/goal context to result if provided
-    if (result.success) {
-      if (role) result.role = role;
-      if (goal) result.goal = goal;
+    // Determine what to search
+    const searchReddit = sourceMode !== 'youtube';
+    const searchYouTube = sourceMode !== 'reddit' && youtubeEnabled && canAffordSearch();
+    const youtubeSkipReason = !youtubeEnabled ? 'disabled' : (!canAffordSearch() ? 'quota_exhausted' : null);
+
+    if (sourceMode === 'youtube' && !searchYouTube) {
+      return res.status(400).json({
+        success: false,
+        error: youtubeSkipReason === 'disabled'
+          ? 'YouTube integration is not enabled. Configure YOUTUBE_API_KEY to use YouTube search.'
+          : 'YouTube API daily quota exhausted. Try again tomorrow or switch to Reddit.'
+      });
     }
 
-    res.json(result);
+    // Run searches in parallel
+    const promises = [];
+
+    if (searchReddit) {
+      promises.push(
+        searchRedditByTopic(topic, timeRange || 'year', subreddits || '', limit || 15)
+          .then(r => ({ _searchSource: 'reddit', ...r }))
+          .catch(err => {
+            console.error('Reddit search failed:', err.message);
+            return { _searchSource: 'reddit', success: false, error: err.message, posts: [] };
+          })
+      );
+    }
+
+    if (searchYouTube) {
+      const publishedAfter = timeRangeToPublishedAfter(timeRange || 'year');
+      const ytLimit = Math.min(limit || 10, config.youtube?.searchMaxResults || 10);
+      promises.push(
+        searchVideos(topic, { maxResults: ytLimit, publishedAfter })
+          .then(r => ({ _searchSource: 'youtube', ...r }))
+          .catch(err => {
+            console.error('YouTube search failed (non-fatal):', err.message);
+            return { _searchSource: 'youtube', success: false, error: err.message, videos: [] };
+          })
+      );
+    }
+
+    const results = await Promise.all(promises);
+
+    // Collect results from each source
+    const redditResult = results.find(r => r._searchSource === 'reddit');
+    const youtubeResult = results.find(r => r._searchSource === 'youtube');
+
+    let allPosts = [];
+
+    if (redditResult?.success && redditResult.posts) {
+      allPosts.push(...redditResult.posts);
+    }
+
+    if (youtubeResult?.success && youtubeResult.videos?.length > 0) {
+      const normalizedVideos = youtubeResult.videos.map(v => normalizeYouTubeVideo(v));
+      allPosts.push(...normalizedVideos);
+    }
+
+    // Sort combined results by engagementScore descending
+    allPosts.sort((a, b) => b.engagementScore - a.engagementScore);
+
+    const response = {
+      success: true,
+      query: topic,
+      timeRange: timeRange || 'year',
+      sources: {
+        reddit: {
+          searched: searchReddit,
+          found: redditResult?.posts?.length || 0
+        },
+        youtube: {
+          searched: searchYouTube,
+          found: youtubeResult?.videos?.length || 0,
+          skipReason: searchYouTube ? null : youtubeSkipReason
+        }
+      },
+      totalFound: allPosts.length,
+      posts: allPosts
+    };
+
+    // Add role/goal context
+    if (role) response.role = role;
+    if (goal) response.goal = goal;
+
+    // Include debug info from Reddit result if available
+    if (redditResult?.debug) response.debug = redditResult.debug;
+    if (redditResult?.filterStats) response.filterStats = redditResult.filterStats;
+
+    res.json(response);
 
   } catch (error) {
     console.error('Topic search error:', error);

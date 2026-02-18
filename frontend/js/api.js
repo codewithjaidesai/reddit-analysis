@@ -56,14 +56,15 @@ async function fullAnalysis(url, role = null, goal = null) {
 /**
  * Search Reddit by topic with role/goal context
  */
-async function searchTopic(topic, timeRange, subreddits, limit, role = null, goal = null) {
+async function searchTopic(topic, timeRange, subreddits, limit, role = null, goal = null, sources = 'both') {
     return await callAPI('/api/search/topic', {
         topic,
         timeRange,
         subreddits,
         limit,
         role,
-        goal
+        goal,
+        sources
     });
 }
 
