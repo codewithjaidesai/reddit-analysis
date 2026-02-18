@@ -368,6 +368,43 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
 
     let html = '';
 
+    // Video Summary (YouTube only, when transcript is available)
+    if (isYouTube && analysis.videoSummary) {
+        const vs = analysis.videoSummary;
+        html += `
+            <div class="content-analysis-section video-summary-section">
+                <h3>📺 Video Content Summary</h3>
+                <div class="video-summary-card">
+                    <div class="video-type-badge">${escapeHtml(vs.contentType || 'video')}</div>
+                    ${vs.summary ? `<p class="video-summary-text">${escapeHtml(vs.summary)}</p>` : ''}
+
+                    ${vs.keyPoints && vs.keyPoints.length > 0 ? `
+                        <div class="video-key-points">
+                            <h4>Key Takeaways</h4>
+                            <ul class="key-points-list">
+                                ${vs.keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+
+                    ${vs.concepts && vs.concepts.length > 0 ? `
+                        <div class="video-concepts">
+                            <h4>Concepts Explained</h4>
+                            <div class="concepts-grid">
+                                ${vs.concepts.map(concept => `
+                                    <div class="concept-card">
+                                        <span class="concept-term">${escapeHtml(concept.term)}</span>
+                                        <p class="concept-definition">${escapeHtml(concept.definition)}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
     // Executive Summary
     if (analysis.executiveSummary) {
         html += `

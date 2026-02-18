@@ -25,6 +25,7 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
   const comments = extractedData.valuableComments || [];
   const commentCount = comments.length;
   const source = extractedData.source || 'reddit';
+  const transcript = extractedData.transcript || null;
 
   // Source-specific labels
   const isYouTube = source === 'youtube';
@@ -45,6 +46,13 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
     ? `Views: ${post.viewCount?.toLocaleString() || 'N/A'} | Likes: ${post.score?.toLocaleString() || 'N/A'} | Comments: ${post.num_comments?.toLocaleString() || commentCount}`
     : `Upvotes: ${post.score?.toLocaleString() || 'N/A'} | Comments: ${post.num_comments?.toLocaleString() || commentCount}`;
 
+  // Build transcript section for YouTube videos
+  const hasTranscript = isYouTube && transcript?.textForAnalysis;
+  const transcriptSection = hasTranscript
+    ? `\nVIDEO TRANSCRIPT (${Math.round(transcript.durationSeconds / 60)} min):
+${transcript.textForAnalysis}${transcript.fullText.length > 8000 ? '...[truncated]' : ''}`
+    : '';
+
   const prompt = `You are an expert analyst performing a comprehensive analysis of a ${isYouTube ? 'YouTube video' : 'Reddit post'} and its comments.
 
 USER CONTEXT:
@@ -57,6 +65,7 @@ CONTENT TO ANALYZE:
 - ${statsContext}
 - Published: ${post.created_utc ? new Date(post.created_utc * 1000).toISOString().split('T')[0] : 'Unknown'}
 ${post.selftext ? `\nDescription/Content:\n${post.selftext.substring(0, 500)}${post.selftext.length > 500 ? '...' : ''}` : ''}
+${transcriptSection}
 
 COMMENTS (${commentCount} high-quality comments):
 ${formattedComments}
@@ -66,7 +75,23 @@ ${formattedComments}
 ANALYSIS INSTRUCTIONS:
 Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, no backticks).
 
-{
+{${hasTranscript ? `
+  "videoSummary": {
+    "contentType": "educational | entertainment | music | tutorial | review | podcast | news | other",
+    "keyPoints": [
+      "Key point 1 - the most important takeaway from the video",
+      "Key point 2 - another significant point or concept covered",
+      "Key point 3 - additional important information"
+    ],
+    "concepts": [
+      {
+        "term": "New concept or term introduced (e.g., 'Decency Quotient')",
+        "definition": "Brief explanation of what this concept means as explained in the video"
+      }
+    ],
+    "summary": "2-3 sentence summary of what the video covers and its main message"
+  },
+` : ''}
   "executiveSummary": "2-4 sentence overview answering the user's goal directly. What's the bottom line?",
 
   "goalAnalysis": {
@@ -167,7 +192,14 @@ Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, n
   }
 }
 
-ANALYSIS RULES:
+ANALYSIS RULES:${hasTranscript ? `
+0. videoSummary (ONLY for YouTube with transcript):
+   - keyPoints: 3-6 selective bullet points covering the MOST important information (not extensive, just key takeaways)
+   - concepts: If the video introduces NEW terms/concepts (like "Decency Quotient", "FIRE movement", etc.), explain them briefly. Skip if no new concepts.
+   - contentType: Classify the video accurately (educational, music, tutorial, etc.)
+   - For MUSIC videos: Instead of key points, describe the song's theme, mood, and message.
+   - For TUTORIALS: Focus on the main steps or techniques taught.
+   - For EDUCATIONAL: Extract the core learnings and any frameworks/concepts introduced.` : ''}
 1. executiveSummary: DIRECTLY answer the user's goal in 2-4 sentences. Be specific and actionable.
 2. goalAnalysis: Treat their goal as a hypothesis to validate. Calculate actual percentages from the data.
 3. topicGroups: Identify 3-7 distinct topics discussed. Group related comments together.

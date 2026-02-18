@@ -1,5 +1,6 @@
 const axios = require('axios');
 const config = require('../config');
+const { YoutubeTranscript } = require('youtube-transcript');
 
 /**
  * Extract video ID from various YouTube URL formats
@@ -82,6 +83,50 @@ async function fetchVideoMetadata(videoId) {
       }
     }
     throw new Error(`Failed to fetch video metadata: ${error.message}`);
+  }
+}
+
+/**
+ * Fetch video transcript/captions
+ * Uses youtube-transcript package to get auto-generated or manual captions
+ * @param {string} videoId - YouTube video ID
+ * @returns {Promise<object>} Transcript data or null if unavailable
+ */
+async function fetchVideoTranscript(videoId) {
+  console.log(`Fetching transcript for video ${videoId}...`);
+
+  try {
+    const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+
+    if (!transcriptItems || transcriptItems.length === 0) {
+      console.log('No transcript available for this video');
+      return null;
+    }
+
+    // Combine transcript segments into full text
+    const fullText = transcriptItems
+      .map(item => item.text)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Calculate total duration from last segment
+    const lastItem = transcriptItems[transcriptItems.length - 1];
+    const totalDuration = lastItem ? (lastItem.offset + lastItem.duration) / 1000 : 0;
+
+    console.log(`Transcript fetched: ${fullText.length} chars, ${transcriptItems.length} segments, ${Math.round(totalDuration / 60)} min`);
+
+    return {
+      fullText: fullText,
+      segments: transcriptItems.length,
+      durationSeconds: Math.round(totalDuration),
+      // Keep first 8000 chars for AI analysis (roughly 2000 tokens)
+      textForAnalysis: fullText.substring(0, 8000)
+    };
+  } catch (error) {
+    // Common errors: disabled transcripts, private videos, geo-restrictions
+    console.log(`Transcript unavailable: ${error.message}`);
+    return null;
   }
 }
 
@@ -416,31 +461,20 @@ async function extractYouTubeData(url) {
     const video = await fetchVideoMetadata(videoId);
     console.log('Video:', video.title, 'by', video.channelTitle);
 
-    // Check if video has comments
-    if (video.commentCount === 0) {
-      return {
-        success: true,
-        data: {
-          source: 'youtube',
-          video: video,
-          valuableComments: [],
-          extractionStats: {
-            total: 0,
-            valid: 0,
-            extracted: 0,
-            percentageKept: 0,
-            averageLikes: 0
-          }
-        }
-      };
-    }
-
-    // Fetch comments
-    const comments = await fetchVideoComments(videoId, {
-      maxComments: config.youtube?.maxComments || 200,
-      includeReplies: true,
-      maxRepliesPerComment: config.youtube?.maxRepliesPerComment || 10
-    });
+    // Fetch transcript in parallel with comments (for efficiency)
+    const [transcript, comments] = await Promise.all([
+      fetchVideoTranscript(videoId).catch(err => {
+        console.log('Transcript fetch failed (non-fatal):', err.message);
+        return null;
+      }),
+      video.commentCount > 0
+        ? fetchVideoComments(videoId, {
+            maxComments: config.youtube?.maxComments || 200,
+            includeReplies: true,
+            maxRepliesPerComment: config.youtube?.maxRepliesPerComment || 10
+          })
+        : Promise.resolve([])
+    ]);
 
     // Extract valuable content
     const extractedData = extractValuableComments(comments, video);
@@ -449,7 +483,8 @@ async function extractYouTubeData(url) {
       success: true,
       data: {
         source: 'youtube',
-        ...extractedData
+        ...extractedData,
+        transcript: transcript
       }
     };
   } catch (error) {
@@ -560,6 +595,7 @@ module.exports = {
   extractVideoId,
   isYouTubeUrl,
   fetchVideoMetadata,
+  fetchVideoTranscript,
   fetchVideoComments,
   extractValuableComments,
   extractYouTubeData,
