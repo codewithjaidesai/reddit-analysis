@@ -1,6 +1,7 @@
 const axios = require('axios');
 const config = require('../config');
 const { YoutubeTranscript } = require('youtube-transcript');
+const { recordUsage, canAffordSearch, getCachedSearch, setCachedSearch, SEARCH_COST } = require('./youtubeQuota');
 
 /**
  * Extract video ID from various YouTube URL formats
@@ -517,6 +518,19 @@ async function searchVideos(query, options = {}) {
 
   console.log(`Searching YouTube for: "${query}" (max: ${maxResults})`);
 
+  // Check cache first
+  const cacheKey = `${query}|${maxResults}|${publishedAfter || ''}`;
+  const cached = getCachedSearch(cacheKey);
+  if (cached) {
+    console.log(`YouTube search cache hit for: "${query}"`);
+    return cached;
+  }
+
+  // Check quota before making API call
+  if (!canAffordSearch()) {
+    throw new Error('YouTube API daily quota exhausted. YouTube search unavailable until quota resets.');
+  }
+
   try {
     const url = new URL('https://www.googleapis.com/youtube/v3/search');
     url.searchParams.set('part', 'snippet');
@@ -572,12 +586,17 @@ async function searchVideos(query, options = {}) {
 
     console.log(`Found ${videos.length} videos, ${videosWithComments.length} with comments enabled`);
 
-    return {
+    // Record quota usage and cache result
+    recordUsage(SEARCH_COST);
+    const searchResult = {
       success: true,
       videos: videosWithComments,
       totalResults: response.data.pageInfo?.totalResults || videos.length,
       query: query
     };
+    setCachedSearch(cacheKey, searchResult);
+
+    return searchResult;
   } catch (error) {
     if (error.response) {
       const status = error.response.status;
@@ -591,6 +610,24 @@ async function searchVideos(query, options = {}) {
   }
 }
 
+/**
+ * Convert time range string to ISO 8601 publishedAfter date
+ * @param {string} timeRange - 'day', 'week', 'month', 'year', 'all'
+ * @returns {string|null} ISO 8601 date string or null for 'all'
+ */
+function timeRangeToPublishedAfter(timeRange) {
+  const now = new Date();
+  switch (timeRange) {
+    case 'day': now.setDate(now.getDate() - 1); break;
+    case 'week': now.setDate(now.getDate() - 7); break;
+    case 'month': now.setMonth(now.getMonth() - 1); break;
+    case 'year': now.setFullYear(now.getFullYear() - 1); break;
+    case 'all': return null;
+    default: now.setFullYear(now.getFullYear() - 1); break;
+  }
+  return now.toISOString();
+}
+
 module.exports = {
   extractVideoId,
   isYouTubeUrl,
@@ -599,5 +636,6 @@ module.exports = {
   fetchVideoComments,
   extractValuableComments,
   extractYouTubeData,
-  searchVideos
+  searchVideos,
+  timeRangeToPublishedAfter
 };

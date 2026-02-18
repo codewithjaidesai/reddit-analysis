@@ -224,12 +224,14 @@ async function handleSearchByTopic() {
     const searchMethod = getSearchMethod();
     const timeRange = document.getElementById('topicTimeRange').value;
     const limit = parseInt(document.getElementById('topicLimit').value);
+    const sources = document.getElementById('topicSourceSelector')?.value || 'both';
 
     // Store research context globally for later use
     window.currentResearchContext = {
         researchQuestion,
         role,
-        goal
+        goal,
+        sources
     };
 
     // Handle different search methods
@@ -247,10 +249,12 @@ async function handleSearchByTopic() {
             return;
         }
 
-        // Validate URLs
+        // Validate URLs (accept both Reddit and YouTube)
         for (const url of urls) {
-            if (!url.includes('reddit.com/r/') || !url.includes('/comments/')) {
-                showError(`Invalid Reddit URL: ${url.substring(0, 50)}...`);
+            const isReddit = url.includes('reddit.com/r/') && url.includes('/comments/');
+            const isYouTube = url.includes('youtube.com/watch') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/');
+            if (!isReddit && !isYouTube) {
+                showError(`Invalid URL: ${url.substring(0, 50)}... (Must be a Reddit post or YouTube video URL)`);
                 return;
             }
         }
@@ -304,20 +308,22 @@ async function handleSearchByTopic() {
     collapseSection('topicInputSection');
 
     try {
-        // === STEP 1: Search Reddit ===
+        // === STEP 1: Search Reddit + YouTube ===
         resetStatusTimer();
-        showStatus('Searching Reddit...', 10);
+        const sourceLabel = sources === 'youtube' ? 'YouTube' : sources === 'reddit' ? 'Reddit' : 'Reddit & YouTube';
+        showStatus(`Searching ${sourceLabel}...`, 10);
         setStatusDetails('Finding discussions matching your research topic');
 
         console.log('\n=== AUTO-ANALYZE FLOW ===');
         console.log('Research Question:', researchQuestion);
+        console.log('Sources:', sources);
         console.log('Limit:', limit);
         console.log('Role:', role || 'Not specified');
         console.log('Goal:', goal || 'Not specified');
 
-        // Always fetch 100 to have more posts for pre-screening
+        // Always fetch extra to have more posts for pre-screening
         const searchLimit = Math.max(limit * 2, 100);
-        const result = await searchTopic(researchQuestion, timeRange, subreddits, searchLimit, role, goal);
+        const result = await searchTopic(researchQuestion, timeRange, subreddits, searchLimit, role, goal, sources);
 
         if (!result.success) {
             throw new Error(result.error || 'Search failed');
@@ -330,8 +336,11 @@ async function handleSearchByTopic() {
         }
 
         // === STEP 2: Pre-screen for relevance ===
-        showStatus(`Found ${result.posts.length} posts`, 20);
-        setStatusDetails('AI is scoring each post for relevance to your research question...');
+        const sourceSummary = result.sources
+            ? `${result.sources.reddit?.found || 0} Reddit posts, ${result.sources.youtube?.found || 0} YouTube videos`
+            : `${result.posts.length} results`;
+        showStatus(`Found ${result.posts.length} results`, 20);
+        setStatusDetails(`${sourceSummary} — AI is scoring each for relevance to your research question...`);
 
         let postsToAnalyze = result.posts;
 
@@ -1891,10 +1900,12 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                         <input type="checkbox" ${isSelected ? 'checked' : ''}
                                             onchange="toggleAutoPost('${post.id}')">
                                         <div class="post-analyzed-info">
-                                            <span class="post-analyzed-title">${escapeHtml(post.title || post.extractedData?.post?.title || 'Untitled')}</span>
+                                            <span class="post-analyzed-title">${post._source === 'youtube' ? '<span class="source-badge yt-badge">YT</span> ' : ''}${escapeHtml(post.title || post.extractedData?.post?.title || 'Untitled')}</span>
                                             <span class="post-analyzed-meta">
-                                                r/${post.subreddit || post.extractedData?.post?.subreddit || '?'}
-                                                ${post.score ? ` | ${post.score} upvotes` : ''}
+                                                ${post._source === 'youtube'
+                                                    ? `${post.subreddit || '?'}${post._viewCount ? ` | ${formatNumber(post._viewCount)} views` : ''}`
+                                                    : `r/${post.subreddit || post.extractedData?.post?.subreddit || '?'}`}
+                                                ${post.score ? ` | ${post.score} ${post._source === 'youtube' ? 'likes' : 'upvotes'}` : ''}
                                                 ${post.num_comments ? ` | ${post.num_comments} comments` : ''}
                                                 ${post.relevanceScore ? ` | Relevance: ${post.relevanceScore}/5` : ''}
                                             </span>
@@ -1943,10 +1954,12 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                 <label class="other-relevant-label" onclick="event.stopPropagation();">
                                     <input type="checkbox" onchange="toggleOtherRelevantPost('${post.id || idx}', '${post.url}')">
                                     <div class="other-relevant-item-info">
-                                        <span class="other-relevant-title">${escapeHtml(post.title || 'Untitled')}</span>
+                                        <span class="other-relevant-title">${post._source === 'youtube' ? '<span class="source-badge yt-badge">YT</span> ' : ''}${escapeHtml(post.title || 'Untitled')}</span>
                                         <span class="other-relevant-meta">
-                                            r/${post.subreddit || '?'}
-                                            ${post.score ? ` | ${post.score} upvotes` : ''}
+                                            ${post._source === 'youtube'
+                                                ? `${post.subreddit || '?'}${post._viewCount ? ` | ${formatNumber(post._viewCount)} views` : ''}`
+                                                : `r/${post.subreddit || '?'}`}
+                                            ${post.score ? ` | ${post.score} ${post._source === 'youtube' ? 'likes' : 'upvotes'}` : ''}
                                             ${post.num_comments ? ` | ${post.num_comments} comments` : ''}
                                             ${post.relevanceScore ? ` | Relevance: ${post.relevanceScore}/5` : ''}
                                         </span>
@@ -2237,7 +2250,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                         ${evidence.supporting.quotes.map(q => `
                                             <div class="evidence-quote">
                                                 <span class="quote-text">"${escapeHtml(q.text)}"</span>
-                                                <span class="quote-meta">${q.score} pts • r/${escapeHtml(q.subreddit || 'unknown')}</span>
+                                                <span class="quote-meta">${q.score} pts • ${escapeHtml(q.source || q.subreddit ? (q.source || 'r/' + q.subreddit) : 'unknown')}</span>
                                             </div>
                                         `).join('')}
                                     </div>
@@ -2260,7 +2273,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                         ${evidence.counter.quotes.map(q => `
                                             <div class="evidence-quote">
                                                 <span class="quote-text">"${escapeHtml(q.text)}"</span>
-                                                <span class="quote-meta">${q.score} pts • r/${escapeHtml(q.subreddit || 'unknown')}</span>
+                                                <span class="quote-meta">${q.score} pts • ${escapeHtml(q.source || q.subreddit ? (q.source || 'r/' + q.subreddit) : 'unknown')}</span>
                                             </div>
                                         `).join('')}
                                     </div>
@@ -2287,6 +2300,93 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                 * Of ${evidence.totalAnalyzed} comments analyzed, ${evidence.relevantCount || 0} were relevant to this hypothesis.
                                 ${evidence.notRelevantCount ? `${evidence.notRelevantCount} comments discussed other topics.` : ''}
                             </p>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // Cross-Platform Comparison (only when both Reddit + YouTube data present)
+            if (structured.crossPlatformComparison) {
+                const xp = structured.crossPlatformComparison;
+                html += `
+                    <div class="quant-subsection cross-platform-section">
+                        <h3 class="quant-subsection-title">Cross-Platform Comparison: Reddit vs YouTube</h3>
+                        <div class="cross-platform-summary">${escapeHtml(xp.summaryDifference || '')}</div>
+                        <div class="platform-comparison-grid">
+                            <div class="platform-column reddit-col">
+                                <h4 class="platform-col-title"><span class="platform-icon reddit-icon">R</span> Reddit Perspective</h4>
+                                <p class="platform-tone"><strong>Tone:</strong> ${escapeHtml(xp.redditPerspective?.tone || 'N/A')}</p>
+                                <ul class="platform-themes">
+                                    ${(xp.redditPerspective?.dominantThemes || []).map(t => `<li>${escapeHtml(t)}</li>`).join('')}
+                                </ul>
+                                ${xp.redditPerspective?.uniqueInsight ? `<div class="platform-unique"><strong>Unique to Reddit:</strong> ${escapeHtml(xp.redditPerspective.uniqueInsight)}</div>` : ''}
+                            </div>
+                            <div class="platform-column youtube-col">
+                                <h4 class="platform-col-title"><span class="platform-icon youtube-icon">Y</span> YouTube Perspective</h4>
+                                <p class="platform-tone"><strong>Tone:</strong> ${escapeHtml(xp.youtubePerspective?.tone || 'N/A')}</p>
+                                <ul class="platform-themes">
+                                    ${(xp.youtubePerspective?.dominantThemes || []).map(t => `<li>${escapeHtml(t)}</li>`).join('')}
+                                </ul>
+                                ${xp.youtubePerspective?.uniqueInsight ? `<div class="platform-unique"><strong>Unique to YouTube:</strong> ${escapeHtml(xp.youtubePerspective.uniqueInsight)}</div>` : ''}
+                            </div>
+                        </div>
+                        ${xp.agreementAreas?.length > 0 ? `
+                            <div class="platform-consensus">
+                                <h4>Both Platforms Agree On</h4>
+                                <ul>${xp.agreementAreas.map(a => `<li>${escapeHtml(a)}</li>`).join('')}</ul>
+                            </div>
+                        ` : ''}
+                        ${xp.disagreementAreas?.length > 0 ? `
+                            <div class="platform-divergence">
+                                <h4>Different Perspectives On</h4>
+                                <ul>${xp.disagreementAreas.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // Content Gap Opportunities (for Content Creator persona)
+            if (structured.contentGaps) {
+                const cg = structured.contentGaps;
+                html += `
+                    <div class="quant-subsection content-gaps-section">
+                        <h3 class="quant-subsection-title">Content Gap Opportunities</h3>
+                        <div class="content-gaps-summary">${escapeHtml(cg.summary || '')}</div>
+                        ${cg.gaps?.length > 0 ? `
+                            <div class="content-gaps-grid">
+                                ${cg.gaps.map(gap => `
+                                    <div class="content-gap-card gap-priority-${gap.priority || 'medium'}">
+                                        <div class="gap-card-header">
+                                            <h4 class="gap-topic">${escapeHtml(gap.topic)}</h4>
+                                            <span class="gap-priority-badge priority-${gap.priority || 'medium'}">${(gap.priority || 'medium').toUpperCase()}</span>
+                                        </div>
+                                        <p class="gap-detail"><strong>Current coverage:</strong> ${escapeHtml(gap.currentCoverage || 'Unknown')}</p>
+                                        <p class="gap-detail"><strong>Opportunity:</strong> ${escapeHtml(gap.opportunity || '')}</p>
+                                        <div class="gap-meta-row">
+                                            <span class="gap-platform-badge">${escapeHtml(gap.platform || 'both')}</span>
+                                            <span class="gap-demand">${escapeHtml(gap.demandSignal || '')}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        ${cg.underservedQuestions?.length > 0 ? `
+                            <div class="underserved-questions">
+                                <h4>Underserved Questions</h4>
+                                <ul>${cg.underservedQuestions.map(q => `<li>"${escapeHtml(q)}"</li>`).join('')}</ul>
+                            </div>
+                        ` : ''}
+                        ${cg.suggestedContentFormats?.length > 0 ? `
+                            <div class="suggested-formats">
+                                <h4>Suggested Content Formats</h4>
+                                ${cg.suggestedContentFormats.map(f => `
+                                    <div class="format-suggestion">
+                                        <strong>${escapeHtml(f.format)}</strong>
+                                        <span>${escapeHtml(f.reason)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
                         ` : ''}
                     </div>
                 `;
@@ -2364,7 +2464,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                             ► Post ${index + 1}: "${escapeHtml(postInfo.title.substring(0, 60))}${postInfo.title.length > 60 ? '...' : ''}"
                         </div>
                         <div style="font-size: 13px; color: #94a3b8; margin-top: 4px;">
-                            r/${postInfo.subreddit} • ${stats.extracted} comments • ${formatNumber(postInfo.score)} upvotes
+                            ${data.source === 'youtube' ? `${postInfo.subreddit}${postInfo.viewCount ? ` • ${formatNumber(postInfo.viewCount)} views` : ''}` : `r/${postInfo.subreddit}`} • ${stats.extracted} comments • ${formatNumber(postInfo.score)} ${data.source === 'youtube' ? 'likes' : 'upvotes'}
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { extractRedditData } = require('../services/reddit');
 const { extractYouTubeData } = require('../services/youtube');
-const { detectSource, getEnabledFeatures } = require('../services/sourceDetector');
+const { detectSource, getEnabledFeatures, normalizeYouTubeExtraction } = require('../services/sourceDetector');
 const { generateAIInsights, generateCombinedInsights, generateContent } = require('../services/insights');
 const { batchExtractPosts } = require('../services/mapReduceAnalysis');
 const { analyzeCommunityPulse, extractPostComments } = require('../services/communityPulse');
@@ -47,31 +47,7 @@ router.post('/extract', async (req, res) => {
 
       if (result.success && result.data) {
         // Transform YouTube data to match Reddit format for unified analysis
-        const hasTranscript = !!result.data.transcript?.textForAnalysis;
-        result.data = {
-          source: 'youtube',
-          post: {
-            id: result.data.video.id,
-            title: result.data.video.title,
-            selftext: result.data.video.description,
-            author: result.data.video.channelTitle,
-            subreddit: `YouTube: ${result.data.video.channelTitle}`, // For display compatibility
-            score: result.data.video.likeCount,
-            num_comments: result.data.video.commentCount,
-            created_utc: new Date(result.data.video.publishedAt).getTime() / 1000,
-            permalink: `https://youtube.com/watch?v=${result.data.video.id}`,
-            // YouTube-specific fields
-            viewCount: result.data.video.viewCount,
-            channelId: result.data.video.channelId,
-            channelTitle: result.data.video.channelTitle
-          },
-          valuableComments: result.data.valuableComments,
-          extractionStats: {
-            ...result.data.extractionStats,
-            hasTranscript: hasTranscript
-          },
-          transcript: result.data.transcript // Preserve transcript for AI analysis
-        };
+        result.data = normalizeYouTubeExtraction(result.data);
       }
     } else {
       // Extract Reddit data (default)

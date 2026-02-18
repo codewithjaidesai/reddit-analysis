@@ -354,6 +354,8 @@ function formatCombinedAnalysisPrompt(postsData, role = null, goal = null) {
   const hasReddit = sources.reddit.length > 0;
   const hasYouTube = sources.youtube.length > 0;
   const isMixedSource = hasReddit && hasYouTube;
+  const isContentCreator = (role || '').toLowerCase().includes('content') ||
+                           (goal || '').toLowerCase().includes('content');
 
   // Build source attribution strings
   const subreddits = [...new Set(sources.reddit.map(p => p.post?.subreddit).filter(Boolean))];
@@ -479,12 +481,49 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
     "nuances": ["Important nuance or caveat about this evidence"],
     "confidenceLevel": "high or medium or low",
     "confidenceReason": "Why this confidence level (data volume, consistency, etc.)"
-  }
+  }${isMixedSource ? `,
+  "crossPlatformComparison": {
+    "summaryDifference": "1-2 sentence summary of how Reddit and YouTube discussions differ on this topic",
+    "redditPerspective": {
+      "dominantThemes": ["Theme unique to or stronger on Reddit"],
+      "tone": "Overall tone on Reddit (e.g., technical, skeptical, supportive)",
+      "uniqueInsight": "Something found on Reddit but not YouTube"
+    },
+    "youtubePerspective": {
+      "dominantThemes": ["Theme unique to or stronger on YouTube"],
+      "tone": "Overall tone on YouTube (e.g., enthusiastic, beginner-friendly)",
+      "uniqueInsight": "Something found on YouTube but not Reddit"
+    },
+    "agreementAreas": ["Topics where both platforms agree"],
+    "disagreementAreas": ["Topics where platforms disagree or show different perspectives"]
+  }` : ''}${isContentCreator ? `,
+  "contentGaps": {
+    "summary": "Brief overview of content opportunities identified from the data",
+    "gaps": [
+      {
+        "topic": "Topic with a content gap",
+        "currentCoverage": "How well this topic is covered (or not) on existing content",
+        "opportunity": "What content could fill this gap and why it would resonate",
+        "platform": "reddit or youtube or both - where the gap/demand exists",
+        "demandSignal": "Evidence of demand (e.g., questions asked, upvotes on unanswered threads, comment requests)",
+        "priority": "high or medium or low"
+      }
+    ],
+    "underservedQuestions": [
+      "Specific question from comments that lacks good answers or content addressing it"
+    ],
+    "suggestedContentFormats": [
+      {
+        "format": "e.g., Tutorial video, Comparison blog post, FAQ page, Deep-dive analysis",
+        "reason": "Why this format would work for the identified gaps"
+      }
+    ]
+  }` : ''}
 }
 
 ANALYSIS APPROACH (think through these phases before producing output):
 1. SCAN: Read through ALL comments to identify recurring themes and patterns
-2. GROUP: Mentally cluster comments by topic/sentiment - note which themes appear across multiple posts
+2. GROUP: Mentally cluster comments by topic/sentiment - note which themes appear across multiple posts${isMixedSource ? '\n2b. COMPARE: Note differences between Reddit and YouTube perspectives on the same topics' : ''}
 3. DEPTH: For each major theme, identify the nuances, conditions, and contradictions
 4. OUTLIERS: Find the non-obvious insights that most people would miss
 5. SYNTHESIZE: Connect the dots across themes to form your final analysis
@@ -508,9 +547,11 @@ RULES:
    - evidenceScore: percentage of RELEVANT comments supporting the claim (supporting.count / relevantCount * 100)
    - Include 2-4 supporting quotes and 1-2 counter quotes with scores
    - verdict: Based on evidence score (>75% = Strongly Supported, 60-75% = Supported, 40-60% = Mixed Evidence, 25-40% = Weakly Supported, <25% = Not Supported)
-   - confidenceLevel: high (50+ relevant comments), medium (20-50), low (<20)
-6. Keep it concise. No fluff.
-7. Return ONLY the JSON object, nothing else.`;
+   - confidenceLevel: high (50+ relevant comments), medium (20-50), low (<20)${isMixedSource ? `
+6. crossPlatformComparison: Compare how Reddit and YouTube discuss this topic differently. Reddit audiences tend to be more technical/detailed while YouTube commenters are often more casual/broad. Look for genuine differences in perspectives, not just surface-level observations.` : ''}${isContentCreator ? `
+${isMixedSource ? '7' : '6'}. contentGaps: Identify 2-5 content opportunities where audience questions/needs aren't being addressed. Focus on topics with high engagement but few good answers or tutorials. Each gap should have a clear, actionable opportunity the content creator can pursue. Look for: unanswered questions, topics with lots of debate but no definitive guide, requests in comments for specific content.` : ''}
+${isMixedSource || isContentCreator ? (isMixedSource && isContentCreator ? '8' : '7') : '6'}. Keep it concise. No fluff.
+${isMixedSource || isContentCreator ? (isMixedSource && isContentCreator ? '9' : '8') : '7'}. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
 }

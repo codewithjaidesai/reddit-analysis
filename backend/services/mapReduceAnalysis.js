@@ -1,6 +1,8 @@
 const config = require('../config');
 const { analyzeWithGemini, analyzeWithModel, callGeminiWithRetry } = require('./gemini');
 const { extractRedditData } = require('./reddit');
+const { extractYouTubeData } = require('./youtube');
+const { detectSource, normalizeYouTubeExtraction } = require('./sourceDetector');
 
 /**
  * Map-Reduce Analysis Service
@@ -34,11 +36,19 @@ async function preScreenPosts(posts, topic, role = null, goal = null) {
 
   console.log(`Pre-screening ${posts.length} posts for relevance to: "${topic}"`);
 
-  const postList = posts.map((p, i) => (
-    `${i + 1}. [r/${p.subreddit}] "${p.title}" (${p.score} upvotes, ${p.num_comments} comments)${p.selftext ? '\n   ' + p.selftext.substring(0, 100) : ''}`
-  )).join('\n');
+  const postList = posts.map((p, i) => {
+    const isYouTube = p._source === 'youtube';
+    const sourceTag = isYouTube
+      ? `[YouTube: ${p._channelTitle || 'unknown'}]`
+      : `[r/${p.subreddit}]`;
+    const engagementLabel = isYouTube ? 'likes' : 'upvotes';
+    return `${i + 1}. ${sourceTag} "${p.title}" (${p.score} ${engagementLabel}, ${p.num_comments} comments)${p.selftext ? '\n   ' + p.selftext.substring(0, 100) : ''}`;
+  }).join('\n');
 
-  const prompt = `You are filtering Reddit posts for relevance to a research topic.
+  const hasMixedSources = posts.some(p => p._source === 'youtube') && posts.some(p => p._source !== 'youtube');
+  const sourceContext = hasMixedSources ? 'Reddit posts and YouTube videos' : (posts[0]?._source === 'youtube' ? 'YouTube videos' : 'Reddit posts');
+
+  const prompt = `You are filtering ${sourceContext} for relevance to a research topic.
 
 RESEARCH TOPIC: "${topic}"
 RESEARCHER ROLE: ${role || 'Researcher'}
@@ -129,7 +139,8 @@ Score ALL ${posts.length} posts. Be strict - only score 4-5 for posts that genui
 
 /**
  * Extract comments from multiple URLs in rate-limit-safe batches
- * @param {Array} urls - Array of Reddit post URLs
+ * Supports both Reddit and YouTube URLs (auto-detects source)
+ * @param {Array} urls - Array of Reddit or YouTube post URLs
  * @param {Function} progressCallback - Optional callback for progress updates
  * @returns {Promise<object>} { postsData: [], failures: [] }
  */
@@ -153,9 +164,20 @@ async function batchExtractPosts(urls, progressCallback = null) {
   for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
     const batch = batches[batchIdx];
 
-    // Extract all posts in this batch concurrently
+    // Extract all posts in this batch concurrently (auto-detect Reddit vs YouTube)
     const results = await Promise.all(
-      batch.map(url => extractRedditData(url))
+      batch.map(url => {
+        const source = detectSource(url);
+        if (source.source === 'youtube' && source.isSupported) {
+          return extractYouTubeData(url).then(result => {
+            if (result.success && result.data) {
+              result.data = normalizeYouTubeExtraction(result.data);
+            }
+            return result;
+          });
+        }
+        return extractRedditData(url);
+      })
     );
 
     results.forEach((result, idx) => {

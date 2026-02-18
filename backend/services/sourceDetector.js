@@ -80,9 +80,46 @@ function getEnabledFeatures() {
   };
 }
 
+/**
+ * Normalize raw YouTube extraction data to unified format
+ * Matches the same structure as Reddit extracted data so downstream
+ * analysis (insights, combined analysis) works identically.
+ *
+ * Used by both analyze.js /extract endpoint and mapReduceAnalysis.js batchExtractPosts
+ * @param {object} rawData - Raw result.data from extractYouTubeData()
+ * @returns {object} Normalized data matching Reddit extraction shape
+ */
+function normalizeYouTubeExtraction(rawData) {
+  const hasTranscript = !!rawData.transcript?.textForAnalysis;
+  return {
+    source: 'youtube',
+    post: {
+      id: rawData.video.id,
+      title: rawData.video.title,
+      selftext: rawData.video.description,
+      author: rawData.video.channelTitle,
+      subreddit: `YouTube: ${rawData.video.channelTitle}`,
+      score: rawData.video.likeCount,
+      num_comments: rawData.video.commentCount,
+      created_utc: new Date(rawData.video.publishedAt).getTime() / 1000,
+      permalink: `https://youtube.com/watch?v=${rawData.video.id}`,
+      viewCount: rawData.video.viewCount,
+      channelId: rawData.video.channelId,
+      channelTitle: rawData.video.channelTitle
+    },
+    valuableComments: rawData.valuableComments,
+    extractionStats: {
+      ...rawData.extractionStats,
+      hasTranscript: hasTranscript
+    },
+    transcript: rawData.transcript
+  };
+}
+
 module.exports = {
   detectSource,
   isRedditUrl,
   isYouTubeUrl,
-  getEnabledFeatures
+  getEnabledFeatures,
+  normalizeYouTubeExtraction
 };

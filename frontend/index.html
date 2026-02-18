@@ -180,7 +180,7 @@
                     <!-- Collapsible Content -->
                     <div class="collapsible-content">
                         <div class="input-section">
-                            <h2>Search Reddit by Topic</h2>
+                            <h2>Search by Topic</h2>
 
                             <!-- Research Question (REQUIRED) -->
                             <div class="research-context-section">
@@ -254,7 +254,15 @@
                             <!-- Advanced Options (subtle, at the bottom) -->
                             <div class="advanced-options">
                                 <div class="advanced-options-row">
-                                    <div class="option-group">
+                                    <div class="option-group" id="sourceOptionGroup">
+                                        <label>Sources</label>
+                                        <select id="topicSourceSelector" class="subtle-select" onchange="handleSourceChange()">
+                                            <option value="both" selected>Reddit + YouTube</option>
+                                            <option value="reddit">Reddit only</option>
+                                            <option value="youtube">YouTube only</option>
+                                        </select>
+                                    </div>
+                                    <div class="option-group" id="searchMethodGroup">
                                         <label>Search in</label>
                                         <select id="searchMethodDropdown" class="subtle-select" onchange="toggleSearchMethodDropdown()">
                                             <option value="reddit" selected>All of Reddit</option>

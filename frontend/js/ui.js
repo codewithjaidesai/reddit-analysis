@@ -44,6 +44,67 @@ function toggleTopicSubredditInput() {
 /**
  * Toggle search method dropdown (new)
  */
+/**
+ * Handle source selector change (Reddit + YouTube / Reddit only / YouTube only)
+ * Hides Reddit-specific search options when YouTube-only is selected
+ */
+function handleSourceChange() {
+    const sourceSelector = document.getElementById('topicSourceSelector');
+    const searchMethodGroup = document.getElementById('searchMethodGroup');
+    const subredditInput = document.getElementById('subredditMethodInput');
+    const urlInput = document.getElementById('urlMethodInput');
+
+    if (!sourceSelector) return;
+
+    const source = sourceSelector.value;
+
+    if (source === 'youtube') {
+        // Hide Reddit-specific search method options
+        if (searchMethodGroup) searchMethodGroup.style.display = 'none';
+        if (subredditInput) subredditInput.style.display = 'none';
+        if (urlInput) urlInput.style.display = 'none';
+        // Reset to default search method
+        const dropdown = document.getElementById('searchMethodDropdown');
+        if (dropdown) dropdown.value = 'reddit';
+    } else {
+        // Show Reddit search method options
+        if (searchMethodGroup) searchMethodGroup.style.display = '';
+        // Re-trigger method toggle to show correct sub-inputs
+        toggleSearchMethodDropdown();
+    }
+}
+
+/**
+ * Check YouTube availability and update source selector accordingly
+ * Called on page load to hide YouTube options if not configured
+ */
+async function checkYouTubeAvailability() {
+    try {
+        const response = await fetch((window.API_CONFIG?.baseUrl || '') + '/api/analyze/features');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data.features?.youtube) {
+            const selector = document.getElementById('topicSourceSelector');
+            if (selector) {
+                // Remove YouTube-only option
+                const ytOption = selector.querySelector('option[value="youtube"]');
+                if (ytOption) ytOption.remove();
+                // Update "both" option to indicate YouTube unavailable
+                const bothOption = selector.querySelector('option[value="both"]');
+                if (bothOption) {
+                    bothOption.textContent = 'Reddit (YouTube unavailable)';
+                    bothOption.value = 'reddit';
+                }
+            }
+        }
+    } catch (e) {
+        console.log('YouTube feature check failed, defaulting to Reddit only');
+    }
+}
+
+// Check YouTube availability on page load
+document.addEventListener('DOMContentLoaded', checkYouTubeAvailability);
+
 function toggleSearchMethodDropdown() {
     const dropdown = document.getElementById('searchMethodDropdown');
     const subredditInput = document.getElementById('subredditMethodInput');
