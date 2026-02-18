@@ -47,6 +47,7 @@ router.post('/extract', async (req, res) => {
 
       if (result.success && result.data) {
         // Transform YouTube data to match Reddit format for unified analysis
+        const hasTranscript = !!result.data.transcript?.textForAnalysis;
         result.data = {
           source: 'youtube',
           post: {
@@ -65,7 +66,11 @@ router.post('/extract', async (req, res) => {
             channelTitle: result.data.video.channelTitle
           },
           valuableComments: result.data.valuableComments,
-          extractionStats: result.data.extractionStats
+          extractionStats: {
+            ...result.data.extractionStats,
+            hasTranscript: hasTranscript
+          },
+          transcript: result.data.transcript // Preserve transcript for AI analysis
         };
       }
     } else {
@@ -175,6 +180,7 @@ router.post('/full', async (req, res) => {
 
       if (extractResult.success && extractResult.data) {
         // Transform to unified format
+        const hasTranscript = !!extractResult.data.transcript?.textForAnalysis;
         extractResult.data = {
           source: 'youtube',
           post: {
@@ -192,7 +198,11 @@ router.post('/full', async (req, res) => {
             channelTitle: extractResult.data.video.channelTitle
           },
           valuableComments: extractResult.data.valuableComments,
-          extractionStats: extractResult.data.extractionStats
+          extractionStats: {
+            ...extractResult.data.extractionStats,
+            hasTranscript: hasTranscript
+          },
+          transcript: extractResult.data.transcript // Preserve transcript for AI analysis
         };
       }
     } else {
