@@ -382,7 +382,9 @@ function displayInsights(analysisText) {
  * @param {string} source - 'reddit' or 'youtube'
  */
 function displayStructuredInsights(analysis, model, source = 'reddit') {
-    // Store for export
+    // Store for export - keep both structured object and JSON string
+    window.currentStructuredAnalysis = analysis;
+    window.currentAnalysisSource = source;
     window.currentAIInsights = JSON.stringify(analysis, null, 2);
 
     const isYouTube = source === 'youtube';
@@ -422,6 +424,31 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
                             </div>
                         </div>
                     ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Video Overview (YouTube only, when NO transcript but has description)
+    if (isYouTube && analysis.videoOverview && !analysis.videoSummary) {
+        const vo = analysis.videoOverview;
+        html += `
+            <div class="content-analysis-section video-overview-section">
+                <h3>📋 Video Overview <span class="info-label">From description</span></h3>
+                <div class="video-overview-card">
+                    <div class="video-type-badge">${escapeHtml(vo.contentType || 'video')}</div>
+                    ${vo.summary ? `<p class="video-overview-text">${escapeHtml(vo.summary)}</p>` : ''}
+
+                    ${vo.topicsFromDescription && vo.topicsFromDescription.length > 0 ? `
+                        <div class="video-topics">
+                            <h4>Topics Covered</h4>
+                            <ul class="topics-list">
+                                ${vo.topicsFromDescription.map(topic => `<li>${escapeHtml(topic)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+
+                    <p class="overview-note">ℹ️ ${escapeHtml(vo.note || 'Based on video description - transcript unavailable')}</p>
                 </div>
             </div>
         `;
@@ -481,7 +508,7 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
         const sa = analysis.sentimentAnalysis;
         html += `
             <div class="content-analysis-section">
-                <h3>Sentiment Analysis</h3>
+                <h3>Sentiment Analysis <span class="info-label">Comment tone</span></h3>
                 <div class="sentiment-overview">
                     <span class="sentiment-overall sentiment-${sa.overall || 'neutral'}">${(sa.overall || 'neutral').toUpperCase()}</span>
                     ${sa.emotionalTone ? `<span class="emotional-tone">${escapeHtml(sa.emotionalTone)}</span>` : ''}
@@ -535,7 +562,7 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
     if (analysis.topicGroups && analysis.topicGroups.length > 0) {
         html += `
             <div class="content-analysis-section">
-                <h3>Topic Breakdown</h3>
+                <h3>Topic Breakdown <span class="info-label">${analysis.topicGroups.length} topics identified</span></h3>
                 <div class="topic-groups-grid">
                     ${analysis.topicGroups.map(tg => `
                         <div class="topic-card">
@@ -573,7 +600,7 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
     if (analysis.keyQuotes && analysis.keyQuotes.length > 0) {
         html += `
             <div class="content-analysis-section">
-                <h3>Key Quotes</h3>
+                <h3>Key Quotes <span class="info-label">From ${isYouTube ? 'comments' : 'discussion'}</span></h3>
                 <div class="key-quotes-list">
                     ${analysis.keyQuotes.map(q => `
                         <div class="key-quote-card quote-type-${(q.type || 'insight').toLowerCase()}">
@@ -595,7 +622,7 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
     if (analysis.actionableInsights && analysis.actionableInsights.length > 0) {
         html += `
             <div class="content-analysis-section">
-                <h3>Actionable Insights</h3>
+                <h3>Actionable Insights <span class="info-label success">For your goal</span></h3>
                 <div class="actionable-insights-list">
                     ${analysis.actionableInsights.map(ai => `
                         <div class="actionable-insight-card priority-${ai.priority || 'medium'}">
@@ -1019,19 +1046,39 @@ function exportToPDF() {
 }
 
 /**
- * Export AI insights as PDF
+ * Export AI insights as PDF - supports both structured and markdown analysis
  */
 function exportInsightsPDF() {
-    if (!window.currentAIInsights) {
+    if (!window.currentAIInsights && !window.currentStructuredAnalysis) {
         alert('No AI insights to export. Please generate insights first.');
         return;
     }
 
-    // Get post title if available
-    const postTitle = window.currentExtractedData?.post?.title || 'Reddit Analysis';
+    // Get post info
+    const postTitle = window.currentExtractedData?.post?.title || 'Content Analysis';
+    const source = window.currentAnalysisSource || window.currentExtractedData?.source || 'reddit';
+    const isYouTube = source === 'youtube';
+    const post = window.currentExtractedData?.post;
 
-    // Create a new window for PDF export
-    const printWindow = window.open('', '', 'width=800,height=600');
+    // Build source link
+    let sourceLink = '';
+    if (post?.permalink) {
+        if (isYouTube) {
+            sourceLink = `<strong>Source:</strong> <a href="${post.permalink}" target="_blank" style="color: #667eea;">View on YouTube →</a><br>`;
+        } else {
+            sourceLink = `<strong>Source:</strong> <a href="https://reddit.com${post.permalink}" target="_blank" style="color: #667eea;">View on Reddit →</a><br>`;
+        }
+    }
+
+    // Generate content - use structured renderer if available
+    let contentHtml;
+    if (window.currentStructuredAnalysis) {
+        contentHtml = formatStructuredAnalysisForPDF(window.currentStructuredAnalysis, source);
+    } else {
+        contentHtml = formatMarkdown(window.currentAIInsights);
+    }
+
+    const printWindow = window.open('', '', 'width=900,height=700');
 
     const html = `
         <!DOCTYPE html>
@@ -1039,72 +1086,202 @@ function exportInsightsPDF() {
         <head>
             <title>AI Insights - ${escapeHtml(postTitle)}</title>
             <style>
+                * { box-sizing: border-box; }
                 body {
-                    font-family: 'Georgia', 'Times New Roman', serif;
-                    line-height: 1.8;
-                    max-width: 800px;
-                    margin: 20px;
-                    color: #2d3748;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    line-height: 1.6;
+                    max-width: 850px;
+                    margin: 0 auto;
+                    padding: 30px;
+                    color: #1a202c;
+                    background: white;
                 }
                 h1 {
                     color: #1a202c;
                     border-bottom: 3px solid #667eea;
-                    padding-bottom: 15px;
-                    margin-bottom: 30px;
-                    font-size: 28px;
+                    padding-bottom: 12px;
+                    margin-bottom: 24px;
+                    font-size: 24px;
+                    font-weight: 700;
                 }
                 h2 {
                     color: #2d3748;
-                    margin-top: 30px;
-                    margin-bottom: 15px;
-                    font-size: 22px;
+                    margin-top: 28px;
+                    margin-bottom: 12px;
+                    font-size: 18px;
+                    font-weight: 600;
                     border-left: 4px solid #667eea;
                     padding-left: 12px;
                 }
                 h3 {
                     color: #4a5568;
-                    margin-top: 20px;
-                    margin-bottom: 10px;
-                    font-size: 18px;
+                    margin-top: 16px;
+                    margin-bottom: 8px;
+                    font-size: 15px;
+                    font-weight: 600;
                 }
-                p {
-                    margin: 12px 0;
-                }
-                ul, ol {
-                    margin: 10px 0;
-                    padding-left: 30px;
-                }
-                li {
-                    margin: 8px 0;
-                }
-                strong {
-                    color: #1a202c;
-                }
-                em {
-                    color: #4a5568;
-                }
+                p { margin: 10px 0; font-size: 14px; }
+                ul, ol { margin: 8px 0; padding-left: 24px; }
+                li { margin: 6px 0; font-size: 14px; }
                 .header-meta {
                     background: #f7fafc;
-                    padding: 15px;
+                    padding: 16px;
                     border-radius: 8px;
-                    margin: 20px 0;
-                    font-size: 14px;
-                    color: #718096;
+                    margin: 16px 0 24px 0;
+                    font-size: 13px;
+                    color: #4a5568;
+                    border: 1px solid #e2e8f0;
                 }
-                .insights-content {
-                    margin-top: 30px;
+                .header-meta strong { color: #2d3748; }
+                .section {
+                    margin-bottom: 24px;
+                    padding-bottom: 20px;
+                    border-bottom: 1px solid #e2e8f0;
+                }
+                .section:last-child { border-bottom: none; }
+                .summary-box {
+                    background: #f0f4ff;
+                    border-left: 4px solid #667eea;
+                    padding: 14px 16px;
+                    border-radius: 0 8px 8px 0;
+                    font-size: 14px;
+                    line-height: 1.7;
+                }
+                .verdict-badge {
+                    display: inline-block;
+                    padding: 4px 12px;
+                    border-radius: 16px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    margin-right: 8px;
+                }
+                .verdict-supported { background: #c6f6d5; color: #22543d; }
+                .verdict-mixed { background: #fef3c7; color: #92400e; }
+                .verdict-not-supported { background: #fed7d7; color: #9b2c2c; }
+                .evidence-bar {
+                    height: 8px;
+                    background: #e2e8f0;
+                    border-radius: 4px;
+                    margin: 8px 0;
+                    overflow: hidden;
+                }
+                .evidence-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #667eea, #764ba2);
+                    border-radius: 4px;
+                }
+                .quote-box {
+                    background: #f7fafc;
+                    border-left: 3px solid #a0aec0;
+                    padding: 12px 14px;
+                    margin: 10px 0;
+                    border-radius: 0 6px 6px 0;
+                    font-style: italic;
+                    font-size: 13px;
+                }
+                .quote-author { font-style: normal; color: #718096; font-size: 12px; margin-top: 6px; }
+                .insight-card {
+                    background: #f7fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 14px;
+                    margin: 10px 0;
+                }
+                .priority-badge {
+                    display: inline-block;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                }
+                .priority-high { background: #fed7d7; color: #9b2c2c; }
+                .priority-medium { background: #fef3c7; color: #92400e; }
+                .priority-low { background: #e2e8f0; color: #4a5568; }
+                .topic-card {
+                    background: #f7fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 14px;
+                    margin: 10px 0;
+                    page-break-inside: avoid;
+                }
+                .topic-name { font-weight: 600; color: #2d3748; margin-bottom: 6px; }
+                .sentiment-tag {
+                    display: inline-block;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    font-size: 11px;
+                    font-weight: 500;
+                }
+                .sentiment-positive { background: #c6f6d5; color: #22543d; }
+                .sentiment-negative { background: #fed7d7; color: #9b2c2c; }
+                .sentiment-mixed { background: #fef3c7; color: #92400e; }
+                .sentiment-neutral { background: #e2e8f0; color: #4a5568; }
+                .stats-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, 1fr);
+                    gap: 12px;
+                    margin: 12px 0;
+                }
+                .stat-box {
+                    text-align: center;
+                    background: #f7fafc;
+                    padding: 12px;
+                    border-radius: 8px;
+                    border: 1px solid #e2e8f0;
+                }
+                .stat-value { font-size: 18px; font-weight: 700; color: #667eea; }
+                .stat-label { font-size: 11px; color: #718096; margin-top: 4px; }
+                .video-section {
+                    background: #fff5f5;
+                    border: 1px solid #feb2b2;
+                    border-radius: 8px;
+                    padding: 16px;
+                    margin-bottom: 20px;
+                }
+                .video-section h2 { border-left-color: #e53e3e; margin-top: 0; }
+                .video-badge {
+                    display: inline-block;
+                    padding: 3px 10px;
+                    background: #fed7d7;
+                    color: #9b2c2c;
+                    border-radius: 12px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    margin-bottom: 10px;
+                }
+                .concept-card {
+                    background: white;
+                    border: 1px solid #e2e8f0;
+                    border-left: 3px solid #d69e2e;
+                    padding: 10px 12px;
+                    margin: 8px 0;
+                    border-radius: 0 6px 6px 0;
+                }
+                .concept-term { font-weight: 600; color: #d69e2e; }
+                .label-hint {
+                    display: inline-block;
+                    background: #edf2f7;
+                    color: #4a5568;
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    margin-left: 8px;
                 }
                 .footer {
-                    margin-top: 40px;
-                    padding-top: 20px;
+                    margin-top: 30px;
+                    padding-top: 16px;
                     border-top: 1px solid #e2e8f0;
                     text-align: center;
-                    font-size: 12px;
+                    font-size: 11px;
                     color: #a0aec0;
                 }
                 @media print {
-                    body { margin: 0; padding: 20px; }
-                    .no-print { display: none; }
+                    body { padding: 20px; }
+                    .no-print { display: none !important; }
+                    .section { page-break-inside: avoid; }
                 }
             </style>
         </head>
@@ -1113,13 +1290,13 @@ function exportInsightsPDF() {
 
             <div class="header-meta">
                 <strong>Analysis of:</strong> ${escapeHtml(postTitle)}<br>
-                ${window.currentExtractedData?.post?.permalink ? `<strong>Source:</strong> <a href="https://reddit.com${window.currentExtractedData.post.permalink}" target="_blank" style="color: #667eea; text-decoration: none;">View on Reddit →</a><br>` : ''}
+                ${sourceLink}
                 <strong>Generated:</strong> ${new Date().toLocaleString()}<br>
-                <strong>Tool:</strong> Reddit Analyzer v2.0
+                <strong>Source:</strong> ${isYouTube ? 'YouTube' : 'Reddit'} • <strong>Tool:</strong> Reddit Analyzer v2.0
             </div>
 
             <div class="insights-content">
-                ${formatMarkdown(window.currentAIInsights)}
+                ${contentHtml}
             </div>
 
             <div class="footer">
@@ -1127,11 +1304,11 @@ function exportInsightsPDF() {
                 Exported: ${new Date().toISOString()}
             </div>
 
-            <div class="no-print" style="position: fixed; top: 20px; right: 20px;">
-                <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div class="no-print" style="position: fixed; top: 20px; right: 20px; display: flex; gap: 10px;">
+                <button onclick="window.print()" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
                     Print / Save as PDF
                 </button>
-                <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-left: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <button onclick="window.close()" style="padding: 12px 24px; background: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
                     ✕ Close
                 </button>
             </div>
@@ -1141,6 +1318,192 @@ function exportInsightsPDF() {
 
     printWindow.document.write(html);
     printWindow.document.close();
+}
+
+/**
+ * Format structured analysis for PDF export
+ */
+function formatStructuredAnalysisForPDF(analysis, source = 'reddit') {
+    const isYouTube = source === 'youtube';
+    let html = '';
+
+    // Video Summary (YouTube only, with transcript)
+    if (isYouTube && analysis.videoSummary) {
+        const vs = analysis.videoSummary;
+        html += `
+            <div class="video-section">
+                <h2>📺 Video Content Summary</h2>
+                <span class="video-badge">${escapeHtml(vs.contentType || 'video')}</span>
+                ${vs.summary ? `<p>${escapeHtml(vs.summary)}</p>` : ''}
+                ${vs.keyPoints && vs.keyPoints.length > 0 ? `
+                    <h3>Key Takeaways</h3>
+                    <ul>${vs.keyPoints.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>
+                ` : ''}
+                ${vs.concepts && vs.concepts.length > 0 ? `
+                    <h3>Concepts Explained</h3>
+                    ${vs.concepts.map(c => `
+                        <div class="concept-card">
+                            <span class="concept-term">${escapeHtml(c.term)}</span>
+                            <p style="margin: 4px 0 0 0; font-size: 13px;">${escapeHtml(c.definition)}</p>
+                        </div>
+                    `).join('')}
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Video Overview (YouTube only, from description when no transcript)
+    if (isYouTube && analysis.videoOverview && !analysis.videoSummary) {
+        const vo = analysis.videoOverview;
+        html += `
+            <div class="section" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h2 style="border-left-color: #3b82f6; margin-top: 0;">📋 Video Overview <span class="label-hint">From description</span></h2>
+                <span class="video-badge" style="background: #dbeafe; color: #1d4ed8;">${escapeHtml(vo.contentType || 'video')}</span>
+                ${vo.summary ? `<p>${escapeHtml(vo.summary)}</p>` : ''}
+                ${vo.topicsFromDescription && vo.topicsFromDescription.length > 0 ? `
+                    <h3>Topics Covered</h3>
+                    <ul>${vo.topicsFromDescription.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>
+                ` : ''}
+                <p style="font-size: 12px; color: #64748b; font-style: italic; margin-top: 12px;">ℹ️ ${escapeHtml(vo.note || 'Based on video description - transcript unavailable')}</p>
+            </div>
+        `;
+    }
+
+    // Executive Summary
+    if (analysis.executiveSummary) {
+        html += `
+            <div class="section">
+                <h2>Executive Summary</h2>
+                <div class="summary-box">${escapeHtml(analysis.executiveSummary)}</div>
+            </div>
+        `;
+    }
+
+    // Goal Analysis
+    if (analysis.goalAnalysis) {
+        const ga = analysis.goalAnalysis;
+        const verdictClass = getVerdictClassForPDF(ga.verdict);
+        html += `
+            <div class="section">
+                <h2>Goal Analysis</h2>
+                ${ga.hypothesis ? `<p><em>Hypothesis:</em> "${escapeHtml(ga.hypothesis)}"</p>` : ''}
+                <p>
+                    <span class="verdict-badge ${verdictClass}">${escapeHtml(ga.verdict || 'Unknown')}</span>
+                    ${ga.confidenceLevel ? `<span class="label-hint">${ga.confidenceLevel} confidence</span>` : ''}
+                </p>
+                ${ga.evidenceScore ? `
+                    <div class="evidence-bar"><div class="evidence-fill" style="width: ${ga.evidenceScore}%;"></div></div>
+                    <p style="font-size: 12px; color: #718096;">Evidence score: ${ga.evidenceScore}%</p>
+                ` : ''}
+                ${ga.breakdown ? `<p style="font-size: 13px;">${ga.breakdown.supportingCount || 0} supporting • ${ga.breakdown.counterCount || 0} counter evidence</p>` : ''}
+                ${ga.confidenceReason ? `<p style="font-size: 13px; color: #718096; font-style: italic;">${escapeHtml(ga.confidenceReason)}</p>` : ''}
+            </div>
+        `;
+    }
+
+    // Sentiment Analysis
+    if (analysis.sentimentAnalysis) {
+        const sa = analysis.sentimentAnalysis;
+        html += `
+            <div class="section">
+                <h2>Sentiment Analysis</h2>
+                <p><span class="sentiment-tag sentiment-${(sa.overall || '').toLowerCase()}">${escapeHtml(sa.overall || 'Unknown')}</span>
+                ${sa.emotionalTone ? ` — ${escapeHtml(sa.emotionalTone)}` : ''}</p>
+                ${sa.distribution ? `
+                    <p style="font-size: 13px;">
+                        Positive: ${sa.distribution.positive || 0}% •
+                        Neutral: ${sa.distribution.neutral || 0}% •
+                        Negative: ${sa.distribution.negative || 0}%
+                    </p>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Topic Groups
+    if (analysis.topicGroups && analysis.topicGroups.length > 0) {
+        html += `<div class="section"><h2>Topics Discussed <span class="label-hint">${analysis.topicGroups.length} topics identified</span></h2>`;
+        for (const topic of analysis.topicGroups) {
+            html += `
+                <div class="topic-card">
+                    <div class="topic-name">${escapeHtml(topic.topic || topic.name)}</div>
+                    ${topic.sentiment ? `<span class="sentiment-tag sentiment-${topic.sentiment.toLowerCase()}">${topic.sentiment}</span>` : ''}
+                    ${topic.description ? `<p style="font-size: 13px; margin: 8px 0;">${escapeHtml(topic.description)}</p>` : ''}
+                    ${topic.keyPoints && topic.keyPoints.length > 0 ? `<ul style="font-size: 13px;">${topic.keyPoints.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>` : ''}
+                </div>
+            `;
+        }
+        html += `</div>`;
+    }
+
+    // Key Quotes
+    if (analysis.keyQuotes && analysis.keyQuotes.length > 0) {
+        html += `<div class="section"><h2>Key Quotes <span class="label-hint">From the discussion</span></h2>`;
+        for (const quote of analysis.keyQuotes.slice(0, 6)) {
+            html += `
+                <div class="quote-box">
+                    "${escapeHtml(quote.text || quote.quote)}"
+                    <div class="quote-author">— ${escapeHtml(quote.author || 'Anonymous')}${quote.score ? ` • ${quote.score} ${isYouTube ? 'likes' : 'pts'}` : ''}</div>
+                </div>
+            `;
+        }
+        html += `</div>`;
+    }
+
+    // Actionable Insights
+    if (analysis.actionableInsights && analysis.actionableInsights.length > 0) {
+        html += `<div class="section"><h2>Actionable Insights</h2>`;
+        for (const insight of analysis.actionableInsights) {
+            const priorityClass = `priority-${(insight.priority || 'medium').toLowerCase()}`;
+            html += `
+                <div class="insight-card">
+                    <strong>${escapeHtml(insight.title || insight.insight)}</strong>
+                    ${insight.priority ? `<span class="priority-badge ${priorityClass}">${insight.priority}</span>` : ''}
+                    ${insight.description ? `<p style="font-size: 13px; margin: 8px 0 0 0;">${escapeHtml(insight.description)}</p>` : ''}
+                </div>
+            `;
+        }
+        html += `</div>`;
+    }
+
+    // Patterns
+    if (analysis.patterns && analysis.patterns.length > 0) {
+        html += `<div class="section"><h2>Patterns Observed</h2><ul>`;
+        for (const pattern of analysis.patterns) {
+            const text = typeof pattern === 'string' ? pattern : (pattern.name || pattern.description);
+            html += `<li>${escapeHtml(text)}</li>`;
+        }
+        html += `</ul></div>`;
+    }
+
+    // Statistics
+    if (analysis.statistics) {
+        const stats = analysis.statistics;
+        html += `
+            <div class="section">
+                <h2>Statistics</h2>
+                <div class="stats-grid">
+                    ${stats.totalComments ? `<div class="stat-box"><div class="stat-value">${stats.totalComments}</div><div class="stat-label">Comments</div></div>` : ''}
+                    ${stats.uniqueAuthors ? `<div class="stat-box"><div class="stat-value">${stats.uniqueAuthors}</div><div class="stat-label">Authors</div></div>` : ''}
+                    ${stats.avgEngagement ? `<div class="stat-box"><div class="stat-value">${stats.avgEngagement}</div><div class="stat-label">Avg ${isYouTube ? 'Likes' : 'Score'}</div></div>` : ''}
+                    ${stats.timespan ? `<div class="stat-box"><div class="stat-value">${escapeHtml(stats.timespan)}</div><div class="stat-label">Timespan</div></div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    return html;
+}
+
+/**
+ * Get verdict CSS class for PDF
+ */
+function getVerdictClassForPDF(verdict) {
+    if (!verdict) return 'verdict-mixed';
+    const v = verdict.toLowerCase();
+    if (v.includes('strongly') || v.includes('supported')) return 'verdict-supported';
+    if (v.includes('not') || v.includes('weak')) return 'verdict-not-supported';
+    return 'verdict-mixed';
 }
 
 /**
