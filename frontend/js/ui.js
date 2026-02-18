@@ -310,15 +310,37 @@ function setButtonLoading(buttonId, loading) {
  */
 function displayExtractedData(data) {
     const { post, valuableComments, extractionStats } = data;
+    const isYouTube = data.source === 'youtube' || post.channelTitle;
+
+    // Build meta info based on source
+    let metaHtml;
+    if (isYouTube) {
+        const viewsFormatted = post.viewCount ? formatNumber(post.viewCount) + ' views' : '';
+        const likesFormatted = formatNumber(post.score) + ' likes';
+        const transcriptStatus = extractionStats.hasTranscript
+            ? '<span class="transcript-badge available" title="Transcript available for video content analysis">📜 Transcript</span>'
+            : '<span class="transcript-badge unavailable" title="No transcript available - captions may be disabled">📜 No transcript</span>';
+        metaHtml = `
+            <span>YouTube: ${escapeHtml(post.channelTitle || 'Unknown')}</span> •
+            ${viewsFormatted ? `<span>${viewsFormatted}</span> •` : ''}
+            <span>${likesFormatted}</span> •
+            <span>${formatNumber(post.num_comments)} comments</span>
+            ${transcriptStatus}
+        `;
+    } else {
+        metaHtml = `
+            <span>r/${post.subreddit}</span> •
+            <span>by u/${post.author}</span> •
+            <span>${formatNumber(post.score)} upvotes</span> •
+            <span>${formatNumber(post.num_comments)} comments</span>
+        `;
+    }
 
     const html = `
         <div class="data-summary">
             <h3>${escapeHtml(post.title)}</h3>
             <div class="meta">
-                <span>r/${post.subreddit}</span> •
-                <span>by u/${post.author}</span> •
-                <span>${formatNumber(post.score)} upvotes</span> •
-                <span>${formatNumber(post.num_comments)} comments</span>
+                ${metaHtml}
             </div>
             <div class="stats" style="margin-top: 20px;">
                 <div class="stat-item">
@@ -331,7 +353,7 @@ function displayExtractedData(data) {
                 </div>
                 <div class="stat-item">
                     <div class="stat-value">${formatNumber(extractionStats.averageScore)}</div>
-                    <div class="stat-label">Avg Score</div>
+                    <div class="stat-label">Avg ${isYouTube ? 'Likes' : 'Score'}</div>
                 </div>
             </div>
         </div>

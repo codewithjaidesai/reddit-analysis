@@ -6371,3 +6371,29 @@ footer a {
         padding: 12px;
     }
 }
+
+/* ============================================
+   TRANSCRIPT STATUS BADGE
+   ============================================ */
+
+.transcript-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-left: 8px;
+    cursor: help;
+}
+
+.transcript-badge.available {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.transcript-badge.unavailable {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+}
