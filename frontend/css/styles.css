@@ -6884,4 +6884,170 @@ footer a {
         flex-direction: column;
         gap: 4px;
     }
+
+    .gap-cta-row {
+        flex-direction: column;
+    }
+
+    .gap-cta-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .generate-type-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* ============================================
+   CONTENT GAP CTA BUTTONS
+   ============================================ */
+
+.gap-cta-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.gap-cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.gap-cta-create {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    color: white;
+}
+
+.gap-cta-create:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.gap-cta-deepdive {
+    background: transparent;
+    color: var(--primary-light);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.gap-cta-deepdive:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.gap-cta-deepdive:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.gap-cta-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(139, 92, 246, 0.3);
+    border-top-color: var(--primary-light);
+    border-radius: 50%;
+    animation: gapSpin 0.8s linear infinite;
+}
+
+@keyframes gapSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Inline CTA for underserved questions and suggested formats */
+.gap-cta-inline {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--primary-light);
+    border: none;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.gap-cta-inline:hover {
+    background: rgba(139, 92, 246, 0.3);
+}
+
+/* Make underserved question items flex to position button */
+.underserved-questions li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.underserved-q-text {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Make format suggestion items flex to position button */
+.format-suggestion {
+    align-items: center;
+}
+
+/* ============================================
+   CONTENT TYPE SELECTOR IN GENERATE MODAL
+   ============================================ */
+
+.generate-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+}
+
+.generate-type-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 8px;
+    background: var(--bg-elevated);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-secondary);
+}
+
+.generate-type-btn:hover {
+    border-color: var(--primary-light);
+    color: var(--text-primary);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.generate-type-btn.active {
+    border-color: var(--primary);
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--text-primary);
+}
+
+.generate-type-icon {
+    font-size: 1.3rem;
+}
+
+.generate-type-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
 }
