@@ -2355,7 +2355,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                         <div class="content-gaps-summary">${escapeHtml(cg.summary || '')}</div>
                         ${cg.gaps?.length > 0 ? `
                             <div class="content-gaps-grid">
-                                ${cg.gaps.map(gap => `
+                                ${cg.gaps.map((gap, gapIdx) => `
                                     <div class="content-gap-card gap-priority-${gap.priority || 'medium'}">
                                         <div class="gap-card-header">
                                             <h4 class="gap-topic">${escapeHtml(gap.topic)}</h4>
@@ -2367,6 +2367,11 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                             <span class="gap-platform-badge">${escapeHtml(gap.platform || 'both')}</span>
                                             <span class="gap-demand">${escapeHtml(gap.demandSignal || '')}</span>
                                         </div>
+                                        <div class="gap-cta-row">
+                                            <button class="gap-cta-btn gap-cta-primary" onclick="researchAndCreate('gap', ${gapIdx}, this)" title="Research this topic and generate content">
+                                                Research &amp; Create
+                                            </button>
+                                        </div>
                                     </div>
                                 `).join('')}
                             </div>
@@ -2374,16 +2379,22 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                         ${cg.underservedQuestions?.length > 0 ? `
                             <div class="underserved-questions">
                                 <h4>Underserved Questions</h4>
-                                <ul>${cg.underservedQuestions.map(q => `<li>"${escapeHtml(q)}"</li>`).join('')}</ul>
+                                <ul>${cg.underservedQuestions.map((q, qIdx) => `
+                                    <li>
+                                        <span class="underserved-q-text">"${escapeHtml(q)}"</span>
+                                        <button class="gap-cta-inline" onclick="researchAndCreate('question', ${qIdx}, this)" title="Research and create content answering this question">Research &amp; Create</button>
+                                    </li>
+                                `).join('')}</ul>
                             </div>
                         ` : ''}
                         ${cg.suggestedContentFormats?.length > 0 ? `
                             <div class="suggested-formats">
                                 <h4>Suggested Content Formats</h4>
-                                ${cg.suggestedContentFormats.map(f => `
+                                ${cg.suggestedContentFormats.map((f, fIdx) => `
                                     <div class="format-suggestion">
                                         <strong>${escapeHtml(f.format)}</strong>
                                         <span>${escapeHtml(f.reason)}</span>
+                                        <button class="gap-cta-inline" onclick="researchAndCreate('format', ${fIdx}, this)" title="Research and create this content">Research &amp; Create</button>
                                     </div>
                                 `).join('')}
                             </div>
@@ -3910,6 +3921,10 @@ function openGenerateModal(typeId, typeLabel) {
     document.getElementById('generateModalDescription').textContent = deliverable?.description || '';
     document.getElementById('generateFocusInput').value = '';
 
+    // Hide type selector (only used by gap CTA)
+    const typeSelector = document.getElementById('generateTypeSelector');
+    if (typeSelector) typeSelector.style.display = 'none';
+
     // Show modal
     document.getElementById('generateModal').classList.add('show');
 }
@@ -3921,6 +3936,10 @@ function closeGenerateModal(event) {
     if (event && event.target !== event.currentTarget) return;
     document.getElementById('generateModal').classList.remove('show');
     generateModalSelectedType = null;
+    window.useDeepDiveData = false;
+    // Hide type selector if it was shown by gap CTA
+    const typeSelector = document.getElementById('generateTypeSelector');
+    if (typeSelector) typeSelector.style.display = 'none';
 }
 
 /**
@@ -3947,18 +3966,39 @@ async function submitGenerate() {
     // Get current context
     const role = window.currentResearchContext?.role || 'Analyst';
     const goal = window.currentResearchContext?.goal || '';
-    const structured = window.combinedResultsData?.combinedAnalysis?.structured;
 
-    console.log('Context:', { role, goal, hasStructured: !!structured });
+    // Check if we should use deep-dive data (from Content Gap Deep Dive)
+    const useDeepDive = window.useDeepDiveData && window.deepDiveData;
+    const structured = useDeepDive
+        ? window.deepDiveData.insights
+        : window.combinedResultsData?.combinedAnalysis?.structured;
+    const postsDataForGeneration = useDeepDive
+        ? window.deepDiveData.postsData
+        : extractedPostsData;
 
-    // Find deliverable info
-    const deliverables = personaDeliverables[role] || [];
-    const deliverable = deliverables.find(d => d.id === selectedType);
+    // Clear deep-dive state after reading it
+    window.useDeepDiveData = false;
+    if (useDeepDive) window.deepDiveData = null;
+
+    console.log('Context:', { role, goal, hasStructured: !!structured, useDeepDive });
+
+    // Find deliverable info — check all personas since gap CTAs might use a different role's deliverables
+    let deliverables = personaDeliverables[role] || [];
+    let deliverable = deliverables.find(d => d.id === selectedType);
+    if (!deliverable) {
+        // Search all personas for the deliverable
+        for (const personaKey of Object.keys(personaDeliverables)) {
+            deliverable = personaDeliverables[personaKey].find(d => d.id === selectedType);
+            if (deliverable) break;
+        }
+    }
 
     console.log('Deliverable:', deliverable);
 
-    // Close modal
+    // Close modal and hide type selector for next regular use
     closeGenerateModal();
+    const typeSelector = document.getElementById('generateTypeSelector');
+    if (typeSelector) typeSelector.style.display = 'none';
 
     // Show loading
     hideAll();
@@ -3968,7 +4008,7 @@ async function submitGenerate() {
         showStatus('Crafting content with real insights...', 60);
 
         console.log('Calling generateContent API...');
-        console.log('extractedPostsData:', extractedPostsData ? `${extractedPostsData.length} posts` : 'null');
+        console.log('postsData source:', useDeepDive ? 'deep-dive' : 'current analysis', postsDataForGeneration ? `${postsDataForGeneration.length} posts` : 'null');
 
         // Call the backend
         const result = await generateContent({
@@ -3980,7 +4020,7 @@ async function submitGenerate() {
             role: role,
             goal: goal,
             insights: structured,
-            postsData: extractedPostsData
+            postsData: postsDataForGeneration
         });
 
         console.log('API result:', result);
@@ -4151,6 +4191,201 @@ function deleteGeneratedContent(index) {
     if (currentResult) {
         displayCombinedResults(currentResult, role, goal, false, true);
     }
+}
+
+// ============================================
+// CONTENT GAP CTA - Research & Create from Gaps
+// ============================================
+
+/**
+ * Unified entry point for all content gap CTAs.
+ * Searches for focused data on the gap topic, analyzes it, then opens the generate modal.
+ *
+ * @param {'gap'|'question'|'format'} type - Which content gap element was clicked
+ * @param {number} index - Index into the corresponding array
+ * @param {HTMLElement} btnElement - The button that was clicked (for loading state)
+ */
+async function researchAndCreate(type, index, btnElement) {
+    const structured = window.combinedResultsData?.combinedAnalysis?.structured;
+    const contentGaps = structured?.contentGaps;
+    if (!contentGaps) return;
+
+    // Resolve the search query and focus text based on the type clicked
+    let searchQuery, focusText, displayTopic;
+
+    if (type === 'gap') {
+        const gap = contentGaps.gaps?.[index];
+        if (!gap) return;
+        searchQuery = gap.topic;
+        focusText = `${gap.topic} — ${gap.opportunity || ''}`.trim();
+        displayTopic = gap.topic;
+    } else if (type === 'question') {
+        const question = contentGaps.underservedQuestions?.[index];
+        if (!question) return;
+        searchQuery = question;
+        focusText = `Answer the question: "${question}"`;
+        displayTopic = question.length > 60 ? question.substring(0, 57) + '...' : question;
+    } else if (type === 'format') {
+        const format = contentGaps.suggestedContentFormats?.[index];
+        if (!format) return;
+        searchQuery = format.format;
+        focusText = `Create a ${format.format}: ${format.reason}`;
+        displayTopic = format.format;
+    } else {
+        return;
+    }
+
+    const role = window.currentResearchContext?.role || 'Content Creator';
+    const goal = window.currentResearchContext?.goal || '';
+    const sources = window.currentResearchContext?.sources || 'both';
+
+    // Button loading state
+    const btn = btnElement || null;
+    const btnOriginalHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="gap-cta-spinner"></span> Researching...';
+    }
+
+    try {
+        // === Step 1: Search for focused data ===
+        showStatus(`Searching for "${searchQuery}"...`, 10);
+        setStatusDetails('Finding relevant discussions and videos on this topic');
+
+        const searchResult = await searchTopic(
+            searchQuery, 'year', '', 30, role,
+            `Create content about: ${searchQuery}`, sources
+        );
+
+        if (!searchResult.success || !searchResult.posts?.length) {
+            throw new Error(`No results found for "${searchQuery}". Try a broader topic.`);
+        }
+
+        // === Step 2: Pre-screen for relevance ===
+        const totalFound = searchResult.posts.length;
+        showStatus(`Found ${totalFound} results, filtering for relevance...`, 25);
+        let postsToAnalyze = searchResult.posts;
+        const analyzeLimit = 5;
+
+        if (totalFound > analyzeLimit) {
+            try {
+                const screenResult = await preScreenPosts(searchResult.posts, searchQuery, role, goal);
+                if (screenResult.success && screenResult.posts.length > 0) {
+                    postsToAnalyze = screenResult.posts.slice(0, analyzeLimit);
+                } else {
+                    postsToAnalyze = searchResult.posts.slice(0, analyzeLimit);
+                }
+            } catch (e) {
+                console.warn('Pre-screening failed, using top results:', e.message);
+                postsToAnalyze = searchResult.posts.slice(0, analyzeLimit);
+            }
+        } else {
+            postsToAnalyze = searchResult.posts.slice(0, analyzeLimit);
+        }
+
+        // === Step 3: Extract + Analyze ===
+        showStatus(`Analyzing ${postsToAnalyze.length} sources on "${displayTopic}"...`, 40);
+        setStatusDetails('Extracting comments and generating focused insights');
+
+        const urls = postsToAnalyze.map(p => p.url);
+        const researchGoal = `Create content about: ${searchQuery}`;
+        const analysisResult = await autoAnalysis(urls, role, researchGoal);
+
+        if (!analysisResult.success) {
+            throw new Error(analysisResult.error || 'Analysis failed');
+        }
+
+        showStatus('Research complete! Choose your content format...', 90);
+
+        // === Step 4: Store focused data and open generate modal ===
+        window.deepDiveData = {
+            gapTopic: searchQuery,
+            insights: analysisResult.combinedAnalysis?.structured,
+            postsData: (analysisResult.posts || []).map(p => p.extractedData).filter(Boolean),
+        };
+        window.useDeepDiveData = true;
+
+        openGapGenerateModal(focusText, displayTopic);
+
+        showStatus('Ready to generate content', 100);
+
+    } catch (error) {
+        console.error('Research & Create error:', error);
+        showError(error.message || 'Research failed');
+        // Re-show existing results
+        const currentResult = window.combinedResultsData;
+        if (currentResult) {
+            displayCombinedResults(currentResult, role, goal, false, true);
+        }
+    } finally {
+        if (btn && btn.parentNode) {
+            btn.disabled = false;
+            btn.innerHTML = btnOriginalHTML;
+        }
+    }
+}
+
+/**
+ * Open the generate modal pre-filled with content gap focus + content type picker.
+ * Called after research data has been collected and stored in window.deepDiveData.
+ */
+function openGapGenerateModal(focusText, displayTopic) {
+    const role = window.currentResearchContext?.role || 'Content Creator';
+    const deliverables = personaDeliverables[role] || personaDeliverables['Content Creator'] || [];
+
+    if (deliverables.length === 0) return;
+
+    // Default to first deliverable
+    generateModalSelectedType = deliverables[0].id;
+
+    // Update modal
+    const truncTopic = displayTopic.length > 50 ? displayTopic.substring(0, 47) + '...' : displayTopic;
+    document.getElementById('generateModalTitle').textContent = `Create Content: ${truncTopic}`;
+    document.getElementById('generateModalDescription').textContent =
+        'Fresh data collected! Pick your content format and generate.';
+    document.getElementById('generateFocusInput').value = focusText;
+
+    // Show content type selector (create once, reuse)
+    let typeSelector = document.getElementById('generateTypeSelector');
+    if (!typeSelector) {
+        const focusGroup = document.querySelector('#generateModal .generate-form-group');
+        if (!focusGroup) {
+            console.error('Generate modal structure error: .generate-form-group not found');
+            return;
+        }
+        typeSelector = document.createElement('div');
+        typeSelector.id = 'generateTypeSelector';
+        typeSelector.className = 'generate-form-group';
+        typeSelector.innerHTML = `
+            <label>Content Type</label>
+            <div class="generate-type-grid" id="generateTypeGrid"></div>
+        `;
+        focusGroup.parentNode.insertBefore(typeSelector, focusGroup);
+    }
+    typeSelector.style.display = 'block';
+
+    // Render type buttons
+    const typeGrid = document.getElementById('generateTypeGrid');
+    typeGrid.innerHTML = deliverables.map(d => `
+        <button type="button" class="generate-type-btn ${d.id === generateModalSelectedType ? 'active' : ''}"
+                onclick="selectGapContentType('${d.id}')" data-type-id="${d.id}">
+            <span class="generate-type-icon">${d.icon}</span>
+            <span class="generate-type-label">${escapeHtml(d.label)}</span>
+        </button>
+    `).join('');
+
+    // Show modal
+    document.getElementById('generateModal').classList.add('show');
+}
+
+/**
+ * Select a content type in the gap generate modal
+ */
+function selectGapContentType(typeId) {
+    generateModalSelectedType = typeId;
+    document.querySelectorAll('.generate-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.typeId === typeId);
+    });
 }
 
 // ============================================
