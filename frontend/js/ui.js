@@ -914,7 +914,7 @@ METADATA:
 • Post Score: ${post.score} upvotes
 • Total Comments: ${post.num_comments}
 • High-Value Comments Extracted: ${extractionStats.extracted}
-${post.permalink ? `• Source URL: https://reddit.com${post.permalink}` : ''}
+${post.permalink ? `• Source URL: ${post.permalink.startsWith('http') ? post.permalink : 'https://reddit.com' + post.permalink}` : ''}
 
 POST BODY:
 ${post.selftext || '[No body text - link or image post]'}
@@ -926,7 +926,7 @@ HIGH-VALUE COMMENTS (${valuableComments.length} comments)
 `;
 
     valuableComments.forEach((comment, index) => {
-        const commentUrl = post.permalink && post.id && comment.id
+        const commentUrl = post.permalink && post.id && comment.id && !post.permalink.startsWith('http')
             ? `https://reddit.com${post.permalink}${comment.id}/`
             : null;
         output += `
@@ -1046,7 +1046,10 @@ function exportToPDF() {
                 Posted by u/${escapeHtml(post.author)} •
                 ${post.score} upvotes •
                 ${post.num_comments} comments
-                ${post.permalink ? `<br><strong>Source:</strong> <a href="https://reddit.com${post.permalink}" target="_blank" style="color: #667eea; text-decoration: none;">https://reddit.com${post.permalink}</a>` : ''}
+                ${post.permalink ? (() => {
+                    const sourceUrl = post.permalink.startsWith('http') ? post.permalink : 'https://reddit.com' + post.permalink;
+                    return `<br><strong>Source:</strong> <a href="${sourceUrl}" target="_blank" style="color: #667eea; text-decoration: none;">${sourceUrl}</a>`;
+                })() : ''}
             </div>
 
             <div class="stats">
@@ -1073,7 +1076,7 @@ function exportToPDF() {
             <h2>High-Value Comments (${valuableComments.length})</h2>
 
             ${valuableComments.map((comment, index) => {
-                const commentUrl = post.permalink && post.id && comment.id
+                const commentUrl = post.permalink && post.id && comment.id && !post.permalink.startsWith('http')
                     ? `https://reddit.com${post.permalink}${comment.id}/`
                     : null;
                 return `

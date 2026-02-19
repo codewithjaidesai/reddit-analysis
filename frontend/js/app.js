@@ -2467,7 +2467,12 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                             ${data.source === 'youtube' ? `${postInfo.subreddit}${postInfo.viewCount ? ` • ${formatNumber(postInfo.viewCount)} views` : ''}` : `r/${postInfo.subreddit}`} • ${stats.extracted} comments • ${formatNumber(postInfo.score)} ${data.source === 'youtube' ? 'likes' : 'upvotes'}
                         </div>
                     </div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        ${postInfo.permalink ? (() => {
+                            const srcUrl = postInfo.permalink.startsWith('http') ? postInfo.permalink : 'https://reddit.com' + postInfo.permalink;
+                            const srcLabel = data.source === 'youtube' ? 'YouTube' : 'Reddit';
+                            return `<a href="${srcUrl}" target="_blank" rel="noopener" style="color: #94a3b8; font-size: 12px; text-decoration: none; padding: 6px 10px; border: 1px solid #2d3a4d; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; transition: color 0.2s, border-color 0.2s;" onmouseover="this.style.color='#e2e8f0';this.style.borderColor='#667eea'" onmouseout="this.style.color='#94a3b8';this.style.borderColor='#2d3a4d'">&#8599; ${srcLabel}</a>`;
+                        })() : ''}
                         <button onclick="exportSourcePostPDF(${index})" style="background: #ed8936; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
                             PDF
                         </button>
@@ -3140,7 +3145,10 @@ function downloadAllRawData() {
                     <span><strong>Score:</strong> ${formatNumber(post.score)} upvotes</span>
                     <span><strong>Comments:</strong> ${formatNumber(post.num_comments)}</span>
                 </div>
-                ${post.permalink ? `<p class="post-link"><strong>Source:</strong> <a href="https://reddit.com${post.permalink}" target="_blank">https://reddit.com${post.permalink}</a></p>` : ''}
+                ${post.permalink ? (() => {
+                    const sourceUrl = post.permalink.startsWith('http') ? post.permalink : 'https://reddit.com' + post.permalink;
+                    return `<p class="post-link"><strong>Source:</strong> <a href="${sourceUrl}" target="_blank">${sourceUrl}</a></p>`;
+                })() : ''}
 
                 <div class="stats-row">
                     <div class="stat-box">
