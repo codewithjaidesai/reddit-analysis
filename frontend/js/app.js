@@ -2368,11 +2368,8 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                             <span class="gap-demand">${escapeHtml(gap.demandSignal || '')}</span>
                                         </div>
                                         <div class="gap-cta-row">
-                                            <button class="gap-cta-btn gap-cta-create" onclick="openGapContentPicker(${gapIdx})" title="Generate content about this topic using current insights">
-                                                Create Content
-                                            </button>
-                                            <button class="gap-cta-btn gap-cta-deepdive" onclick="deepDiveGap(${gapIdx}, this)" title="Search for more data on this topic, analyze it, then generate content">
-                                                Deep Dive &amp; Create
+                                            <button class="gap-cta-btn gap-cta-primary" onclick="researchAndCreate('gap', ${gapIdx}, this)" title="Research this topic and generate content">
+                                                Research &amp; Create
                                             </button>
                                         </div>
                                     </div>
@@ -2385,7 +2382,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                 <ul>${cg.underservedQuestions.map((q, qIdx) => `
                                     <li>
                                         <span class="underserved-q-text">"${escapeHtml(q)}"</span>
-                                        <button class="gap-cta-inline" onclick="openGapContentPickerForQuestion(${qIdx})" title="Create content answering this question">Create</button>
+                                        <button class="gap-cta-inline" onclick="researchAndCreate('question', ${qIdx}, this)" title="Research and create content answering this question">Research &amp; Create</button>
                                     </li>
                                 `).join('')}</ul>
                             </div>
@@ -2397,7 +2394,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                     <div class="format-suggestion">
                                         <strong>${escapeHtml(f.format)}</strong>
                                         <span>${escapeHtml(f.reason)}</span>
-                                        <button class="gap-cta-inline" onclick="openGapContentPickerForFormat(${fIdx})" title="Generate this type of content">Create</button>
+                                        <button class="gap-cta-inline" onclick="researchAndCreate('format', ${fIdx}, this)" title="Research and create this content">Research &amp; Create</button>
                                     </div>
                                 `).join('')}
                             </div>
@@ -4197,46 +4194,140 @@ function deleteGeneratedContent(index) {
 }
 
 // ============================================
-// CONTENT GAP CTA - Create Content from Gaps
+// CONTENT GAP CTA - Research & Create from Gaps
 // ============================================
 
 /**
- * Open a content type picker for a specific content gap
- * Uses existing insights + raw data to generate content focused on the gap topic
+ * Unified entry point for all content gap CTAs.
+ * Searches for focused data on the gap topic, analyzes it, then opens the generate modal.
+ *
+ * @param {'gap'|'question'|'format'} type - Which content gap element was clicked
+ * @param {number} index - Index into the corresponding array
+ * @param {HTMLElement} btnElement - The button that was clicked (for loading state)
  */
-function openGapContentPicker(gapIndex) {
+async function researchAndCreate(type, index, btnElement) {
     const structured = window.combinedResultsData?.combinedAnalysis?.structured;
-    const gap = structured?.contentGaps?.gaps?.[gapIndex];
-    if (!gap) return;
+    const contentGaps = structured?.contentGaps;
+    if (!contentGaps) return;
 
-    const focusText = `${gap.topic} — ${gap.opportunity || ''}`.trim();
-    openGapGenerateModal(focusText, gap.topic);
+    // Resolve the search query and focus text based on the type clicked
+    let searchQuery, focusText, displayTopic;
+
+    if (type === 'gap') {
+        const gap = contentGaps.gaps?.[index];
+        if (!gap) return;
+        searchQuery = gap.topic;
+        focusText = `${gap.topic} — ${gap.opportunity || ''}`.trim();
+        displayTopic = gap.topic;
+    } else if (type === 'question') {
+        const question = contentGaps.underservedQuestions?.[index];
+        if (!question) return;
+        searchQuery = question;
+        focusText = `Answer the question: "${question}"`;
+        displayTopic = question.length > 60 ? question.substring(0, 57) + '...' : question;
+    } else if (type === 'format') {
+        const format = contentGaps.suggestedContentFormats?.[index];
+        if (!format) return;
+        searchQuery = format.format;
+        focusText = `Create a ${format.format}: ${format.reason}`;
+        displayTopic = format.format;
+    } else {
+        return;
+    }
+
+    const role = window.currentResearchContext?.role || 'Content Creator';
+    const goal = window.currentResearchContext?.goal || '';
+    const sources = window.currentResearchContext?.sources || 'both';
+
+    // Button loading state
+    const btn = btnElement || null;
+    const btnOriginalHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="gap-cta-spinner"></span> Researching...';
+    }
+
+    try {
+        // === Step 1: Search for focused data ===
+        showStatus(`Searching for "${searchQuery}"...`, 10);
+        setStatusDetails('Finding relevant discussions and videos on this topic');
+
+        const searchResult = await searchTopic(
+            searchQuery, 'year', '', 30, role,
+            `Create content about: ${searchQuery}`, sources
+        );
+
+        if (!searchResult.success || !searchResult.posts?.length) {
+            throw new Error(`No results found for "${searchQuery}". Try a broader topic.`);
+        }
+
+        // === Step 2: Pre-screen for relevance ===
+        const totalFound = searchResult.posts.length;
+        showStatus(`Found ${totalFound} results, filtering for relevance...`, 25);
+        let postsToAnalyze = searchResult.posts;
+        const analyzeLimit = 5;
+
+        if (totalFound > analyzeLimit) {
+            try {
+                const screenResult = await preScreenPosts(searchResult.posts, searchQuery, role, goal);
+                if (screenResult.success && screenResult.posts.length > 0) {
+                    postsToAnalyze = screenResult.posts.slice(0, analyzeLimit);
+                } else {
+                    postsToAnalyze = searchResult.posts.slice(0, analyzeLimit);
+                }
+            } catch (e) {
+                console.warn('Pre-screening failed, using top results:', e.message);
+                postsToAnalyze = searchResult.posts.slice(0, analyzeLimit);
+            }
+        } else {
+            postsToAnalyze = searchResult.posts.slice(0, analyzeLimit);
+        }
+
+        // === Step 3: Extract + Analyze ===
+        showStatus(`Analyzing ${postsToAnalyze.length} sources on "${displayTopic}"...`, 40);
+        setStatusDetails('Extracting comments and generating focused insights');
+
+        const urls = postsToAnalyze.map(p => p.url);
+        const researchGoal = `Create content about: ${searchQuery}`;
+        const analysisResult = await autoAnalysis(urls, role, researchGoal);
+
+        if (!analysisResult.success) {
+            throw new Error(analysisResult.error || 'Analysis failed');
+        }
+
+        showStatus('Research complete! Choose your content format...', 90);
+
+        // === Step 4: Store focused data and open generate modal ===
+        window.deepDiveData = {
+            gapTopic: searchQuery,
+            insights: analysisResult.combinedAnalysis?.structured,
+            postsData: (analysisResult.posts || []).map(p => p.extractedData).filter(Boolean),
+        };
+        window.useDeepDiveData = true;
+
+        openGapGenerateModal(focusText, displayTopic);
+
+        showStatus('Ready to generate content', 100);
+
+    } catch (error) {
+        console.error('Research & Create error:', error);
+        showError(error.message || 'Research failed');
+        // Re-show existing results
+        const currentResult = window.combinedResultsData;
+        if (currentResult) {
+            displayCombinedResults(currentResult, role, goal, false, true);
+        }
+    } finally {
+        if (btn && btn.parentNode) {
+            btn.disabled = false;
+            btn.innerHTML = btnOriginalHTML;
+        }
+    }
 }
 
 /**
- * Open content type picker for an underserved question
- */
-function openGapContentPickerForQuestion(qIndex) {
-    const structured = window.combinedResultsData?.combinedAnalysis?.structured;
-    const question = structured?.contentGaps?.underservedQuestions?.[qIndex];
-    if (!question) return;
-
-    openGapGenerateModal(`Answer the question: "${question}"`, question);
-}
-
-/**
- * Open content type picker for a suggested format
- */
-function openGapContentPickerForFormat(fIndex) {
-    const structured = window.combinedResultsData?.combinedAnalysis?.structured;
-    const format = structured?.contentGaps?.suggestedContentFormats?.[fIndex];
-    if (!format) return;
-
-    openGapGenerateModal(`Create a ${format.format}: ${format.reason}`, format.format);
-}
-
-/**
- * Open the generate modal pre-filled with a content gap focus
+ * Open the generate modal pre-filled with content gap focus + content type picker.
+ * Called after research data has been collected and stored in window.deepDiveData.
  */
 function openGapGenerateModal(focusText, displayTopic) {
     const role = window.currentResearchContext?.role || 'Content Creator';
@@ -4248,14 +4339,15 @@ function openGapGenerateModal(focusText, displayTopic) {
     generateModalSelectedType = deliverables[0].id;
 
     // Update modal
-    document.getElementById('generateModalTitle').textContent = `Create Content: ${displayTopic.substring(0, 50)}${displayTopic.length > 50 ? '...' : ''}`;
-    document.getElementById('generateModalDescription').textContent = `Generate content focused on this content gap opportunity. Choose your format below.`;
+    const truncTopic = displayTopic.length > 50 ? displayTopic.substring(0, 47) + '...' : displayTopic;
+    document.getElementById('generateModalTitle').textContent = `Create Content: ${truncTopic}`;
+    document.getElementById('generateModalDescription').textContent =
+        'Fresh data collected! Pick your content format and generate.';
     document.getElementById('generateFocusInput').value = focusText;
 
-    // Show content type selector if not already present
+    // Show content type selector (create once, reuse)
     let typeSelector = document.getElementById('generateTypeSelector');
     if (!typeSelector) {
-        // Insert type selector before the focus input group
         const focusGroup = document.querySelector('#generateModal .generate-form-group');
         if (!focusGroup) {
             console.error('Generate modal structure error: .generate-form-group not found');
@@ -4291,132 +4383,9 @@ function openGapGenerateModal(focusText, displayTopic) {
  */
 function selectGapContentType(typeId) {
     generateModalSelectedType = typeId;
-    // Update active state
     document.querySelectorAll('.generate-type-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.typeId === typeId);
     });
-}
-
-/**
- * Deep Dive: Search for more data on a gap topic, analyze it, then open generate modal
- */
-async function deepDiveGap(gapIndex, btnElement) {
-    const structured = window.combinedResultsData?.combinedAnalysis?.structured;
-    const gap = structured?.contentGaps?.gaps?.[gapIndex];
-    if (!gap) return;
-
-    const role = window.currentResearchContext?.role || 'Content Creator';
-    const goal = window.currentResearchContext?.goal || '';
-    const sources = window.currentResearchContext?.sources || 'both';
-
-    // Confirm with user
-    const proceed = confirm(
-        `Deep Dive: "${gap.topic}"\n\n` +
-        `This will:\n` +
-        `1. Search Reddit & YouTube for "${gap.topic}"\n` +
-        `2. Extract and analyze the top results\n` +
-        `3. Generate content focused on this gap\n\n` +
-        `This may take 30-60 seconds. Continue?`
-    );
-    if (!proceed) return;
-
-    // Visual feedback on the button
-    const btn = btnElement || null;
-    const btnOriginalHTML = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="gap-cta-spinner"></span> Researching...';
-    }
-
-    try {
-        // Step 1: Search for the gap topic
-        showStatus(`Searching for "${gap.topic}"...`, 10);
-        setStatusDetails('Finding relevant discussions and videos on this topic');
-
-        const searchResult = await searchTopic(gap.topic, 'year', '', 30, role, `Create content about: ${gap.topic}. ${gap.opportunity || ''}`, sources);
-
-        if (!searchResult.success || !searchResult.posts?.length) {
-            throw new Error(`No results found for "${gap.topic}". Try a broader topic.`);
-        }
-
-        // Step 2: Pre-screen for relevance
-        showStatus(`Found ${searchResult.posts.length} results, filtering...`, 25);
-        let postsToAnalyze = searchResult.posts;
-        const deepDiveLimit = 5;
-
-        if (searchResult.posts.length > deepDiveLimit) {
-            try {
-                const screenResult = await preScreenPosts(searchResult.posts, gap.topic, role, goal);
-                if (screenResult.success && screenResult.posts.length > 0) {
-                    postsToAnalyze = screenResult.posts.slice(0, deepDiveLimit);
-                } else {
-                    postsToAnalyze = searchResult.posts.slice(0, deepDiveLimit);
-                }
-            } catch (e) {
-                console.warn('Deep dive pre-screening failed, using top results:', e.message);
-                postsToAnalyze = searchResult.posts.slice(0, deepDiveLimit);
-            }
-        } else {
-            postsToAnalyze = searchResult.posts.slice(0, deepDiveLimit);
-        }
-
-        // Step 3: Extract + Analyze
-        showStatus(`Analyzing ${postsToAnalyze.length} sources on "${gap.topic}"...`, 40);
-        setStatusDetails('Extracting comments and generating insights');
-
-        const urls = postsToAnalyze.map(p => p.url);
-        const deepDiveGoal = `Create content about: ${gap.topic}. ${gap.opportunity || ''} ${gap.demandSignal || ''}`;
-        const analysisResult = await autoAnalysis(urls, role, deepDiveGoal);
-
-        if (!analysisResult.success) {
-            throw new Error(analysisResult.error || 'Analysis failed');
-        }
-
-        showStatus('Research complete! Opening content generator...', 90);
-
-        // Store the deep-dive data for the generate call
-        window.deepDiveData = {
-            gapTopic: gap.topic,
-            insights: analysisResult.combinedAnalysis?.structured,
-            postsData: analysisResult.posts?.map(p => p.extractedData) || [],
-            gap: gap
-        };
-
-        // Open generate modal with deep-dive context
-        const focusText = `${gap.topic} — ${gap.opportunity || ''}`;
-        openDeepDiveGenerateModal(focusText, gap.topic);
-
-        showStatus('Ready to generate content', 100);
-
-    } catch (error) {
-        console.error('Deep dive error:', error);
-        showError(`Deep dive failed: ${error.message}`);
-        // Re-show existing results
-        const currentResult = window.combinedResultsData;
-        if (currentResult) {
-            displayCombinedResults(currentResult, role, goal, false, true);
-        }
-    } finally {
-        // Restore button if it's still in the DOM
-        if (btn && btn.parentNode) {
-            btn.disabled = false;
-            btn.innerHTML = btnOriginalHTML;
-        }
-    }
-}
-
-/**
- * Open generate modal with deep-dive data pre-loaded
- */
-function openDeepDiveGenerateModal(focusText, displayTopic) {
-    // Set a flag so submitGenerate knows to use deep-dive data
-    window.useDeepDiveData = true;
-
-    openGapGenerateModal(focusText, displayTopic);
-
-    // Update description to reflect deep-dive context
-    document.getElementById('generateModalDescription').textContent =
-        `Fresh data collected! Generate content using newly researched insights on this topic.`;
 }
 
 // ============================================
