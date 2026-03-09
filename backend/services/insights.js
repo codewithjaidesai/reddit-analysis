@@ -27,6 +27,10 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
   const source = extractedData.source || 'reddit';
   const transcript = extractedData.transcript || null;
 
+  // Role-based detection flags
+  const isContentCreator = (role || '').toLowerCase().includes('content') ||
+                           (goal || '').toLowerCase().includes('content');
+
   // Source-specific labels
   const isYouTube = source === 'youtube';
   const sourceLabel = isYouTube
@@ -208,7 +212,65 @@ Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, n
     },
     "discussionDepth": "surface | moderate | deep",
     "engagementQuality": "high | medium | low"
-  }
+  }${isContentCreator || isYouTube ? `,
+
+  "audienceSegmentation": {
+    "segments": [
+      {
+        "level": "beginner | intermediate | advanced | unknown",
+        "description": "Who these people are (e.g., 'New creators with under 100 subscribers')",
+        "estimatedCount": 0,
+        "percentage": 0,
+        "characteristics": ["Key trait or behavior"],
+        "exampleAuthors": ["@author1"]
+      }
+    ],
+    "summary": "1-2 sentence overview of who the audience actually is"
+  },
+
+  "unansweredQuestions": {
+    "questions": [
+      {
+        "question": "The actual question being asked",
+        "author": "@username",
+        "score": 0,
+        "contentOpportunity": "Why this is a video/content idea worth pursuing"
+      }
+    ],
+    "summary": "Overview of what the audience is asking for but not getting answers to"
+  },
+
+  "commentClassification": {
+    "breakdown": {
+      "substantive": { "count": 0, "percentage": 0 },
+      "motivational": { "count": 0, "percentage": 0 },
+      "promotional": { "count": 0, "percentage": 0 },
+      "conversational": { "count": 0, "percentage": 0 }
+    },
+    "topSubstantiveComments": [
+      {
+        "author": "@username",
+        "snippet": "First 150 chars of the comment",
+        "score": 0,
+        "whyValuable": "Why this comment matters for the creator"
+      }
+    ],
+    "summary": "What percentage of engagement is actually useful vs generic motivation"
+  },
+
+  "spamAndPromotions": {
+    "flaggedComments": [
+      {
+        "author": "@username",
+        "type": "competing_tool | self_promotion | spam",
+        "snippet": "The relevant part of the comment",
+        "severity": "high | medium | low",
+        "reason": "Why this was flagged"
+      }
+    ],
+    "summary": "Overview of spam/promotion activity in comments",
+    "spamPercentage": 0
+  }` : ''}
 }
 
 ANALYSIS RULES:${hasTranscript ? `
@@ -232,8 +294,13 @@ ANALYSIS RULES:${hasTranscript ? `
 5. actionableInsights: 3-5 insights that DIRECTLY help the ${role || 'user'} achieve their goal: "${goal || 'insights'}".
 6. patterns: 2-4 recurring patterns you notice across comments.
 7. All quotes must be EXACT text from comments provided, not paraphrased.
-8. If data is limited (< 15 comments), acknowledge this and suggest follow-up research.
-9. Return ONLY the JSON object, nothing else.`;
+8. If data is limited (< 15 comments), acknowledge this and suggest follow-up research.${isContentCreator || isYouTube ? `
+9. audienceSegmentation: Infer experience level from context clues — subscriber counts mentioned, language sophistication, questions asked, whether they say "I just started" vs "as a 7-year creator". Create 2-4 meaningful segments. Calculate REAL counts and percentages from the comments.
+10. unansweredQuestions: Extract ACTUAL questions from comments (not rhetorical). Each question = a content idea. If multiple people ask similar things, note that as stronger demand signal. Only include genuine questions the creator hasn't answered.
+11. commentClassification: Classify EVERY comment. "substantive" = adds value, asks real questions, shares specific experience, provides tips. "motivational" = generic encouragement ("keep going!", "you got this!", "don't give up"). "promotional" = self-promoting their own channel/product or pushing a service. "conversational" = general reactions, praise, thanks without specifics. Calculate REAL percentages. List top 3-5 substantive comments.
+12. spamAndPromotions: Flag comments mentioning competing tools/services by name, including links to own content/channel, or appearing bot-generated/templated. Be conservative — only flag clear cases. If no spam found, return empty flaggedComments array and 0 spamPercentage.
+13. Return ONLY the JSON object, nothing else.` : `
+9. Return ONLY the JSON object, nothing else.`}`;
 
   return prompt;
 }
@@ -518,6 +585,64 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
         "reason": "Why this format would work for the identified gaps"
       }
     ]
+  }` : ''}${isContentCreator || hasYouTube ? `,
+
+  "audienceSegmentation": {
+    "segments": [
+      {
+        "level": "beginner | intermediate | advanced | unknown",
+        "description": "Who these people are",
+        "estimatedCount": 0,
+        "percentage": 0,
+        "characteristics": ["Key trait or behavior"],
+        "exampleAuthors": ["@author1"]
+      }
+    ],
+    "summary": "1-2 sentence overview of who the audience actually is"
+  },
+
+  "unansweredQuestions": {
+    "questions": [
+      {
+        "question": "The actual question being asked",
+        "author": "@username",
+        "score": 0,
+        "contentOpportunity": "Why this is a video/content idea worth pursuing"
+      }
+    ],
+    "summary": "Overview of what the audience is asking for but not getting answers to"
+  },
+
+  "commentClassification": {
+    "breakdown": {
+      "substantive": { "count": 0, "percentage": 0 },
+      "motivational": { "count": 0, "percentage": 0 },
+      "promotional": { "count": 0, "percentage": 0 },
+      "conversational": { "count": 0, "percentage": 0 }
+    },
+    "topSubstantiveComments": [
+      {
+        "author": "@username",
+        "snippet": "First 150 chars of the comment",
+        "score": 0,
+        "whyValuable": "Why this comment matters"
+      }
+    ],
+    "summary": "What percentage of engagement is actually useful vs generic"
+  },
+
+  "spamAndPromotions": {
+    "flaggedComments": [
+      {
+        "author": "@username",
+        "type": "competing_tool | self_promotion | spam",
+        "snippet": "The relevant part of the comment",
+        "severity": "high | medium | low",
+        "reason": "Why this was flagged"
+      }
+    ],
+    "summary": "Overview of spam/promotion activity in comments",
+    "spamPercentage": 0
   }` : ''}
 }
 
@@ -549,9 +674,13 @@ RULES:
    - verdict: Based on evidence score (>75% = Strongly Supported, 60-75% = Supported, 40-60% = Mixed Evidence, 25-40% = Weakly Supported, <25% = Not Supported)
    - confidenceLevel: high (50+ relevant comments), medium (20-50), low (<20)${isMixedSource ? `
 6. crossPlatformComparison: Compare how Reddit and YouTube discuss this topic differently. Reddit audiences tend to be more technical/detailed while YouTube commenters are often more casual/broad. Look for genuine differences in perspectives, not just surface-level observations.` : ''}${isContentCreator ? `
-${isMixedSource ? '7' : '6'}. contentGaps: Identify 2-5 content opportunities where audience questions/needs aren't being addressed. Focus on topics with high engagement but few good answers or tutorials. Each gap should have a clear, actionable opportunity the content creator can pursue. Look for: unanswered questions, topics with lots of debate but no definitive guide, requests in comments for specific content.` : ''}
-${isMixedSource || isContentCreator ? (isMixedSource && isContentCreator ? '8' : '7') : '6'}. Keep it concise. No fluff.
-${isMixedSource || isContentCreator ? (isMixedSource && isContentCreator ? '9' : '8') : '7'}. Return ONLY the JSON object, nothing else.`;
+${isMixedSource ? '7' : '6'}. contentGaps: Identify 2-5 content opportunities where audience questions/needs aren't being addressed. Focus on topics with high engagement but few good answers or tutorials. Each gap should have a clear, actionable opportunity the content creator can pursue. Look for: unanswered questions, topics with lots of debate but no definitive guide, requests in comments for specific content.` : ''}${isContentCreator || hasYouTube ? `
+${isMixedSource && isContentCreator ? '8' : isMixedSource || isContentCreator ? '7' : '6'}. audienceSegmentation: Infer experience level from context clues — subscriber counts mentioned, language sophistication, questions asked, "I just started" vs established creators. Create 2-4 meaningful segments with REAL counts.
+${isMixedSource && isContentCreator ? '9' : isMixedSource || isContentCreator ? '8' : '7'}. unansweredQuestions: Extract ACTUAL questions from comments. Each = a content idea. Only genuine questions, not rhetorical.
+${isMixedSource && isContentCreator ? '10' : isMixedSource || isContentCreator ? '9' : '8'}. commentClassification: Classify EVERY comment as substantive/motivational/promotional/conversational. Calculate REAL percentages. List top 3-5 substantive comments.
+${isMixedSource && isContentCreator ? '11' : isMixedSource || isContentCreator ? '10' : '9'}. spamAndPromotions: Flag comments mentioning competing tools/services, self-promoting, or bot-like. Be conservative — only clear cases. Empty array if no spam found.` : ''}
+${(() => { let n = 6; if (isMixedSource) n++; if (isContentCreator) n++; if (isContentCreator || hasYouTube) n += 4; return n; })()}. Keep it concise. No fluff.
+${(() => { let n = 7; if (isMixedSource) n++; if (isContentCreator) n++; if (isContentCreator || hasYouTube) n += 4; return n; })()}. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
 }

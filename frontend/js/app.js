@@ -2403,6 +2403,136 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                 `;
             }
 
+            // Audience Segmentation
+            if (structured.audienceSegmentation && structured.audienceSegmentation.segments?.length > 0) {
+                const as = structured.audienceSegmentation;
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Audience Segmentation</h3>
+                        ${as.summary ? `<p class="quant-subsection-summary">${escapeHtml(as.summary)}</p>` : ''}
+                        <div class="audience-segments-grid">
+                            ${as.segments.map(seg => `
+                                <div class="audience-segment-card segment-${(seg.level || 'unknown').toLowerCase()}">
+                                    <div class="segment-header">
+                                        <span class="segment-level-badge level-${(seg.level || 'unknown').toLowerCase()}">${(seg.level || 'Unknown').toUpperCase()}</span>
+                                        <span class="segment-stats">${seg.estimatedCount || 0} comments (${seg.percentage || 0}%)</span>
+                                    </div>
+                                    <p class="segment-description">${escapeHtml(seg.description || '')}</p>
+                                    ${seg.characteristics && seg.characteristics.length > 0 ? `
+                                        <div class="segment-characteristics">
+                                            ${seg.characteristics.map(c => `<span class="segment-trait">${escapeHtml(c)}</span>`).join('')}
+                                        </div>
+                                    ` : ''}
+                                    ${seg.exampleAuthors && seg.exampleAuthors.length > 0 ? `
+                                        <div class="segment-authors">
+                                            ${seg.exampleAuthors.map(a => `<span class="segment-author">${escapeHtml(a)}</span>`).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Unanswered Questions
+            if (structured.unansweredQuestions && structured.unansweredQuestions.questions?.length > 0) {
+                const uq = structured.unansweredQuestions;
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Unanswered Questions <span class="info-label success">Content opportunities</span></h3>
+                        ${uq.summary ? `<p class="quant-subsection-summary">${escapeHtml(uq.summary)}</p>` : ''}
+                        <div class="unanswered-questions-list">
+                            ${uq.questions.map(q => `
+                                <div class="unanswered-q-card">
+                                    <div class="unanswered-q-header">
+                                        <span class="unanswered-q-text">${escapeHtml(q.question)}</span>
+                                        <span class="content-opportunity-tag">Content Idea</span>
+                                    </div>
+                                    <div class="unanswered-q-meta">
+                                        <span class="unanswered-q-author">— @${escapeHtml(q.author || 'anonymous')}</span>
+                                        <span class="unanswered-q-score">${q.score || 0} upvotes</span>
+                                    </div>
+                                    ${q.contentOpportunity ? `<p class="unanswered-q-opportunity">${escapeHtml(q.contentOpportunity)}</p>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Comment Classification
+            if (structured.commentClassification && structured.commentClassification.breakdown) {
+                const cc = structured.commentClassification;
+                const bd = cc.breakdown;
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Comment Substance Analysis</h3>
+                        ${cc.summary ? `<p class="quant-subsection-summary">${escapeHtml(cc.summary)}</p>` : ''}
+                        <div class="classification-bar-container">
+                            <div class="classification-bar">
+                                ${bd.substantive?.percentage > 0 ? `<div class="classification-segment substantive" style="width: ${bd.substantive.percentage}%"><span>${bd.substantive.percentage}%</span></div>` : ''}
+                                ${bd.motivational?.percentage > 0 ? `<div class="classification-segment motivational" style="width: ${bd.motivational.percentage}%"><span>${bd.motivational.percentage}%</span></div>` : ''}
+                                ${bd.conversational?.percentage > 0 ? `<div class="classification-segment conversational" style="width: ${bd.conversational.percentage}%"><span>${bd.conversational.percentage}%</span></div>` : ''}
+                                ${bd.promotional?.percentage > 0 ? `<div class="classification-segment promotional" style="width: ${bd.promotional.percentage}%"><span>${bd.promotional.percentage}%</span></div>` : ''}
+                            </div>
+                            <div class="classification-legend">
+                                <span class="legend-item"><span class="legend-dot substantive"></span> Substantive ${bd.substantive?.count || 0}</span>
+                                <span class="legend-item"><span class="legend-dot motivational"></span> Motivational ${bd.motivational?.count || 0}</span>
+                                <span class="legend-item"><span class="legend-dot conversational"></span> Conversational ${bd.conversational?.count || 0}</span>
+                                <span class="legend-item"><span class="legend-dot promotional"></span> Promotional ${bd.promotional?.count || 0}</span>
+                            </div>
+                        </div>
+                        ${cc.topSubstantiveComments && cc.topSubstantiveComments.length > 0 ? `
+                            <div class="top-substantive-list">
+                                <h4>Top Substantive Comments</h4>
+                                ${cc.topSubstantiveComments.map(c => `
+                                    <div class="substantive-comment-card">
+                                        <p class="substantive-snippet">"${escapeHtml(c.snippet)}"</p>
+                                        <div class="substantive-meta">
+                                            <span class="substantive-author">— @${escapeHtml(c.author || 'anonymous')}</span>
+                                            <span class="substantive-score">${c.score || 0} upvotes</span>
+                                        </div>
+                                        ${c.whyValuable ? `<p class="substantive-why">${escapeHtml(c.whyValuable)}</p>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // Spam & Promotions
+            if (structured.spamAndPromotions) {
+                const sp = structured.spamAndPromotions;
+                const hasFlagged = sp.flaggedComments && sp.flaggedComments.length > 0;
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">Spam & Promotions <span class="info-label ${hasFlagged ? 'warning' : ''}">${hasFlagged ? sp.flaggedComments.length + ' flagged' : 'Clean'}</span></h3>
+                        ${sp.summary ? `<p class="quant-subsection-summary">${escapeHtml(sp.summary)}</p>` : ''}
+                        ${hasFlagged ? `
+                            <div class="spam-flagged-list">
+                                ${sp.flaggedComments.map(f => `
+                                    <div class="spam-flagged-item severity-${(f.severity || 'low').toLowerCase()}">
+                                        <div class="spam-flagged-header">
+                                            <span class="spam-type-badge type-${(f.type || 'spam').replace(/_/g, '-')}">${(f.type || 'spam').replace(/_/g, ' ')}</span>
+                                            <span class="spam-severity-badge severity-${(f.severity || 'low').toLowerCase()}">${(f.severity || 'low').toUpperCase()}</span>
+                                        </div>
+                                        <p class="spam-snippet">"${escapeHtml(f.snippet || '')}"</p>
+                                        <div class="spam-meta">
+                                            <span class="spam-author">— @${escapeHtml(f.author || 'anonymous')}</span>
+                                            ${f.reason ? `<span class="spam-reason">${escapeHtml(f.reason)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div class="spam-clean-notice">No spam or promotional comments detected.</div>
+                        `}
+                    </div>
+                `;
+            }
+
             html += `</div>`; // End quantitative tab
         }
 
