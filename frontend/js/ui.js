@@ -774,8 +774,54 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
         `;
     }
 
-    // Audience Segmentation
-    if (analysis.audienceSegmentation && analysis.audienceSegmentation.segments?.length > 0) {
+    // Audience Segmentation (new demographic patterns format)
+    if (analysis.audienceSegmentation && analysis.audienceSegmentation.demographicPatterns?.length > 0) {
+        const as = analysis.audienceSegmentation;
+        html += `
+            <div class="content-analysis-section">
+                <h3>Audience Segmentation <span class="info-label">${as.demographicPatterns.length} segments identified</span></h3>
+                ${as.summary ? `<p class="section-summary-text">${escapeHtml(as.summary)}</p>` : ''}
+                <div class="audience-chart-container" style="margin-bottom: 16px;">
+                    <div class="audience-bar-chart" style="display: flex; height: 32px; border-radius: 8px; overflow: hidden; margin-bottom: 8px;">
+                        ${as.demographicPatterns.map((seg, i) => {
+                            const colors = ['#667eea', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac'];
+                            return `<div style="width: ${seg.percentage || 0}%; background: ${colors[i % colors.length]}; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 600; min-width: ${seg.percentage > 5 ? '0' : '20px'};">${seg.percentage > 8 ? seg.percentage + '%' : ''}</div>`;
+                        }).join('')}
+                    </div>
+                    <div class="audience-chart-legend" style="display: flex; flex-wrap: wrap; gap: 12px;">
+                        ${as.demographicPatterns.map((seg, i) => {
+                            const colors = ['#667eea', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac'];
+                            return `<span style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: #cbd5e0;"><span style="width: 10px; height: 10px; border-radius: 50%; background: ${colors[i % colors.length]};"></span> ${escapeHtml(seg.identifier)} (${seg.percentage || 0}%)</span>`;
+                        }).join('')}
+                    </div>
+                </div>
+                <div class="audience-segments-grid">
+                    ${as.demographicPatterns.map(seg => `
+                        <div class="audience-segment-card">
+                            <div class="segment-header">
+                                <span class="segment-level-badge">${escapeHtml(seg.identifier || 'Unknown')}</span>
+                                <span class="segment-stats">${seg.estimatedCount || 0} comments (${seg.percentage || 0}%)</span>
+                            </div>
+                            <p class="segment-description">${escapeHtml(seg.description || '')}</p>
+                            ${seg.characteristics && seg.characteristics.length > 0 ? `
+                                <div class="segment-characteristics">
+                                    ${seg.characteristics.map(c => `<span class="segment-trait">${escapeHtml(c)}</span>`).join('')}
+                                </div>
+                            ` : ''}
+                            ${seg.evidence && seg.evidence.length > 0 ? `
+                                <div class="segment-evidence" style="margin-top: 8px;">
+                                    ${seg.evidence.map(e => `<p class="segment-evidence-quote" style="font-size: 12px; color: #94a3b8; font-style: italic;">"${escapeHtml(e)}"</p>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Audience Segmentation (legacy format - experience levels)
+    if (analysis.audienceSegmentation && analysis.audienceSegmentation.segments?.length > 0 && !analysis.audienceSegmentation.demographicPatterns) {
         const as = analysis.audienceSegmentation;
         html += `
             <div class="content-analysis-section">
@@ -794,9 +840,36 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
                                     ${seg.characteristics.map(c => `<span class="segment-trait">${escapeHtml(c)}</span>`).join('')}
                                 </div>
                             ` : ''}
-                            ${seg.exampleAuthors && seg.exampleAuthors.length > 0 ? `
-                                <div class="segment-authors">
-                                    ${seg.exampleAuthors.map(a => `<span class="segment-author">${escapeHtml(a)}</span>`).join('')}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Viral Content Ideas (Content Creator)
+    if (analysis.viralContentIdeas && analysis.viralContentIdeas.ideas?.length > 0) {
+        const vc = analysis.viralContentIdeas;
+        html += `
+            <div class="content-analysis-section">
+                <h3>Viral Content Ideas <span class="info-label success">From audience language</span></h3>
+                ${vc.summary ? `<p class="section-summary-text">${escapeHtml(vc.summary)}</p>` : ''}
+                <div class="viral-ideas-list">
+                    ${vc.ideas.map(idea => `
+                        <div class="viral-idea-card" style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                <span style="font-weight: 600; color: #f1f5f9; font-size: 15px;">${escapeHtml(idea.idea)}</span>
+                                <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; white-space: nowrap;">Demand: ${idea.demandScore || '?'}/10</span>
+                            </div>
+                            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 8px;">${escapeHtml(idea.whyViral || '')}</p>
+                            ${idea.audienceQuotes && idea.audienceQuotes.length > 0 ? `
+                                <div style="margin-bottom: 8px;">
+                                    ${idea.audienceQuotes.map(q => `<p style="font-size: 12px; color: #a78bfa; font-style: italic; margin: 4px 0;">"${escapeHtml(q)}"</p>`).join('')}
+                                </div>
+                            ` : ''}
+                            ${idea.suggestedFormats && idea.suggestedFormats.length > 0 ? `
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                    ${idea.suggestedFormats.map(f => `<span style="background: #2d3a4d; color: #cbd5e0; padding: 3px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(f)}</span>`).join('')}
                                 </div>
                             ` : ''}
                         </div>
@@ -806,7 +879,139 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
         `;
     }
 
-    // Unanswered Questions
+    // Top Open Questions (Content Creator)
+    if (analysis.topOpenQuestions && analysis.topOpenQuestions.questions?.length > 0) {
+        const toq = analysis.topOpenQuestions;
+        html += `
+            <div class="content-analysis-section">
+                <h3>Top Open Questions <span class="info-label success">Engagement opportunities</span></h3>
+                ${toq.summary ? `<p class="section-summary-text">${escapeHtml(toq.summary)}</p>` : ''}
+                <div class="unanswered-questions-list">
+                    ${toq.questions.map(q => `
+                        <div class="unanswered-q-card">
+                            <div class="unanswered-q-header">
+                                <span class="unanswered-q-text">${escapeHtml(q.question)}</span>
+                                <span class="content-opportunity-tag">Content Idea</span>
+                            </div>
+                            <div class="unanswered-q-meta">
+                                <span class="unanswered-q-author">-- @${escapeHtml(q.author || 'anonymous')}</span>
+                                <span class="unanswered-q-score">${q.score || 0} ${engagementLabel}</span>
+                                ${q.engagementSignal ? `<span style="color: #48bb78; font-size: 12px;">${escapeHtml(q.engagementSignal)}</span>` : ''}
+                            </div>
+                            ${q.contentOpportunity ? `<p class="unanswered-q-opportunity">${escapeHtml(q.contentOpportunity)}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Marketing Mix / 4Ps (Marketer)
+    if (analysis.marketingMix) {
+        const mm = analysis.marketingMix;
+        html += `
+            <div class="content-analysis-section">
+                <h3>Marketing Mix (4Ps) Analysis</h3>
+                ${mm.summary ? `<p class="section-summary-text">${escapeHtml(mm.summary)}</p>` : ''}
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+                    ${['product', 'price', 'place', 'promotion'].map(p => {
+                        const data = mm[p];
+                        if (!data) return '';
+                        const labels = { product: 'Product', price: 'Price', place: 'Place', promotion: 'Promotion' };
+                        const colors = { product: '#667eea', price: '#48bb78', place: '#ed8936', promotion: '#e53e3e' };
+                        return `
+                            <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; border-top: 3px solid ${colors[p]};">
+                                <h4 style="color: ${colors[p]}; margin: 0 0 10px 0; font-size: 14px;">${labels[p]}</h4>
+                                ${data.whatPeopleWant ? `<div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 12px;">What people want:</span><ul style="margin: 4px 0; padding-left: 16px;">${data.whatPeopleWant.map(w => `<li style="color: #cbd5e0; font-size: 13px;">${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
+                                ${data.complaints ? `<div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 12px;">Complaints:</span><ul style="margin: 4px 0; padding-left: 16px;">${data.complaints.map(c => `<li style="color: #fc8181; font-size: 13px;">${escapeHtml(c)}</li>`).join('')}</ul></div>` : ''}
+                                ${data.sensitivity ? `<div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 12px;">Sensitivity:</span> <span style="color: #cbd5e0; font-size: 13px;">${escapeHtml(data.sensitivity)}</span></div>` : ''}
+                                ${data.expectations ? `<ul style="margin: 4px 0; padding-left: 16px;">${data.expectations.map(e => `<li style="color: #cbd5e0; font-size: 13px;">${escapeHtml(e)}</li>`).join('')}</ul>` : ''}
+                                ${data.channels ? `<ul style="margin: 4px 0; padding-left: 16px;">${data.channels.map(c => `<li style="color: #cbd5e0; font-size: 13px;">${escapeHtml(c)}</li>`).join('')}</ul>` : ''}
+                                ${data.whatResonates ? `<div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 12px;">What resonates:</span><ul style="margin: 4px 0; padding-left: 16px;">${data.whatResonates.map(w => `<li style="color: #48bb78; font-size: 13px;">${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
+                                ${data.whatBackfires ? `<div><span style="color: #94a3b8; font-size: 12px;">What backfires:</span><ul style="margin: 4px 0; padding-left: 16px;">${data.whatBackfires.map(w => `<li style="color: #fc8181; font-size: 13px;">${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
+                                ${data.quotes && data.quotes.length > 0 ? `
+                                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #2d3a4d;">
+                                        ${data.quotes.slice(0, 2).map(q => `<p style="font-size: 12px; color: #a78bfa; font-style: italic;">"${escapeHtml(q.text)}" <span style="color: #64748b;">-- @${escapeHtml(q.author || 'anon')}</span></p>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // Pain Points (Marketer)
+    if (analysis.painPoints) {
+        const pp = analysis.painPoints;
+        html += `
+            <div class="content-analysis-section">
+                <h3>Pain Points & Competitor Weaknesses</h3>
+                ${pp.summary ? `<p class="section-summary-text">${escapeHtml(pp.summary)}</p>` : ''}
+                ${pp.points && pp.points.length > 0 ? `
+                    <div style="margin-bottom: 16px;">
+                        ${pp.points.map(p => `
+                            <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 3px solid ${p.severity === 'high' ? '#e53e3e' : p.severity === 'medium' ? '#ed8936' : '#48bb78'};">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <span style="font-weight: 600; color: #f1f5f9; font-size: 14px;">${escapeHtml(p.pain)}</span>
+                                    <div style="display: flex; gap: 6px;">
+                                        <span style="background: ${p.severity === 'high' ? '#e53e3e33' : p.severity === 'medium' ? '#ed893633' : '#48bb7833'}; color: ${p.severity === 'high' ? '#fc8181' : p.severity === 'medium' ? '#fbd38d' : '#9ae6b4'}; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${(p.severity || 'medium').toUpperCase()}</span>
+                                        ${p.frequency ? `<span style="color: #94a3b8; font-size: 11px;">${p.frequency}x mentioned</span>` : ''}
+                                    </div>
+                                </div>
+                                ${p.marketingAngle ? `<p style="color: #48bb78; font-size: 13px; margin-top: 6px;">Marketing angle: ${escapeHtml(p.marketingAngle)}</p>` : ''}
+                                ${p.quotes && p.quotes.length > 0 ? `<p style="font-size: 12px; color: #a78bfa; font-style: italic; margin-top: 6px;">"${escapeHtml(p.quotes[0].text)}"</p>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${pp.competitorWeaknesses && pp.competitorWeaknesses.length > 0 ? `
+                    <h4 style="color: #cbd5e0; margin: 12px 0 8px;">Competitor Weaknesses</h4>
+                    ${pp.competitorWeaknesses.map(cw => `
+                        <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #ed8936;">${escapeHtml(cw.competitor)}</span>
+                            <span style="color: #94a3b8; font-size: 12px; margin-left: 8px;">${cw.frequency ? cw.frequency + 'x mentioned' : ''}</span>
+                            <p style="color: #cbd5e0; font-size: 13px; margin-top: 4px;">${escapeHtml(cw.weakness)}</p>
+                            ${cw.quotes && cw.quotes.length > 0 ? `<p style="font-size: 12px; color: #a78bfa; font-style: italic; margin-top: 4px;">"${escapeHtml(cw.quotes[0].text)}"</p>` : ''}
+                        </div>
+                    `).join('')}
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Key Value Proposition (Marketer)
+    if (analysis.keyValueProposition) {
+        const kvp = analysis.keyValueProposition;
+        html += `
+            <div class="content-analysis-section">
+                <h3>Key Value Proposition</h3>
+                <div style="background: #1c2432; border: 1px solid #667eea; border-radius: 8px; padding: 20px; margin-bottom: 12px;">
+                    <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">${escapeHtml(kvp.primaryValue || '')}</div>
+                    ${kvp.supportingValues && kvp.supportingValues.length > 0 ? `
+                        <div style="margin-bottom: 12px;">
+                            ${kvp.supportingValues.map(v => `<span style="background: #2d3a4d; color: #cbd5e0; padding: 4px 10px; border-radius: 4px; font-size: 13px; margin-right: 6px; display: inline-block; margin-bottom: 4px;">${escapeHtml(v)}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    ${kvp.userLanguage && kvp.userLanguage.length > 0 ? `
+                        <div style="margin-bottom: 12px;">
+                            <span style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">In their own words:</span>
+                            ${kvp.userLanguage.map(l => `<p style="color: #a78bfa; font-style: italic; font-size: 13px; margin: 4px 0;">"${escapeHtml(l)}"</p>`).join('')}
+                        </div>
+                    ` : ''}
+                    ${kvp.differentiators && kvp.differentiators.length > 0 ? `
+                        <div>
+                            <span style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">Differentiators:</span>
+                            <ul style="margin: 0; padding-left: 16px;">${kvp.differentiators.map(d => `<li style="color: #48bb78; font-size: 13px;">${escapeHtml(d)}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Unanswered Questions (legacy format)
     if (analysis.unansweredQuestions && analysis.unansweredQuestions.questions?.length > 0) {
         const uq = analysis.unansweredQuestions;
         html += `
@@ -1930,33 +2135,25 @@ Now please provide your comprehensive analysis following the framework above.
 
 // Persona outcomes mapping
 const personaOutcomes = {
-    product_manager: {
-        role: 'Product Manager',
+    content_creator: {
+        role: 'Content Creator',
         outcomes: [
-            { id: 'pain_points', label: 'Identify Pain Points & Complaints' },
-            { id: 'competitor', label: 'Analyze Competitor Weaknesses' },
-            { id: 'validate', label: 'Validate a New Feature Idea' },
-            { id: 'unmet_needs', label: 'Discover Unmet Needs' },
+            { id: 'rising_viral', label: 'Viral Content Ideas (Rising Creator)', goal: 'Find what people are talking about in comments that has viral content potential. What does the audience want? Use their exact language, not AI-polished words. Support with quantitative proof.' },
+            { id: 'rising_audience', label: 'Audience Discovery (Rising Creator)', goal: 'Identify and segment the audience commenting. Who are they? Demographics, interests, patterns. Show quantitative breakdowns with visual insights.' },
+            { id: 'established_engage', label: 'Top Questions & Engagement (Established Creator)', goal: 'Find top open questions posted in comments for engagement or content creation. Identify what the audience is asking that creators can address.' },
+            { id: 'established_ideas', label: 'New Content Ideas (Established Creator)', goal: 'Find what people are talking about that has viral content potential. What does the audience want? Use their exact language. Support with quantitative proof and insights.' },
+            { id: 'general_research', label: 'General Research', goal: 'Do a comprehensive AI analysis of all comments. Support any recommendations with quantitative insights where possible.' },
             { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
         ]
     },
     marketer: {
-        role: 'Marketer / Copywriter',
+        role: 'Marketer',
         outcomes: [
-            { id: 'voice', label: "Extract 'Voice of Customer' Lingo" },
-            { id: 'objections', label: 'Identify Buying Objections' },
-            { id: 'viral', label: 'Find Viral Marketing Angles' },
-            { id: 'sentiment', label: 'Analyze Sentiment Drivers' },
-            { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
-        ]
-    },
-    content_creator: {
-        role: 'Content Creator',
-        outcomes: [
-            { id: 'content_gaps', label: 'Find Content Gaps & Questions' },
-            { id: 'polarizing', label: 'Identify Polarizing Topics' },
-            { id: 'faq', label: 'Gather Q&A for FAQ Video' },
-            { id: 'trends', label: 'Spot Emerging Trends' },
+            { id: 'social_content', label: 'Social Media Content Research', goal: 'Research what resonates with the audience for social media content creation (LinkedIn, TikTok, Instagram, Facebook, X, YouTube). Find hooks, angles, and voice of customer language.' },
+            { id: 'pain_points', label: 'Pain Points & Competitor Analysis', goal: 'Identify pain points with products/services and competitor weaknesses. What are people complaining about? What do they wish was different? Find opportunities for marketing material.' },
+            { id: 'four_ps', label: 'Marketing Mix (4Ps) Analysis', goal: 'Analyze comments to extract insights on Product (what people want), Price (cost sensitivity/expectations), Place (where they buy/discover), and Promotion (what messaging resonates). Distill marketing intelligence.' },
+            { id: 'kvp', label: 'Key Value Proposition Discovery', goal: 'Identify what users value most, what problems they need solved, and what language they use to describe ideal solutions. Help define or refine the key value proposition.' },
+            { id: 'general_research', label: 'General Research', goal: 'Do a comprehensive AI analysis of all comments without a specific marketing lens. Support any recommendations with quantitative insights where possible.' },
             { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
         ]
     },
@@ -1998,18 +2195,31 @@ function selectPersona(tabId, personaId) {
     const outcomeOptions = document.getElementById(`${tabId}OutcomeOptions`);
     const outcomeLabel = document.getElementById(`${tabId}OutcomeLabel`);
 
+    // If this tab doesn't have outcome sections (e.g., Community Pulse), just set role
+    if (!outcomeSection || !outcomeOptions) {
+        // Derive role from personaId for tabs without outcome selection
+        const roleMap = {
+            product_manager: 'Product Manager',
+            marketer: 'Marketer',
+            content_creator: 'Content Creator',
+            custom: 'Researcher'
+        };
+        updateHiddenFields(tabId, roleMap[personaId] || 'Researcher', '');
+        return;
+    }
+
     if (personaId === 'custom') {
         // Show custom inputs
         outcomeLabel.textContent = 'DEFINE YOUR RESEARCH';
         outcomeOptions.innerHTML = `
             <div class="custom-inputs">
                 <div class="custom-input-group">
-                    <label>Custom Role</label>
-                    <input type="text" id="${tabId}CustomRole" placeholder="e.g., UX Researcher, Founder, Investor" onchange="updateCustomSelection('${tabId}')">
+                    <label>Your Role / Persona</label>
+                    <input type="text" id="${tabId}CustomRole" placeholder="e.g., Product Manager, UX Researcher, Founder" onchange="updateCustomSelection('${tabId}')">
                 </div>
                 <div class="custom-input-group">
                     <label>Specific Goal</label>
-                    <input type="text" id="${tabId}CustomGoal" placeholder="e.g., Find usability issues, Validate market size" onchange="updateCustomSelection('${tabId}')">
+                    <input type="text" id="${tabId}CustomGoal" placeholder="e.g., Find top 5 recommendations, Validate market size" onchange="updateCustomSelection('${tabId}')">
                 </div>
             </div>
         `;
@@ -2017,13 +2227,17 @@ function selectPersona(tabId, personaId) {
 
         // Clear hidden fields
         updateHiddenFields(tabId, 'Custom', '');
+    } else if (!personaOutcomes[personaId]) {
+        // Unknown persona (e.g., product_manager from Community Pulse) - treat as custom
+        updateHiddenFields(tabId, personaId.replace('_', ' '), '');
+        return;
     } else {
         // Show predefined outcomes
         const persona = personaOutcomes[personaId];
         outcomeLabel.textContent = `SELECT SPECIFIC OUTCOME FOR ${persona.role.toUpperCase()}`;
 
         outcomeOptions.innerHTML = persona.outcomes.map((outcome, index) => `
-            <div class="outcome-option" onclick="selectOutcome('${tabId}', '${personaId}', '${outcome.id}', '${outcome.label}', ${outcome.isCustom || false})">
+            <div class="outcome-option" onclick="selectOutcome('${tabId}', '${personaId}', '${outcome.id}', '${escapeHtml(outcome.goal || outcome.label)}', ${outcome.isCustom || false})">
                 <input type="radio" name="${tabId}Outcome" id="${tabId}_${outcome.id}" ${index === 0 ? 'checked' : ''}>
                 <span>${outcome.label}</span>
             </div>
@@ -2036,7 +2250,7 @@ function selectPersona(tabId, personaId) {
         outcomeSection.style.display = 'block';
 
         // Auto-select first outcome
-        selectOutcome(tabId, personaId, persona.outcomes[0].id, persona.outcomes[0].label, false);
+        selectOutcome(tabId, personaId, persona.outcomes[0].id, persona.outcomes[0].goal || persona.outcomes[0].label, false);
     }
 }
 
@@ -2073,10 +2287,14 @@ function selectOutcome(tabId, personaId, outcomeId, outcomeLabel, isCustom = fal
         if (customInput) {
             customInput.style.display = 'none';
         }
-        // Update hidden fields
+        // Update hidden fields - outcomeLabel now contains the full goal text
         const persona = personaOutcomes[personaId];
         updateHiddenFields(tabId, persona.role, outcomeLabel);
     }
+
+    // Store selected outcome ID for persona-specific output rendering
+    if (!window.selectedOutcomeIds) window.selectedOutcomeIds = {};
+    window.selectedOutcomeIds[tabId] = outcomeId;
 }
 
 /**

@@ -9,15 +9,30 @@ const { analyzeWithGemini } = require('./gemini');
  *
  * All quality comments are sent to the AI - no additional slicing.
  *
+ * Personas: Content Creator, Marketer, Custom/Other
+ *
  * @see docs/QUALITY_FILTER_LOGIC.md for quality filter documentation
  */
 
 /**
+ * Detect persona type from role/goal strings
+ */
+function detectPersona(role, goal) {
+  const r = (role || '').toLowerCase();
+  const g = (goal || '').toLowerCase();
+
+  const isContentCreator = r.includes('content') || r.includes('creator');
+  const isMarketer = r.includes('market') || r.includes('copywriter');
+
+  return { isContentCreator, isMarketer };
+}
+
+/**
  * Format extracted data for AI analysis (supports both Reddit and YouTube)
- * Returns structured JSON for rich UI display (similar to Analyze User)
+ * Returns structured JSON for rich UI display
  * @param {object} extractedData - Extracted post/video and comments
- * @param {string} role - User's role (e.g. Product Manager, Marketer, Founder)
- * @param {string} goal - User's goal (e.g. find pain points, validate idea)
+ * @param {string} role - User's role (e.g. Content Creator, Marketer)
+ * @param {string} goal - User's goal
  * @returns {string} Formatted prompt requesting JSON output
  */
 function formatAnalysisPrompt(extractedData, role = null, goal = null) {
@@ -27,9 +42,7 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
   const source = extractedData.source || 'reddit';
   const transcript = extractedData.transcript || null;
 
-  // Role-based detection flags
-  const isContentCreator = (role || '').toLowerCase().includes('content') ||
-                           (goal || '').toLowerCase().includes('content');
+  const { isContentCreator, isMarketer } = detectPersona(role, goal);
 
   // Source-specific labels
   const isYouTube = source === 'youtube';
@@ -52,7 +65,6 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
 
   // Build transcript section for YouTube videos
   const hasTranscript = isYouTube && transcript?.textForAnalysis;
-  // Check if description is substantial (has timestamps, topics, or >200 chars)
   const hasDescription = isYouTube && post.selftext && post.selftext.length > 100;
   const descriptionHasTimestamps = hasDescription && /\d{1,2}:\d{2}/.test(post.selftext);
 
@@ -61,16 +73,175 @@ function formatAnalysisPrompt(extractedData, role = null, goal = null) {
     videoContentSection = `\nVIDEO TRANSCRIPT (${Math.round(transcript.durationSeconds / 60)} min):
 ${transcript.textForAnalysis}${transcript.fullText.length > 8000 ? '...[truncated]' : ''}`;
   } else if (hasDescription) {
-    // Use description as fallback - include more of it since we don't have transcript
     videoContentSection = `\nVIDEO DESCRIPTION${descriptionHasTimestamps ? ' (includes timestamps/topics)' : ''}:
 ${post.selftext.substring(0, 2000)}${post.selftext.length > 2000 ? '...[truncated]' : ''}`;
   }
 
-  const prompt = `You are an expert analyst performing a comprehensive analysis of a ${isYouTube ? 'YouTube video' : 'Reddit post'} and its comments.
+  // Build persona-specific instructions
+  let personaContext = '';
+  let personaJsonSchema = '';
+  let personaRules = '';
 
+  if (isContentCreator) {
+    personaContext = `You are analyzing this for a CONTENT CREATOR. Focus on what content can be made from these comments.
+CRITICAL: Use the audience's actual language and words - do NOT polish or rewrite their expressions. Raw authentic voice matters.
+The goal is to find viral content potential, audience desires, and content gaps.`;
+
+    personaJsonSchema = `,
+
+  "audienceSegmentation": {
+    "demographicPatterns": [
+      {
+        "identifier": "e.g., Beginners, Mothers, Business Owners, Students, etc.",
+        "description": "Who these people are based on comment patterns",
+        "estimatedCount": 0,
+        "percentage": 0,
+        "evidence": ["Quote or pattern that identifies this group"],
+        "characteristics": ["Key trait or behavior"]
+      }
+    ],
+    "summary": "Overview of who is commenting - identify by any discoverable pattern (gender, role, experience level, interest, life stage, etc.)"
+  },
+
+  "viralContentIdeas": {
+    "ideas": [
+      {
+        "idea": "Content idea in the audience's own words - NOT AI polished",
+        "whyViral": "Why this has viral potential with quantitative evidence (X comments about this, Y upvotes)",
+        "audienceQuotes": ["Exact quote showing demand for this"],
+        "suggestedFormats": ["TikTok", "YouTube", "LinkedIn", "Instagram", "Blog", "X/Twitter"],
+        "demandScore": 0
+      }
+    ],
+    "summary": "Overview of what the audience wants to see - in their language"
+  },
+
+  "topOpenQuestions": {
+    "questions": [
+      {
+        "question": "Exact question from comments",
+        "author": "@username",
+        "score": 0,
+        "engagementSignal": "X replies, Y upvotes - showing demand",
+        "contentOpportunity": "How a creator can use this"
+      }
+    ],
+    "summary": "Questions the audience is asking that creators can engage with or create content around"
+  },
+
+  "commentClassification": {
+    "breakdown": {
+      "substantive": { "count": 0, "percentage": 0 },
+      "motivational": { "count": 0, "percentage": 0 },
+      "promotional": { "count": 0, "percentage": 0 },
+      "conversational": { "count": 0, "percentage": 0 }
+    },
+    "topSubstantiveComments": [
+      {
+        "author": "@username",
+        "snippet": "First 150 chars of the comment",
+        "score": 0,
+        "whyValuable": "Why this comment matters for content creation"
+      }
+    ],
+    "summary": "What percentage of engagement is actually useful vs generic"
+  }`;
+
+    personaRules = `
+CONTENT CREATOR RULES:
+- audienceSegmentation: Discover ANY identifiable patterns from comments to segment the audience. Don't limit to experience levels - look for: gender patterns (Male/Female), life roles (Mothers/Fathers, Students/Professionals), experience (Beginner/Expert), interests, occupation types, etc. Can have MULTIPLE identifier dimensions. Use actual comment evidence. Calculate REAL counts and percentages.
+- viralContentIdeas: Extract what people are ACTUALLY talking about and wanting. Use their EXACT words - do not AI-polish the language. Each idea must have quantitative proof (comment counts, upvotes, reply counts). Rate demand 1-10.
+- topOpenQuestions: Find real questions people asked. Each is a content opportunity. Note engagement (replies, score) as demand signal.
+- commentClassification: Classify EVERY comment. "substantive" = adds value. "motivational" = generic encouragement. "promotional" = self-promotion. "conversational" = general chat. Calculate REAL percentages.`;
+
+  } else if (isMarketer) {
+    personaContext = `You are analyzing this for a MARKETER. Focus on customer language, pain points, competitive intelligence, and marketing insights.
+The goal is actionable marketing intelligence - what resonates, what frustrates, what they want.`;
+
+    personaJsonSchema = `,
+
+  "marketingMix": {
+    "product": {
+      "whatPeopleWant": ["Specific product features or qualities mentioned"],
+      "complaints": ["What's wrong with current products/services"],
+      "wishList": ["What they wish existed"],
+      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+    },
+    "price": {
+      "sensitivity": "high | medium | low",
+      "expectations": ["What price points or value expectations are mentioned"],
+      "quotes": [{"text": "Exact quote about price/cost", "score": 0, "author": "@user"}]
+    },
+    "place": {
+      "channels": ["Where people discover/buy products in this space"],
+      "quotes": [{"text": "Exact quote about channels", "score": 0, "author": "@user"}]
+    },
+    "promotion": {
+      "whatResonates": ["Messaging and angles that get positive engagement"],
+      "whatBackfires": ["Marketing approaches people react negatively to"],
+      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+    },
+    "summary": "Brief 4Ps overview for marketers"
+  },
+
+  "painPoints": {
+    "points": [
+      {
+        "pain": "Specific pain point in the user's language",
+        "severity": "high | medium | low",
+        "frequency": 0,
+        "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}],
+        "marketingAngle": "How to leverage this in marketing"
+      }
+    ],
+    "competitorWeaknesses": [
+      {
+        "competitor": "Product or brand mentioned",
+        "weakness": "What people complain about",
+        "frequency": 0,
+        "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+      }
+    ],
+    "summary": "Overview of pain landscape"
+  },
+
+  "keyValueProposition": {
+    "primaryValue": "What users value MOST based on comment evidence",
+    "supportingValues": ["Other important value drivers"],
+    "userLanguage": ["Exact phrases users use to describe what they want - their words, not AI words"],
+    "differentiators": ["What makes certain solutions stand out in comments"],
+    "quotes": [{"text": "Exact quote showing value priority", "score": 0, "author": "@user"}]
+  },
+
+  "audienceSegmentation": {
+    "demographicPatterns": [
+      {
+        "identifier": "e.g., Budget-conscious buyers, Power users, First-time buyers, etc.",
+        "description": "Who these people are",
+        "estimatedCount": 0,
+        "percentage": 0,
+        "evidence": ["Quote or pattern"],
+        "characteristics": ["Key trait"]
+      }
+    ],
+    "summary": "Overview of who is in this market conversation"
+  }`;
+
+    personaRules = `
+MARKETER RULES:
+- marketingMix: Analyze the 4Ps from comment data. Product: what features/qualities matter. Price: sensitivity and expectations. Place: where people buy/discover. Promotion: what messaging works. Use REAL quotes as evidence.
+- painPoints: Identify specific pain points with severity and frequency. Find competitor mentions and their weaknesses. Each pain point is a marketing opportunity.
+- keyValueProposition: Distill what matters most to users. Use THEIR exact language for the value prop - do not AI-polish it. Find differentiators mentioned in comments.
+- audienceSegmentation: Identify buyer segments from comment patterns. Look for purchase intent signals, budget indicators, use cases, experience levels.`;
+
+  }
+
+  const prompt = `You are an expert analyst performing a comprehensive analysis of a ${isYouTube ? 'YouTube video' : 'Reddit post'} and its comments.
+${personaContext ? '\n' + personaContext + '\n' : ''}
 USER CONTEXT:
 - Role: ${role || 'Researcher'}
 - Goal: "${goal || 'Extract actionable insights'}"
+IMPORTANT: The user's research goal/query should DRIVE the analysis. If the goal is specific (e.g., "budget hiking shoes"), focus the analysis tightly on that topic. Do not generate generic advice unrelated to the query.
 
 CONTENT TO ANALYZE:
 - Source: ${source.toUpperCase()} - ${sourceLabel}
@@ -87,6 +258,7 @@ ${formattedComments}
 
 ANALYSIS INSTRUCTIONS:
 Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, no backticks).
+Focus the analysis on the user's SPECIFIC goal. If they asked about "budget hiking shoes", the insights should be about budget hiking shoes - not generic hiking advice.
 
 {${hasTranscript ? `
   "videoSummary": {
@@ -98,8 +270,8 @@ Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, n
     ],
     "concepts": [
       {
-        "term": "New concept or term introduced (e.g., 'Decency Quotient')",
-        "definition": "Brief explanation of what this concept means as explained in the video"
+        "term": "New concept or term introduced",
+        "definition": "Brief explanation"
       }
     ],
     "summary": "2-3 sentence summary of what the video covers and its main message"
@@ -107,15 +279,12 @@ Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, n
 ` : (hasDescription ? `
   "videoOverview": {
     "contentType": "educational | entertainment | music | tutorial | review | podcast | news | other",
-    "topicsFromDescription": [
-      "Topic or section mentioned in the description",
-      "Another topic if the description outlines multiple sections"
-    ],
-    "summary": "Brief summary of what the video appears to cover based on title and description. Be clear this is inferred, not from watching.",
+    "topicsFromDescription": ["Topic mentioned in description"],
+    "summary": "Brief summary inferred from title and description.",
     "note": "Based on description only - transcript unavailable"
   },
 ` : '')}
-  "executiveSummary": "2-4 sentence overview answering the user's goal directly. What's the bottom line?",
+  "executiveSummary": "2-4 sentence overview answering the user's goal directly. Be specific - if they asked about shoes, talk about shoes. What's the bottom line?",
 
   "goalAnalysis": {
     "hypothesis": "Infer the main hypothesis/question from their goal",
@@ -177,7 +346,7 @@ Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, n
   "actionableInsights": [
     {
       "title": "Short title (3-6 words)",
-      "description": "1-2 sentence actionable insight",
+      "description": "1-2 sentence actionable insight directly related to the user's query",
       "relevanceToGoal": "How this helps achieve the user's goal",
       "priority": "high | medium | low"
     }
@@ -212,105 +381,36 @@ Perform a thorough, intelligent analysis. Return ONLY valid JSON (no markdown, n
     },
     "discussionDepth": "surface | moderate | deep",
     "engagementQuality": "high | medium | low"
-  }${isContentCreator || isYouTube ? `,
-
-  "audienceSegmentation": {
-    "segments": [
-      {
-        "level": "beginner | intermediate | advanced | unknown",
-        "description": "Who these people are (e.g., 'New creators with under 100 subscribers')",
-        "estimatedCount": 0,
-        "percentage": 0,
-        "characteristics": ["Key trait or behavior"],
-        "exampleAuthors": ["@author1"]
-      }
-    ],
-    "summary": "1-2 sentence overview of who the audience actually is"
-  },
-
-  "unansweredQuestions": {
-    "questions": [
-      {
-        "question": "The actual question being asked",
-        "author": "@username",
-        "score": 0,
-        "contentOpportunity": "Why this is a video/content idea worth pursuing"
-      }
-    ],
-    "summary": "Overview of what the audience is asking for but not getting answers to"
-  },
-
-  "commentClassification": {
-    "breakdown": {
-      "substantive": { "count": 0, "percentage": 0 },
-      "motivational": { "count": 0, "percentage": 0 },
-      "promotional": { "count": 0, "percentage": 0 },
-      "conversational": { "count": 0, "percentage": 0 }
-    },
-    "topSubstantiveComments": [
-      {
-        "author": "@username",
-        "snippet": "First 150 chars of the comment",
-        "score": 0,
-        "whyValuable": "Why this comment matters for the creator"
-      }
-    ],
-    "summary": "What percentage of engagement is actually useful vs generic motivation"
-  },
-
-  "spamAndPromotions": {
-    "flaggedComments": [
-      {
-        "author": "@username",
-        "type": "competing_tool | self_promotion | spam",
-        "snippet": "The relevant part of the comment",
-        "severity": "high | medium | low",
-        "reason": "Why this was flagged"
-      }
-    ],
-    "summary": "Overview of spam/promotion activity in comments",
-    "spamPercentage": 0
-  }` : ''}
+  }${personaJsonSchema}
 }
 
 ANALYSIS RULES:${hasTranscript ? `
 0. videoSummary (ONLY for YouTube with transcript):
-   - keyPoints: 3-6 selective bullet points covering the MOST important information (not extensive, just key takeaways)
-   - concepts: If the video introduces NEW terms/concepts (like "Decency Quotient", "FIRE movement", etc.), explain them briefly. Skip if no new concepts.
-   - contentType: Classify the video accurately (educational, music, tutorial, etc.)
-   - For MUSIC videos: Instead of key points, describe the song's theme, mood, and message.
-   - For TUTORIALS: Focus on the main steps or techniques taught.
-   - For EDUCATIONAL: Extract the core learnings and any frameworks/concepts introduced.` : (hasDescription ? `
-0. videoOverview (for YouTube WITHOUT transcript, using description):
-   - This video has NO transcript available, but has a description we can analyze.
-   - topicsFromDescription: Extract 2-5 topics/sections mentioned in the description (especially if it has timestamps).
-   - summary: Summarize what the video APPEARS to cover based on title + description. Be clear this is inferred.
-   - Do NOT copy-paste the description - synthesize and summarize at a high level.
-   - Always include the note field acknowledging this is from description only.` : '')}
-1. executiveSummary: DIRECTLY answer the user's goal in 2-4 sentences. Be specific and actionable.
-2. goalAnalysis: Treat their goal as a hypothesis to validate. Calculate actual percentages from the data.
-3. topicGroups: Identify 3-7 distinct topics discussed. Group related comments together.
-4. keyQuotes: Pick 4-8 most impactful REAL quotes from the comments. Include author attribution.
-5. actionableInsights: 3-5 insights that DIRECTLY help the ${role || 'user'} achieve their goal: "${goal || 'insights'}".
-6. patterns: 2-4 recurring patterns you notice across comments.
-7. All quotes must be EXACT text from comments provided, not paraphrased.
-8. If data is limited (< 15 comments), acknowledge this and suggest follow-up research.${isContentCreator || isYouTube ? `
-9. audienceSegmentation: Infer experience level from context clues — subscriber counts mentioned, language sophistication, questions asked, whether they say "I just started" vs "as a 7-year creator". Create 2-4 meaningful segments. Calculate REAL counts and percentages from the comments.
-10. unansweredQuestions: Extract ACTUAL questions from comments (not rhetorical). Each question = a content idea. If multiple people ask similar things, note that as stronger demand signal. Only include genuine questions the creator hasn't answered.
-11. commentClassification: Classify EVERY comment. "substantive" = adds value, asks real questions, shares specific experience, provides tips. "motivational" = generic encouragement ("keep going!", "you got this!", "don't give up"). "promotional" = self-promoting their own channel/product or pushing a service. "conversational" = general reactions, praise, thanks without specifics. Calculate REAL percentages. List top 3-5 substantive comments.
-12. spamAndPromotions: Flag comments mentioning competing tools/services by name, including links to own content/channel, or appearing bot-generated/templated. Be conservative — only flag clear cases. If no spam found, return empty flaggedComments array and 0 spamPercentage.
-13. Return ONLY the JSON object, nothing else.` : `
-9. Return ONLY the JSON object, nothing else.`}`;
+   - keyPoints: 3-6 key takeaways
+   - concepts: New terms/concepts introduced. Skip if none.
+   - contentType: Classify accurately.` : (hasDescription ? `
+0. videoOverview (for YouTube WITHOUT transcript):
+   - topicsFromDescription: 2-5 topics from description.
+   - summary: Inferred from title + description.` : '')}
+1. executiveSummary: DIRECTLY answer the user's goal in 2-4 sentences. Be specific to their query.
+2. goalAnalysis: Treat their goal as a hypothesis to validate. Calculate actual percentages.
+3. topicGroups: 3-7 distinct topics. Focus on topics RELEVANT to the user's query first.
+4. keyQuotes: 4-8 most impactful REAL quotes. Must be EXACT text from comments, not paraphrased.
+5. actionableInsights: 3-5 insights that DIRECTLY help achieve: "${goal || 'insights'}". Stay focused on the query topic.
+6. patterns: 2-4 recurring patterns across comments.
+7. All quotes must be EXACT text from comments provided.
+8. If data is limited (< 15 comments), acknowledge this.${personaRules}
+LAST. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
 }
 
 /**
  * Generate AI insights from extracted Reddit/YouTube data
- * Returns structured JSON analysis (like Analyze User)
+ * Returns structured JSON analysis
  * @param {object} contentData - Extracted post/video data
- * @param {string} role - User's role (e.g. Product Manager, Marketer)
- * @param {string} goal - User's goal (e.g. find pain points, validate idea)
+ * @param {string} role - User's role (e.g. Content Creator, Marketer)
+ * @param {string} goal - User's goal
  * @returns {Promise<object>} AI analysis result with structured data
  */
 async function generateAIInsights(contentData, role = null, goal = null) {
@@ -347,7 +447,7 @@ async function generateAIInsights(contentData, role = null, goal = null) {
       throw new Error(errorMsg);
     }
 
-    // Parse JSON response (like Analyze User)
+    // Parse JSON response
     let structuredAnalysis = null;
     try {
       let cleaned = aiResult.analysis.trim();
@@ -374,7 +474,6 @@ async function generateAIInsights(contentData, role = null, goal = null) {
     } catch (parseError) {
       console.log('Failed to parse JSON, will use markdown fallback:', parseError.message);
       console.log('Raw response preview:', aiResult.analysis.substring(0, 300));
-      // Keep structuredAnalysis as null, frontend will use markdown fallback
     }
 
     // Return analysis with both structured and raw fallback
@@ -384,8 +483,7 @@ async function generateAIInsights(contentData, role = null, goal = null) {
       model: aiResult.model,
       source: contentData.source || 'reddit',
       structured: structuredAnalysis,
-      aiAnalysis: aiResult.analysis, // Raw fallback
-      // Legacy fields for backward compatibility
+      aiAnalysis: aiResult.analysis,
       totalInsights: 1,
       insights: [{
         type: 'ai_comprehensive',
@@ -421,8 +519,8 @@ function formatCombinedAnalysisPrompt(postsData, role = null, goal = null) {
   const hasReddit = sources.reddit.length > 0;
   const hasYouTube = sources.youtube.length > 0;
   const isMixedSource = hasReddit && hasYouTube;
-  const isContentCreator = (role || '').toLowerCase().includes('content') ||
-                           (goal || '').toLowerCase().includes('content');
+
+  const { isContentCreator, isMarketer } = detectPersona(role, goal);
 
   // Build source attribution strings
   const subreddits = [...new Set(sources.reddit.map(p => p.post?.subreddit).filter(Boolean))];
@@ -441,18 +539,18 @@ function formatCombinedAnalysisPrompt(postsData, role = null, goal = null) {
   const postsContent = postsData.map((data, idx) => {
     const post = data.post;
     const comments = data.valuableComments || [];
-    const isYouTube = data.source === 'youtube';
+    const isYT = data.source === 'youtube';
 
-    if (isYouTube) {
-      const viewStats = post.viewCount ? ` • ${(post.viewCount / 1000).toFixed(0)}K views` : '';
+    if (isYT) {
+      const viewStats = post.viewCount ? ` * ${(post.viewCount / 1000).toFixed(0)}K views` : '';
       return `
 VIDEO ${idx + 1}: "${post.title}"
-YouTube: ${post.channelTitle}${viewStats} • ${post.score} likes • ${comments.length} comments
+YouTube: ${post.channelTitle}${viewStats} * ${post.score} likes * ${comments.length} comments
 ${comments.map(c => `[YouTube: ${post.channelTitle}, ${c.score} likes] ${c.body.substring(0, 300)}`).join('\n')}`;
     } else {
       return `
 POST ${idx + 1}: "${post.title}"
-r/${post.subreddit} • ${post.score} upvotes • ${comments.length} comments
+r/${post.subreddit} * ${post.score} upvotes * ${comments.length} comments
 ${comments.map(c => `[r/${post.subreddit}, ${c.score} pts] ${c.body.substring(0, 300)}`).join('\n')}`;
     }
   }).join('\n---\n');
@@ -461,8 +559,196 @@ ${comments.map(c => `[r/${post.subreddit}, ${c.score} pts] ${c.body.substring(0,
   const contentTypeLabel = isMixedSource ? 'posts/videos' : (hasYouTube ? 'videos' : 'posts');
   const platformLabel = isMixedSource ? 'Reddit and YouTube comments' : (hasYouTube ? 'YouTube comments' : 'Reddit comments');
 
+  // Build persona-specific context and schema
+  let personaContext = '';
+  let personaJsonSchema = '';
+  let personaRules = '';
+
+  if (isContentCreator) {
+    personaContext = `You are analyzing this for a CONTENT CREATOR. Focus on what content can be made from these comments.
+CRITICAL: Use the audience's actual language - do NOT AI-polish their words. Raw authentic voice matters.
+Find viral content potential, audience desires, content gaps, and audience segments.`;
+
+    personaJsonSchema = `,
+  "contentGaps": {
+    "summary": "Brief overview of content opportunities",
+    "gaps": [
+      {
+        "topic": "Topic with a content gap",
+        "currentCoverage": "How well covered (or not)",
+        "opportunity": "What content could fill this gap",
+        "platform": "reddit or youtube or both",
+        "demandSignal": "Evidence of demand (comment counts, upvotes)",
+        "priority": "high or medium or low"
+      }
+    ],
+    "underservedQuestions": ["Question from comments lacking good answers"],
+    "suggestedContentFormats": [
+      {
+        "format": "e.g., Tutorial video, TikTok, Blog post",
+        "reason": "Why this format works"
+      }
+    ]
+  },
+
+  "audienceSegmentation": {
+    "demographicPatterns": [
+      {
+        "identifier": "e.g., Beginners, Mothers, Business Owners, etc.",
+        "description": "Who these people are",
+        "estimatedCount": 0,
+        "percentage": 0,
+        "evidence": ["Quote or pattern identifying this group"],
+        "characteristics": ["Key trait"]
+      }
+    ],
+    "summary": "Overview of who is commenting - use any discoverable pattern"
+  },
+
+  "viralContentIdeas": {
+    "ideas": [
+      {
+        "idea": "Content idea in audience's own words - NOT AI polished",
+        "whyViral": "Why this has viral potential with quantitative evidence",
+        "audienceQuotes": ["Exact quote showing demand"],
+        "suggestedFormats": ["TikTok", "YouTube", "LinkedIn", "Instagram", "Blog", "X/Twitter"],
+        "demandScore": 0
+      }
+    ],
+    "summary": "What the audience wants - in their language"
+  },
+
+  "topOpenQuestions": {
+    "questions": [
+      {
+        "question": "Exact question from comments",
+        "author": "@username",
+        "score": 0,
+        "engagementSignal": "X replies, Y upvotes",
+        "contentOpportunity": "How a creator can use this"
+      }
+    ],
+    "summary": "Questions the audience wants answered"
+  },
+
+  "commentClassification": {
+    "breakdown": {
+      "substantive": { "count": 0, "percentage": 0 },
+      "motivational": { "count": 0, "percentage": 0 },
+      "promotional": { "count": 0, "percentage": 0 },
+      "conversational": { "count": 0, "percentage": 0 }
+    },
+    "topSubstantiveComments": [
+      {
+        "author": "@username",
+        "snippet": "First 150 chars",
+        "score": 0,
+        "whyValuable": "Why this matters"
+      }
+    ],
+    "summary": "Engagement quality breakdown"
+  },
+
+  "spamAndPromotions": {
+    "flaggedComments": [],
+    "summary": "Overview of spam activity",
+    "spamPercentage": 0
+  }`;
+
+    personaRules = `
+CONTENT CREATOR RULES:
+- contentGaps: 2-5 content opportunities. Focus on unanswered needs with high engagement.
+- audienceSegmentation: Discover ANY identifiable patterns - gender, life roles, experience, interests, occupation, etc. Multiple dimensions OK. Use REAL counts.
+- viralContentIdeas: Use audience's EXACT words. Each must have quantitative proof. Rate demand 1-10.
+- topOpenQuestions: Real questions = content opportunities. Note engagement as demand signal.
+- commentClassification: Classify EVERY comment. Calculate REAL percentages.
+- spamAndPromotions: Only flag clear cases. Empty array if none.`;
+
+  } else if (isMarketer) {
+    personaContext = `You are analyzing this for a MARKETER. Focus on customer language, pain points, competitive intelligence, and marketing insights.
+Find actionable marketing intelligence - what resonates, what frustrates, what they want.`;
+
+    personaJsonSchema = `,
+  "marketingMix": {
+    "product": {
+      "whatPeopleWant": ["Features/qualities mentioned"],
+      "complaints": ["What's wrong with current offerings"],
+      "wishList": ["What they wish existed"],
+      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+    },
+    "price": {
+      "sensitivity": "high | medium | low",
+      "expectations": ["Price points or value expectations"],
+      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+    },
+    "place": {
+      "channels": ["Where people discover/buy"],
+      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+    },
+    "promotion": {
+      "whatResonates": ["Messaging that gets positive engagement"],
+      "whatBackfires": ["Approaches people react negatively to"],
+      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+    },
+    "summary": "Brief 4Ps overview"
+  },
+
+  "painPoints": {
+    "points": [
+      {
+        "pain": "Pain point in user's language",
+        "severity": "high | medium | low",
+        "frequency": 0,
+        "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}],
+        "marketingAngle": "How to leverage in marketing"
+      }
+    ],
+    "competitorWeaknesses": [
+      {
+        "competitor": "Product/brand mentioned",
+        "weakness": "What people complain about",
+        "frequency": 0,
+        "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+      }
+    ],
+    "summary": "Pain landscape overview"
+  },
+
+  "keyValueProposition": {
+    "primaryValue": "What users value MOST",
+    "supportingValues": ["Other value drivers"],
+    "userLanguage": ["Exact phrases users use - their words, not AI words"],
+    "differentiators": ["What makes certain solutions stand out"],
+    "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
+  },
+
+  "audienceSegmentation": {
+    "demographicPatterns": [
+      {
+        "identifier": "e.g., Budget-conscious, Power users, etc.",
+        "description": "Who these people are",
+        "estimatedCount": 0,
+        "percentage": 0,
+        "evidence": ["Quote or pattern"],
+        "characteristics": ["Key trait"]
+      }
+    ],
+    "summary": "Who is in this market conversation"
+  }`;
+
+    personaRules = `
+MARKETER RULES:
+- marketingMix: Analyze 4Ps from comments. Use REAL quotes as evidence for each P.
+- painPoints: Identify pains with severity and frequency. Find competitor mentions and weaknesses. Each pain = marketing opportunity.
+- keyValueProposition: Distill what matters most. Use THEIR language for value prop - not AI-polished.
+- audienceSegmentation: Identify buyer segments. Look for purchase intent, budget indicators, use cases, experience levels.`;
+
+  }
+
   const prompt = `You are analyzing ${platformLabel} for a ${role || 'researcher'}.
+${personaContext ? '\n' + personaContext + '\n' : ''}
 Their GOAL: "${goal || 'Extract insights'}"
+IMPORTANT: Focus the analysis tightly on the user's specific goal/query. Don't generate generic advice unrelated to their research topic.
 
 DATA: ${postCount} ${contentTypeLabel}, ${totalComments} comments from: ${sourceDescription}
 
@@ -473,7 +759,7 @@ ${postsContent}
 Return ONLY valid JSON (no markdown, no backticks). Structure:
 
 {
-  "executiveSummary": "2-3 sentence summary tailored to their goal as a ${role || 'researcher'}. What should they know?",
+  "executiveSummary": "2-3 sentence summary tailored to their goal as a ${role || 'researcher'}. Be SPECIFIC to what they asked about.",
   "topQuotes": [
     {
       "type": "INSIGHT or WARNING or TIP or COMPLAINT",
@@ -520,167 +806,63 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
       "Pattern 1: observation about the data",
       "Pattern 2: another trend noticed"
     ],
-    "engagementCorrelation": "What types of comments get more upvotes in this dataset"
+    "engagementCorrelation": "What types of comments get more upvotes"
   },
   "evidenceAnalysis": {
-    "primaryClaim": "The main hypothesis or claim that emerges from this data (inferred from the user's goal)",
+    "primaryClaim": "Main hypothesis inferred from the user's goal",
     "verdict": "Strongly Supported or Supported or Mixed Evidence or Weakly Supported or Not Supported",
     "evidenceScore": 73,
-    "totalAnalyzed": 300,
-    "relevantCount": 190,
-    "notRelevantCount": 110,
+    "totalAnalyzed": ${totalComments},
+    "relevantCount": 0,
+    "notRelevantCount": 0,
     "supporting": {
-      "count": 156,
-      "percentage": 82,
-      "keyPoints": ["Point 1 from data", "Point 2 from data"],
-      "quotes": [
-        {"text": "Exact quote supporting the claim (max 150 chars)", "score": 234, "source": "r/SubredditName or YouTube: ChannelName"}
-      ]
+      "count": 0,
+      "percentage": 0,
+      "keyPoints": ["Point from data"],
+      "quotes": [{"text": "Exact quote (max 150 chars)", "score": 0, "source": "r/Sub or YouTube: Channel"}]
     },
     "counter": {
-      "count": 34,
-      "percentage": 18,
-      "keyPoints": ["Counter point 1", "Counter point 2"],
-      "quotes": [
-        {"text": "Exact quote contradicting the claim (max 150 chars)", "score": 45, "source": "r/SubredditName or YouTube: ChannelName"}
-      ]
+      "count": 0,
+      "percentage": 0,
+      "keyPoints": ["Counter point"],
+      "quotes": [{"text": "Exact quote (max 150 chars)", "score": 0, "source": "r/Sub or YouTube: Channel"}]
     },
-    "nuances": ["Important nuance or caveat about this evidence"],
+    "nuances": ["Important caveat"],
     "confidenceLevel": "high or medium or low",
-    "confidenceReason": "Why this confidence level (data volume, consistency, etc.)"
+    "confidenceReason": "Why this confidence level"
   }${isMixedSource ? `,
   "crossPlatformComparison": {
-    "summaryDifference": "1-2 sentence summary of how Reddit and YouTube discussions differ on this topic",
+    "summaryDifference": "How Reddit and YouTube discussions differ",
     "redditPerspective": {
-      "dominantThemes": ["Theme unique to or stronger on Reddit"],
-      "tone": "Overall tone on Reddit (e.g., technical, skeptical, supportive)",
-      "uniqueInsight": "Something found on Reddit but not YouTube"
+      "dominantThemes": ["Theme stronger on Reddit"],
+      "tone": "Overall Reddit tone",
+      "uniqueInsight": "Something found only on Reddit"
     },
     "youtubePerspective": {
-      "dominantThemes": ["Theme unique to or stronger on YouTube"],
-      "tone": "Overall tone on YouTube (e.g., enthusiastic, beginner-friendly)",
-      "uniqueInsight": "Something found on YouTube but not Reddit"
+      "dominantThemes": ["Theme stronger on YouTube"],
+      "tone": "Overall YouTube tone",
+      "uniqueInsight": "Something found only on YouTube"
     },
-    "agreementAreas": ["Topics where both platforms agree"],
-    "disagreementAreas": ["Topics where platforms disagree or show different perspectives"]
-  }` : ''}${isContentCreator ? `,
-  "contentGaps": {
-    "summary": "Brief overview of content opportunities identified from the data",
-    "gaps": [
-      {
-        "topic": "Topic with a content gap",
-        "currentCoverage": "How well this topic is covered (or not) on existing content",
-        "opportunity": "What content could fill this gap and why it would resonate",
-        "platform": "reddit or youtube or both - where the gap/demand exists",
-        "demandSignal": "Evidence of demand (e.g., questions asked, upvotes on unanswered threads, comment requests)",
-        "priority": "high or medium or low"
-      }
-    ],
-    "underservedQuestions": [
-      "Specific question from comments that lacks good answers or content addressing it"
-    ],
-    "suggestedContentFormats": [
-      {
-        "format": "e.g., Tutorial video, Comparison blog post, FAQ page, Deep-dive analysis",
-        "reason": "Why this format would work for the identified gaps"
-      }
-    ]
-  }` : ''}${isContentCreator || hasYouTube ? `,
-
-  "audienceSegmentation": {
-    "segments": [
-      {
-        "level": "beginner | intermediate | advanced | unknown",
-        "description": "Who these people are",
-        "estimatedCount": 0,
-        "percentage": 0,
-        "characteristics": ["Key trait or behavior"],
-        "exampleAuthors": ["@author1"]
-      }
-    ],
-    "summary": "1-2 sentence overview of who the audience actually is"
-  },
-
-  "unansweredQuestions": {
-    "questions": [
-      {
-        "question": "The actual question being asked",
-        "author": "@username",
-        "score": 0,
-        "contentOpportunity": "Why this is a video/content idea worth pursuing"
-      }
-    ],
-    "summary": "Overview of what the audience is asking for but not getting answers to"
-  },
-
-  "commentClassification": {
-    "breakdown": {
-      "substantive": { "count": 0, "percentage": 0 },
-      "motivational": { "count": 0, "percentage": 0 },
-      "promotional": { "count": 0, "percentage": 0 },
-      "conversational": { "count": 0, "percentage": 0 }
-    },
-    "topSubstantiveComments": [
-      {
-        "author": "@username",
-        "snippet": "First 150 chars of the comment",
-        "score": 0,
-        "whyValuable": "Why this comment matters"
-      }
-    ],
-    "summary": "What percentage of engagement is actually useful vs generic"
-  },
-
-  "spamAndPromotions": {
-    "flaggedComments": [
-      {
-        "author": "@username",
-        "type": "competing_tool | self_promotion | spam",
-        "snippet": "The relevant part of the comment",
-        "severity": "high | medium | low",
-        "reason": "Why this was flagged"
-      }
-    ],
-    "summary": "Overview of spam/promotion activity in comments",
-    "spamPercentage": 0
-  }` : ''}
+    "agreementAreas": ["Where both agree"],
+    "disagreementAreas": ["Where they differ"]
+  }` : ''}${personaJsonSchema}
 }
 
-ANALYSIS APPROACH (think through these phases before producing output):
-1. SCAN: Read through ALL comments to identify recurring themes and patterns
-2. GROUP: Mentally cluster comments by topic/sentiment - note which themes appear across multiple posts${isMixedSource ? '\n2b. COMPARE: Note differences between Reddit and YouTube perspectives on the same topics' : ''}
-3. DEPTH: For each major theme, identify the nuances, conditions, and contradictions
-4. OUTLIERS: Find the non-obvious insights that most people would miss
-5. SYNTHESIZE: Connect the dots across themes to form your final analysis
+ANALYSIS APPROACH:
+1. SCAN: Read ALL comments, identify themes and patterns
+2. GROUP: Cluster by topic/sentiment${isMixedSource ? '\n2b. COMPARE: Note Reddit vs YouTube differences' : ''}
+3. DEPTH: Identify nuances and contradictions per theme
+4. OUTLIERS: Find non-obvious insights
+5. SYNTHESIZE: Connect dots across themes
 
 RULES:
-1. topQuotes: Pick 4-6 most impactful REAL quotes from the comments. Include source (r/SubredditName or YouTube: ChannelName).
-2. keyInsights: 3-5 insights. Title should be catchy. Focus on what matters for their GOAL.
-3. forYourGoal: 3-5 bullets that DIRECTLY answer what the ${role || 'user'} asked for: "${goal || 'insights'}"
-4. quantitativeInsights: Analyze the data quantitatively:
-   - topicsDiscussed: 4-7 distinct topics/themes with actual mention counts from the data
-   - sentimentBreakdown: Estimate % breakdown based on comment tone
-   - commonPhrases: 3-5 frequently mentioned terms/phrases with counts
-   - dataPatterns: 2-4 patterns you notice in the data
-   - engagementCorrelation: What content gets upvoted
-5. evidenceAnalysis: Treat the user's goal as a hypothesis to validate:
-   - primaryClaim: Infer the main claim/hypothesis from their goal (e.g., goal "find if users want dark mode" → claim "Users want dark mode")
-   - totalAnalyzed: Total number of comments you analyzed
-   - relevantCount: How many comments are relevant to this hypothesis (speak to it directly or indirectly)
-   - notRelevantCount: How many comments are not relevant (about other topics)
-   - supporting.count and counter.count must add up to relevantCount
-   - evidenceScore: percentage of RELEVANT comments supporting the claim (supporting.count / relevantCount * 100)
-   - Include 2-4 supporting quotes and 1-2 counter quotes with scores
-   - verdict: Based on evidence score (>75% = Strongly Supported, 60-75% = Supported, 40-60% = Mixed Evidence, 25-40% = Weakly Supported, <25% = Not Supported)
-   - confidenceLevel: high (50+ relevant comments), medium (20-50), low (<20)${isMixedSource ? `
-6. crossPlatformComparison: Compare how Reddit and YouTube discuss this topic differently. Reddit audiences tend to be more technical/detailed while YouTube commenters are often more casual/broad. Look for genuine differences in perspectives, not just surface-level observations.` : ''}${isContentCreator ? `
-${isMixedSource ? '7' : '6'}. contentGaps: Identify 2-5 content opportunities where audience questions/needs aren't being addressed. Focus on topics with high engagement but few good answers or tutorials. Each gap should have a clear, actionable opportunity the content creator can pursue. Look for: unanswered questions, topics with lots of debate but no definitive guide, requests in comments for specific content.` : ''}${isContentCreator || hasYouTube ? `
-${isMixedSource && isContentCreator ? '8' : isMixedSource || isContentCreator ? '7' : '6'}. audienceSegmentation: Infer experience level from context clues — subscriber counts mentioned, language sophistication, questions asked, "I just started" vs established creators. Create 2-4 meaningful segments with REAL counts.
-${isMixedSource && isContentCreator ? '9' : isMixedSource || isContentCreator ? '8' : '7'}. unansweredQuestions: Extract ACTUAL questions from comments. Each = a content idea. Only genuine questions, not rhetorical.
-${isMixedSource && isContentCreator ? '10' : isMixedSource || isContentCreator ? '9' : '8'}. commentClassification: Classify EVERY comment as substantive/motivational/promotional/conversational. Calculate REAL percentages. List top 3-5 substantive comments.
-${isMixedSource && isContentCreator ? '11' : isMixedSource || isContentCreator ? '10' : '9'}. spamAndPromotions: Flag comments mentioning competing tools/services, self-promoting, or bot-like. Be conservative — only clear cases. Empty array if no spam found.` : ''}
-${(() => { let n = 6; if (isMixedSource) n++; if (isContentCreator) n++; if (isContentCreator || hasYouTube) n += 4; return n; })()}. Keep it concise. No fluff.
-${(() => { let n = 7; if (isMixedSource) n++; if (isContentCreator) n++; if (isContentCreator || hasYouTube) n += 4; return n; })()}. Return ONLY the JSON object, nothing else.`;
+1. topQuotes: 4-6 most impactful REAL quotes with source attribution.
+2. keyInsights: 3-5 insights focused on their GOAL. Stay on topic.
+3. forYourGoal: 3-5 bullets DIRECTLY answering: "${goal || 'insights'}"
+4. quantitativeInsights: Real counts and percentages from the data.
+5. evidenceAnalysis: Validate goal as hypothesis. supporting + counter = relevantCount.${isMixedSource ? `
+6. crossPlatformComparison: Compare Reddit vs YouTube perspectives genuinely.` : ''}${personaRules}
+LAST. Keep it concise. No fluff. Return ONLY the JSON object.`;
 
   return prompt;
 }
@@ -714,10 +896,8 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
     // Try to parse JSON response
     let structuredAnalysis = null;
     try {
-      // Clean up response - remove any markdown code blocks if present
       let cleanedResponse = aiResult.analysis.trim();
 
-      // Remove markdown code block wrappers
       if (cleanedResponse.startsWith('```json')) {
         cleanedResponse = cleanedResponse.slice(7);
       } else if (cleanedResponse.startsWith('```')) {
@@ -728,7 +908,6 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
       }
       cleanedResponse = cleanedResponse.trim();
 
-      // Try to extract JSON if there's extra text around it
       const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         cleanedResponse = jsonMatch[0];
@@ -739,7 +918,6 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
     } catch (parseError) {
       console.log('Failed to parse JSON, falling back to markdown:', parseError.message);
       console.log('Raw response preview:', aiResult.analysis.substring(0, 200));
-      // Keep structuredAnalysis as null, frontend will use markdown fallback
     }
 
     // Extract sources for metadata
@@ -753,14 +931,14 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
       model: aiResult.model,
       postCount: postsData.length,
       totalComments: postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0),
-      subreddits: subreddits, // Reddit subreddits
-      channels: channels, // YouTube channels
+      subreddits: subreddits,
+      channels: channels,
       sources: {
         reddit: redditPosts.length,
         youtube: youtubePosts.length
       },
       structured: structuredAnalysis,
-      aiAnalysis: aiResult.analysis // Keep raw response as fallback
+      aiAnalysis: aiResult.analysis
     };
 
   } catch (error) {
@@ -853,7 +1031,7 @@ function buildContentPrompt(type, typeLabel, focus, tone, length, role, goal, in
     seo_article: `Write an SEO-optimized article with:
 - A compelling headline (H1)
 - Clear section headings (H2s)
-- Real quotes from Reddit users woven naturally into the narrative
+- Real quotes from users woven naturally into the narrative
 - A strong introduction hook
 - Actionable takeaways
 - Natural keyword integration based on the topic`,
@@ -905,18 +1083,35 @@ Keep each tweet under 280 characters.`,
 - Real quotes integrated as evidence
 - Conclusion with takeaways`,
 
-    user_stories: `Generate user stories in the format:
-"As a [type of user], I want [goal] so that [benefit]"
-Base these on the pain points and needs discovered in the insights.
-Create 5-10 distinct user stories.`,
+    tiktok_script: `Create a TikTok/Reels script with:
+- Hook (first 3 seconds - grab attention)
+- Main content (15-60 seconds)
+- Call to action
+- Suggested on-screen text/captions
+- Hashtag suggestions
+Keep it punchy and visual.`,
 
-    feature_brief: `Create a feature brief including:
-- Feature name
-- Problem statement (from user insights)
-- Proposed solution
-- Key requirements
-- Success metrics
-- Real user quotes as evidence`,
+    instagram_post: `Create an Instagram post with:
+- Caption with hook line
+- Main content with value
+- Call to action
+- 15-20 relevant hashtags
+- Carousel slide suggestions (if applicable)`,
+
+    facebook_post: `Create a Facebook post with:
+- Engaging opening line
+- Story-driven content
+- Call to action
+- Formatted for readability
+- Suggested image/visual description`,
+
+    video_script: `Create a full video script with:
+- Cold open / hook (first 15 seconds)
+- Introduction and context
+- Main content sections with talking points
+- B-roll suggestions
+- Conclusion and CTA
+- Estimated duration notes`,
 
     pitch_points: `Create pitch deck talking points:
 - Problem slide content (with real user quotes)
@@ -945,7 +1140,20 @@ Format as bullet points ready to use.`,
 - Supporting quotes for each theme
 - Sentiment analysis
 - Recommendations
-- Areas for further research`
+- Areas for further research`,
+
+    user_stories: `Generate user stories in the format:
+"As a [type of user], I want [goal] so that [benefit]"
+Base these on the pain points and needs discovered in the insights.
+Create 5-10 distinct user stories.`,
+
+    feature_brief: `Create a feature brief including:
+- Feature name
+- Problem statement (from user insights)
+- Proposed solution
+- Key requirements
+- Success metrics
+- Real user quotes as evidence`
   };
 
   const prompt = `You are a ${role || 'content creator'} creating ${typeLabel}.
@@ -977,7 +1185,7 @@ LENGTH: ${lengthGuide[length] || lengthGuide.medium}
 
 IMPORTANT:
 - Weave real user quotes naturally into the content
-- Use authentic language from the Reddit discussions
+- Use authentic language from the discussions
 - Make it feel genuine and relatable, not generic
 - Do NOT use placeholder text like [quote] - use actual quotes provided
 - Output ONLY the final content, no explanations or meta-commentary`;
