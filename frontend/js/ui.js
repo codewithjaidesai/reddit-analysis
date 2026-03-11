@@ -1545,19 +1545,55 @@ function formatStructuredAnalysisForPDF(analysis, source = 'reddit') {
                 <h2>Sentiment Analysis</h2>
                 <p><span class="sentiment-tag sentiment-${(sa.overall || '').toLowerCase()}">${escapeHtml(sa.overall || 'Unknown')}</span>
                 ${sa.emotionalTone ? ` — ${escapeHtml(sa.emotionalTone)}` : ''}</p>
-                ${sa.distribution ? `
+                ${sa.breakdown ? `
                     <p style="font-size: 13px;">
-                        Positive: ${sa.distribution.positive || 0}% •
-                        Neutral: ${sa.distribution.neutral || 0}% •
-                        Negative: ${sa.distribution.negative || 0}%
+                        Positive: ${sa.breakdown.positive || 0}% •
+                        Neutral: ${sa.breakdown.neutral || 0}% •
+                        Negative: ${sa.breakdown.negative || 0}%
                     </p>
+                ` : ''}
+                ${sa.drivers ? `
+                    <div style="margin-top: 8px;">
+                        ${sa.drivers.positive?.length > 0 ? `<p style="font-size: 13px;"><strong style="color: #48bb78;">Positive drivers:</strong> ${sa.drivers.positive.map(d => escapeHtml(d)).join(', ')}</p>` : ''}
+                        ${sa.drivers.negative?.length > 0 ? `<p style="font-size: 13px;"><strong style="color: #e53e3e;">Negative drivers:</strong> ${sa.drivers.negative.map(d => escapeHtml(d)).join(', ')}</p>` : ''}
+                    </div>
                 ` : ''}
             </div>
         `;
     }
 
-    // Audience Segmentation
-    if (analysis.audienceSegmentation && analysis.audienceSegmentation.segments?.length > 0) {
+    // Confidence
+    if (analysis.confidence) {
+        const conf = analysis.confidence;
+        html += `
+            <div class="section">
+                <h2>Data Confidence</h2>
+                <p><strong>${escapeHtml((conf.level || 'unknown').toUpperCase())}</strong> confidence${conf.totalComments ? ` (${conf.totalComments} comments analyzed)` : ''}</p>
+                ${conf.reason ? `<p style="font-size: 13px; color: #718096;">${escapeHtml(conf.reason)}</p>` : ''}
+            </div>
+        `;
+    }
+
+    // Audience Segmentation (new demographic patterns)
+    if (analysis.audienceSegmentation && analysis.audienceSegmentation.demographicPatterns?.length > 0) {
+        const as = analysis.audienceSegmentation;
+        html += `<div class="section"><h2>Audience Segmentation</h2>`;
+        if (as.summary) html += `<p style="font-size: 13px; color: #718096;">${escapeHtml(as.summary)}</p>`;
+        for (const seg of as.demographicPatterns) {
+            html += `
+                <div class="insight-card">
+                    <strong>${escapeHtml(seg.identifier || 'Unknown')}</strong>
+                    <span class="label-hint">${seg.estimatedCount || 0} comments (${seg.percentage || 0}%)</span>
+                    <p style="font-size: 13px; margin: 6px 0;">${escapeHtml(seg.description || '')}</p>
+                    ${seg.characteristics?.length > 0 ? `<ul style="font-size: 12px;">${seg.characteristics.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>` : ''}
+                </div>
+            `;
+        }
+        html += `</div>`;
+    }
+
+    // Audience Segmentation (legacy segments format)
+    if (analysis.audienceSegmentation && analysis.audienceSegmentation.segments?.length > 0 && !analysis.audienceSegmentation.demographicPatterns) {
         const as = analysis.audienceSegmentation;
         html += `<div class="section"><h2>Audience Segmentation</h2>`;
         if (as.summary) html += `<p style="font-size: 13px; color: #718096;">${escapeHtml(as.summary)}</p>`;
@@ -1574,21 +1610,73 @@ function formatStructuredAnalysisForPDF(analysis, source = 'reddit') {
         html += `</div>`;
     }
 
-    // Unanswered Questions
-    if (analysis.unansweredQuestions && analysis.unansweredQuestions.questions?.length > 0) {
-        const uq = analysis.unansweredQuestions;
-        html += `<div class="section"><h2>Unanswered Questions <span class="label-hint">Content Opportunities</span></h2>`;
-        if (uq.summary) html += `<p style="font-size: 13px; color: #718096;">${escapeHtml(uq.summary)}</p>`;
-        for (const q of uq.questions) {
+    // Viral Content Ideas (Content Creator)
+    if (analysis.viralContentIdeas && analysis.viralContentIdeas.ideas?.length > 0) {
+        const vc = analysis.viralContentIdeas;
+        html += `<div class="section"><h2>Viral Content Ideas</h2>`;
+        if (vc.summary) html += `<p style="font-size: 13px; color: #718096;">${escapeHtml(vc.summary)}</p>`;
+        for (const idea of vc.ideas) {
             html += `
-                <div class="quote-box">
-                    <strong>${escapeHtml(q.question)}</strong>
-                    <div class="quote-author">— @${escapeHtml(q.author || 'anonymous')} • ${q.score || 0} ${isYouTube ? 'likes' : 'pts'}</div>
-                    ${q.contentOpportunity ? `<p style="font-size: 12px; color: #48bb78; margin-top: 4px;">💡 ${escapeHtml(q.contentOpportunity)}</p>` : ''}
+                <div class="insight-card">
+                    <strong>${escapeHtml(idea.idea)}</strong>
+                    ${idea.demandScore ? `<span class="label-hint">Demand: ${idea.demandScore}/10</span>` : ''}
+                    ${idea.whyViral ? `<p style="font-size: 13px; margin: 6px 0;">${escapeHtml(idea.whyViral)}</p>` : ''}
+                    ${idea.suggestedFormats?.length > 0 ? `<p style="font-size: 12px; color: #667eea;">Formats: ${idea.suggestedFormats.join(', ')}</p>` : ''}
+                    ${idea.audienceQuotes?.length > 0 ? `<p style="font-size: 12px; color: #a78bfa; font-style: italic;">"${escapeHtml(idea.audienceQuotes[0])}"</p>` : ''}
                 </div>
             `;
         }
         html += `</div>`;
+    }
+
+    // Top Open Questions (Content Creator)
+    if (analysis.topOpenQuestions && analysis.topOpenQuestions.questions?.length > 0) {
+        const toq = analysis.topOpenQuestions;
+        html += `<div class="section"><h2>Top Open Questions</h2>`;
+        if (toq.summary) html += `<p style="font-size: 13px; color: #718096;">${escapeHtml(toq.summary)}</p>`;
+        for (const q of toq.questions) {
+            html += `
+                <div class="quote-box">
+                    <strong>${escapeHtml(q.question)}</strong>
+                    <div class="quote-author">— @${escapeHtml(q.author || 'anonymous')}${q.score ? ` • ${q.score} ${isYouTube ? 'likes' : 'pts'}` : ''}</div>
+                    ${q.contentOpportunity ? `<p style="font-size: 12px; color: #48bb78; margin-top: 4px;">${escapeHtml(q.contentOpportunity)}</p>` : ''}
+                </div>
+            `;
+        }
+        html += `</div>`;
+    }
+
+    // Pain Points (Marketer)
+    if (analysis.painPoints && analysis.painPoints.points?.length > 0) {
+        const pp = analysis.painPoints;
+        html += `<div class="section"><h2>Pain Points</h2>`;
+        if (pp.summary) html += `<p style="font-size: 13px; color: #718096;">${escapeHtml(pp.summary)}</p>`;
+        for (const p of pp.points) {
+            html += `
+                <div class="insight-card" style="border-left-color: ${p.severity === 'high' ? '#e53e3e' : p.severity === 'medium' ? '#d69e2e' : '#48bb78'};">
+                    <strong>${escapeHtml(p.pain)}</strong>
+                    <span class="priority-badge priority-${p.severity || 'medium'}">${(p.severity || 'medium').toUpperCase()}</span>
+                    ${p.frequency ? `<span class="label-hint">${p.frequency}x mentioned</span>` : ''}
+                    ${p.marketingAngle ? `<p style="font-size: 13px; color: #48bb78; margin: 6px 0;">Angle: ${escapeHtml(p.marketingAngle)}</p>` : ''}
+                    ${p.quotes?.length > 0 ? `<p style="font-size: 12px; color: #a78bfa; font-style: italic;">"${escapeHtml(p.quotes[0].text)}"</p>` : ''}
+                </div>
+            `;
+        }
+        html += `</div>`;
+    }
+
+    // Key Value Proposition (Marketer)
+    if (analysis.keyValueProposition) {
+        const kvp = analysis.keyValueProposition;
+        html += `
+            <div class="section">
+                <h2>Key Value Proposition</h2>
+                ${kvp.primaryValue ? `<p style="font-size: 16px; font-weight: bold;">${escapeHtml(kvp.primaryValue)}</p>` : ''}
+                ${kvp.supportingValues?.length > 0 ? `<p style="font-size: 13px;">Supporting: ${kvp.supportingValues.map(v => escapeHtml(v)).join(' • ')}</p>` : ''}
+                ${kvp.userLanguage?.length > 0 ? `<div style="margin-top: 8px;"><p style="font-size: 12px; color: #718096;">In their words:</p>${kvp.userLanguage.map(l => `<p style="font-size: 13px; color: #a78bfa; font-style: italic;">"${escapeHtml(l)}"</p>`).join('')}</div>` : ''}
+                ${kvp.differentiators?.length > 0 ? `<p style="font-size: 13px; margin-top: 8px;">Differentiators: ${kvp.differentiators.map(d => escapeHtml(d)).join(', ')}</p>` : ''}
+            </div>
+        `;
     }
 
     // Comment Classification
@@ -1607,6 +1695,23 @@ function formatStructuredAnalysisForPDF(analysis, source = 'reddit') {
                 </div>
             </div>
         `;
+    }
+
+    // Unanswered Questions (legacy)
+    if (analysis.unansweredQuestions && analysis.unansweredQuestions.questions?.length > 0) {
+        const uq = analysis.unansweredQuestions;
+        html += `<div class="section"><h2>Unanswered Questions</h2>`;
+        if (uq.summary) html += `<p style="font-size: 13px; color: #718096;">${escapeHtml(uq.summary)}</p>`;
+        for (const q of uq.questions) {
+            html += `
+                <div class="quote-box">
+                    <strong>${escapeHtml(q.question)}</strong>
+                    <div class="quote-author">— @${escapeHtml(q.author || 'anonymous')} • ${q.score || 0} ${isYouTube ? 'likes' : 'pts'}</div>
+                    ${q.contentOpportunity ? `<p style="font-size: 12px; color: #48bb78; margin-top: 4px;">${escapeHtml(q.contentOpportunity)}</p>` : ''}
+                </div>
+            `;
+        }
+        html += `</div>`;
     }
 
     // Spam & Promotions
