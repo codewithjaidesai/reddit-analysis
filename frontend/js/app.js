@@ -2058,11 +2058,13 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             `;
         }
 
-        // FOR YOUR GOAL SECTION
+        // FOR YOUR GOAL SECTION - use clean label, don't expose internal prompt text
         if (structured.forYourGoal && structured.forYourGoal.length > 0) {
+            const isInternalGoal = (goal || '').startsWith('Analyze comments to');
+            const goalLabel = isInternalGoal ? 'Key Findings' : `For Your Goal: "${goal || 'Insights'}"`;
             html += `
                 <div class="analysis-section">
-                    <h2 class="section-title">For Your Goal: "${goal || 'Insights'}"</h2>
+                    <h2 class="section-title">${goalLabel}</h2>
                     <div class="goal-answers">
                         ${structured.forYourGoal.map(item => `
                             <div class="goal-item">
@@ -2883,165 +2885,20 @@ function exportCombinedSummaryPDF() {
     // Create a new window for PDF export
     const printWindow = window.open('', '', 'width=900,height=700');
 
+    // Capture from DOM to always stay in sync with UI
     let insightsHtml = '';
-
-    if (structured) {
-        // Format structured data as readable HTML
-
-        // Executive Summary
+    const multiPostEl = document.getElementById('multiPostResults');
+    if (multiPostEl && multiPostEl.innerHTML.trim()) {
+        insightsHtml = multiPostEl.innerHTML;
+    } else if (structured) {
+        // Fallback: render from data
         if (structured.executiveSummary) {
-            insightsHtml += `
-                <div class="section executive-summary">
-                    <h2>Executive Summary</h2>
-                    <p class="summary-text">${escapeHtml(structured.executiveSummary)}</p>
-                </div>
-            `;
+            insightsHtml += `<div class="section"><h2>Executive Summary</h2><p>${escapeHtml(structured.executiveSummary)}</p></div>`;
         }
-
-        // Top Quotes
-        if (structured.topQuotes && structured.topQuotes.length > 0) {
-            insightsHtml += `
-                <div class="section">
-                    <h2>Key Quotes from Reddit Users</h2>
-                    <div class="quotes-list">
-                        ${structured.topQuotes.map(q => `
-                            <div class="quote-item quote-${(q.type || 'insight').toLowerCase()}">
-                                <span class="quote-badge">${q.type || 'INSIGHT'}</span>
-                                <blockquote>"${escapeHtml(q.quote)}"</blockquote>
-                                <cite>— Reddit User (${q.subreddit || 'Unknown'})</cite>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // For Your Goal
-        if (structured.forYourGoal && structured.forYourGoal.length > 0) {
-            insightsHtml += `
-                <div class="section goal-section">
-                    <h2>For Your Goal: "${escapeHtml(researchContext.goal || 'Insights')}"</h2>
-                    <ul class="goal-list">
-                        ${structured.forYourGoal.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-
-        // Key Insights
-        if (structured.keyInsights && structured.keyInsights.length > 0) {
-            insightsHtml += `
-                <div class="section">
-                    <h2>Key Insights</h2>
-                    <div class="insights-list">
-                        ${structured.keyInsights.map(insight => `
-                            <div class="insight-item">
-                                <h3>${escapeHtml(insight.title)} <span class="sentiment ${insight.sentiment || 'neutral'}">${insight.sentiment || 'neutral'}</span></h3>
-                                <p>${escapeHtml(insight.description)}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // Confidence
-        if (structured.confidence) {
-            insightsHtml += `
-                <div class="section confidence-section">
-                    <h2>Analysis Confidence</h2>
-                    <p><strong>Level:</strong> <span class="confidence-badge ${structured.confidence.level || 'medium'}">${(structured.confidence.level || 'medium').toUpperCase()}</span></p>
-                    <p><strong>Reason:</strong> ${escapeHtml(structured.confidence.reason || 'Based on available data')}</p>
-                </div>
-            `;
-        }
-
-        // Quantitative Insights (Data Analysis - Experimental)
-        if (structured.quantitativeInsights) {
-            const quant = structured.quantitativeInsights;
-            insightsHtml += `
-                <div class="section quant-section">
-                    <h2>Data Analysis <span class="experimental-badge">Experimental</span></h2>
-            `;
-
-            // Topics Discussed
-            if (quant.topicsDiscussed && quant.topicsDiscussed.length > 0) {
-                insightsHtml += `
-                    <div class="quant-subsection">
-                        <h3>Topics Discussed</h3>
-                        <div class="topics-list">
-                            ${quant.topicsDiscussed.map(topic => `
-                                <div class="topic-item">
-                                    <span class="topic-name">${escapeHtml(topic.topic)}</span>
-                                    <span class="topic-mentions">${topic.mentions}x mentioned</span>
-                                    <span class="topic-sentiment sentiment-${topic.sentiment || 'neutral'}">${topic.sentiment || 'neutral'}</span>
-                                    ${topic.example ? `<p class="topic-example">"${escapeHtml(topic.example)}"</p>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Sentiment Breakdown
-            if (quant.sentimentBreakdown) {
-                const sb = quant.sentimentBreakdown;
-                insightsHtml += `
-                    <div class="quant-subsection">
-                        <h3>Sentiment Distribution</h3>
-                        <div class="sentiment-stats">
-                            <span class="sentiment-stat positive">Positive: ${sb.positive || 0}%</span>
-                            <span class="sentiment-stat neutral">Neutral: ${sb.neutral || 0}%</span>
-                            <span class="sentiment-stat negative">Negative: ${sb.negative || 0}%</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Common Phrases
-            if (quant.commonPhrases && quant.commonPhrases.length > 0) {
-                insightsHtml += `
-                    <div class="quant-subsection">
-                        <h3>Common Phrases</h3>
-                        <div class="phrases-list">
-                            ${quant.commonPhrases.map(phrase => `
-                                <div class="phrase-item">
-                                    <span class="phrase-text">"${escapeHtml(phrase.phrase)}"</span>
-                                    <span class="phrase-count">${phrase.count}x</span>
-                                    ${phrase.context ? `<span class="phrase-context">— ${escapeHtml(phrase.context)}</span>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Data Patterns
-            if (quant.dataPatterns && quant.dataPatterns.length > 0) {
-                insightsHtml += `
-                    <div class="quant-subsection">
-                        <h3>Data Patterns</h3>
-                        <ul class="patterns-list">
-                            ${quant.dataPatterns.map(pattern => `<li>${escapeHtml(pattern)}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-            }
-
-            // Engagement Correlation
-            if (quant.engagementCorrelation) {
-                insightsHtml += `
-                    <div class="quant-subsection">
-                        <h3>Engagement Insight</h3>
-                        <p class="engagement-insight">${escapeHtml(quant.engagementCorrelation)}</p>
-                    </div>
-                `;
-            }
-
-            insightsHtml += `</div>`;
+        if (structured.keyInsights?.length > 0) {
+            insightsHtml += `<div class="section"><h2>Key Insights</h2>${structured.keyInsights.map(i => `<div class="insight-item"><h3>${escapeHtml(i.title)}</h3><p>${escapeHtml(i.description)}</p></div>`).join('')}</div>`;
         }
     } else {
-        // Fallback to raw text
         insightsHtml = `<div class="section"><div class="raw-content">${formatMarkdown(combinedAnalysis.aiAnalysis)}</div></div>`;
     }
 
@@ -3307,6 +3164,58 @@ function exportCombinedSummaryPDF() {
                     font-size: 12px;
                     color: #a0aec0;
                 }
+                /* Dark-theme UI overrides for print */
+                .content-analysis-section, .quant-subsection {
+                    margin-bottom: 24px;
+                    padding-bottom: 20px;
+                    border-bottom: 1px solid #e2e8f0;
+                    page-break-inside: avoid;
+                }
+                .content-analysis-section h3, .analysis-section h2.section-title {
+                    color: #2d3748;
+                    font-size: 17px;
+                    font-weight: 600;
+                    border-left: 4px solid #667eea;
+                    padding-left: 12px;
+                    margin-bottom: 12px;
+                }
+                .quant-subsection-title {
+                    color: #2d3748;
+                    font-size: 16px;
+                    font-weight: 600;
+                    margin-bottom: 12px;
+                }
+                .quant-subsection-summary { font-size: 13px; color: #4a5568; }
+                [style*="background: #1c2432"],
+                [style*="background:#1c2432"],
+                [style*="background: #0f1724"],
+                [style*="background: #1a1f2e"] {
+                    background: #f7fafc !important;
+                    border-color: #e2e8f0 !important;
+                }
+                [style*="color: #f1f5f9"],
+                [style*="color: #cbd5e0"],
+                [style*="color: #e2e8f0"] { color: #2d3748 !important; }
+                [style*="color: #94a3b8"] { color: #718096 !important; }
+                [style*="color: #a78bfa"] { color: #6b46c1 !important; }
+                [style*="color: #48bb78"] { color: #276749 !important; }
+                [style*="color: #fc8181"] { color: #9b2c2c !important; }
+                [style*="border: 1px solid #2d3a4d"] { border-color: #e2e8f0 !important; }
+                /* Hide UI-only elements in PDF */
+                .model-attribution, .no-print, .tab-buttons, .deliverables-section,
+                .post-actions-row, button[onclick*="reanalyze"], button[onclick*="generate"],
+                button[onclick*="export"], button[onclick*="copy"], button[onclick*="download"] { display: none !important; }
+                .section-summary-text { font-size: 13px; color: #4a5568; }
+                .executive-summary-text, .summary-text {
+                    background: #f0f4ff;
+                    border-left: 4px solid #667eea;
+                    padding: 14px 16px;
+                    border-radius: 0 8px 8px 0;
+                    font-size: 14px;
+                    line-height: 1.7;
+                    color: #1a202c;
+                }
+                .audience-bar-chart > div { color: white !important; }
                 @media print {
                     body { margin: 0; padding: 20px; }
                     .no-print { display: none !important; }

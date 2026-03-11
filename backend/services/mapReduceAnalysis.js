@@ -57,12 +57,18 @@ RESEARCH GOAL: ${goal || 'Extract insights'}
 POSTS TO EVALUATE:
 ${postList}
 
-For each post, score its relevance to the research topic from 1-5:
-- 5: Directly about the topic, highly relevant discussion
-- 4: Closely related, contains useful perspectives on the topic
-- 3: Somewhat related, may contain tangential insights
-- 2: Loosely related, mostly about something else
-- 1: Not relevant at all
+For each post, score its relevance to the SPECIFIC research topic from 1-5:
+- 5: Directly and specifically about the topic
+- 4: Closely related, contains useful discussion on the topic
+- 3: Tangentially related - mentions the topic but is mainly about something else
+- 2: Barely related - shares a keyword but discusses a different subject
+- 1: Not relevant at all - completely different topic
+
+STRICT SCORING RULES:
+- A post about "content creation" is NOT relevant to "hiking shoes" even if both are popular
+- Keyword matches alone do NOT make a post relevant - the ACTUAL DISCUSSION must be about the research topic
+- If a post's main discussion is about a different subject, score it 1-2 even if it contains a passing mention of a related keyword
+- Only score 4-5 for posts where the CORE discussion is about the research topic
 
 Return ONLY valid JSON (no markdown, no backticks). Structure:
 {
@@ -72,7 +78,7 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
   ]
 }
 
-Score ALL ${posts.length} posts. Be strict - only score 4-5 for posts that genuinely discuss the research topic.`;
+Score ALL ${posts.length} posts.`;
 
   try {
     const mapModel = config.mapReduce.mapModel;
@@ -116,12 +122,12 @@ Score ALL ${posts.length} posts. Be strict - only score 4-5 for posts that genui
 
     console.log(`Pre-screening: ${filteredPosts.length}/${posts.length} posts passed (threshold: ${threshold})`);
 
-    // If too few posts pass, lower threshold
-    if (filteredPosts.length < 5 && scoredPosts.length >= 5) {
+    // If too few posts pass, relax to 3 (somewhat related) but never lower
+    if (filteredPosts.length < 3 && scoredPosts.length >= 5) {
       const relaxedPosts = scoredPosts
-        .filter(p => p.relevanceScore >= 2)
+        .filter(p => p.relevanceScore >= 3)
         .sort((a, b) => b.relevanceScore - a.relevanceScore || b.engagementScore - a.engagementScore);
-      console.log(`Relaxed threshold to 2: ${relaxedPosts.length} posts pass`);
+      console.log(`Relaxed threshold to 3: ${relaxedPosts.length} posts pass`);
       return relaxedPosts;
     }
 

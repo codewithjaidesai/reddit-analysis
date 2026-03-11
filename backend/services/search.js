@@ -108,6 +108,45 @@ function suggestSubreddits(query) {
 }
 
 /**
+ * Calculate how relevant a post title/text is to the search query
+ * Returns 0-1 score based on keyword overlap
+ * @param {string} text - Post title + snippet
+ * @param {string} query - Search query
+ * @returns {number} Relevance score 0-1
+ */
+function calculateTitleRelevance(text, query) {
+  const normalize = s => s.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+  const textNorm = normalize(text);
+  const queryNorm = normalize(query);
+
+  // Extract meaningful keywords from query (skip filler words)
+  const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'for', 'to', 'of', 'in', 'on', 'at', 'is', 'are', 'was', 'how', 'what', 'why', 'do', 'does']);
+  const queryWords = queryNorm.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+
+  if (queryWords.length === 0) return 0.5; // can't score, neutral
+
+  // Count how many query keywords appear in the text
+  let matchCount = 0;
+  for (const word of queryWords) {
+    if (textNorm.includes(word)) matchCount++;
+  }
+
+  // Also check for multi-word phrase matches (bigrams from query)
+  let phraseBonus = 0;
+  if (queryWords.length >= 2) {
+    for (let i = 0; i < queryWords.length - 1; i++) {
+      const phrase = queryWords[i] + ' ' + queryWords[i + 1];
+      if (textNorm.includes(phrase)) phraseBonus += 0.15;
+    }
+  }
+
+  // Full query match bonus
+  if (textNorm.includes(queryNorm)) phraseBonus += 0.3;
+
+  return Math.min(1, (matchCount / queryWords.length) + phraseBonus);
+}
+
+/**
  * Format query for Reddit search
  * @param {string} query - User's search query
  * @returns {string} Cleaned query (no modifications, let Reddit's algorithm handle it)
@@ -317,7 +356,18 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
           ageHours: postAgeHours
         };
       })
-      .sort((a, b) => b.engagementScore - a.engagementScore)
+      .map(post => {
+        // Calculate title relevance to search query
+        const titleRelevance = calculateTitleRelevance(post.title + ' ' + (post.selftext || '').substring(0, 200), topic);
+        return { ...post, titleRelevance };
+      })
+      .sort((a, b) => {
+        // Sort by combination of relevance and engagement
+        // Highly relevant posts get priority over purely high-engagement posts
+        const relevanceDiff = b.titleRelevance - a.titleRelevance;
+        if (Math.abs(relevanceDiff) >= 0.3) return relevanceDiff;
+        return b.engagementScore - a.engagementScore;
+      })
       .slice(0, limit);
 
     // Capture filter stats for debug info
