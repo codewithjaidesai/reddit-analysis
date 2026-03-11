@@ -149,10 +149,10 @@ The goal is to find viral content potential, audience desires, and content gaps.
 
     personaRules = `
 CONTENT CREATOR RULES:
-- audienceSegmentation: Discover ANY identifiable patterns from comments to segment the audience. Don't limit to experience levels - look for: gender patterns (Male/Female), life roles (Mothers/Fathers, Students/Professionals), experience (Beginner/Expert), interests, occupation types, etc. Can have MULTIPLE identifier dimensions. Use actual comment evidence. Calculate REAL counts and percentages.
-- viralContentIdeas: Extract what people are ACTUALLY talking about and wanting. Use their EXACT words - do not AI-polish the language. Each idea must have quantitative proof (comment counts, upvotes, reply counts). Rate demand 1-10.
-- topOpenQuestions: Find real questions people asked. Each is a content opportunity. Note engagement (replies, score) as demand signal.
-- commentClassification: Classify EVERY comment. "substantive" = adds value. "motivational" = generic encouragement. "promotional" = self-promotion. "conversational" = general chat. Calculate REAL percentages.`;
+- audienceSegmentation: Discover WHO is actually commenting. Don't just say "beginners/experts" - find specific personas: "Recently retired professionals starting new careers" or "Mobile-only creators without desktop access" or "Parents documenting family life." Use REAL comment evidence and calculate actual counts/percentages. If you see patterns like subscriber counts mentioned, use those to create tiers.
+- viralContentIdeas: Extract what people are DESPERATE for, not what they casually mention. Use their EXACT words. Each idea needs quantitative proof (X comments about this, Y upvotes on related comments). Look for: questions no one answered well, complaints about existing content, "I wish someone would make..." signals.
+- topOpenQuestions: Find questions that represent UNMET DEMAND. A question with 20 upvotes and no good answer = content gold. Prioritize by engagement signal.
+- commentClassification: Be ruthless. Flag motivational spam ("keep going champ!"), promotional comments (mentioning tools/services), and bot-like patterns (generic praise with no specifics). Calculate REAL percentages - if 40% of comments are empty encouragement, say so.`;
 
   } else if (isMarketer) {
     personaContext = `You are analyzing this for a MARKETER. Focus on customer language, pain points, competitive intelligence, and marketing insights.
@@ -197,9 +197,9 @@ The goal is actionable marketing intelligence - what resonates, what frustrates,
 
     personaRules = `
 MARKETER RULES:
-- painPoints: Identify specific pain points with severity and frequency. Each pain point is a marketing opportunity. Use exact quotes as evidence.
-- keyValueProposition: Distill what matters most to users. Use THEIR exact language for the value prop - do not AI-polish it. Find differentiators mentioned in comments.
-- audienceSegmentation: Identify buyer segments from comment patterns. Look for purchase intent signals, budget indicators, use cases, experience levels.`;
+- painPoints: Find what ACTUALLY frustrates people - not surface complaints but deep pain points. "I've been posting for 30 days with 2-3 views" is a pain point. Quantify frequency. Each pain = marketing angle.
+- keyValueProposition: What do people value MOST? Don't guess - find it in their words. "Your name is now synonymous with creator help" reveals what the audience values. Use THEIR exact language.
+- audienceSegmentation: Identify buyer personas from comment evidence. Look for: budget signals ("I can't afford..."), purchase intent ("where can I buy..."), life stage indicators, skill level mentions. Be specific: "Mobile-only creators without desktop" not just "beginners."`;
 
   }
 
@@ -251,7 +251,7 @@ Focus the analysis on the user's SPECIFIC goal. If they asked about "budget hiki
     "note": "Based on description only - transcript unavailable"
   },
 ` : '')}
-  "executiveSummary": "2-4 sentence overview answering the user's goal directly. Be specific - if they asked about shoes, talk about shoes. What's the bottom line?",
+  "executiveSummary": "2-4 sentence bold overview. Lead with the most surprising or important finding. Be specific to the user's query - name names, cite numbers, state conclusions. NOT generic advice.",
 
   "sentimentAnalysis": {
     "overall": "positive | negative | mixed | neutral",
@@ -262,8 +262,8 @@ Focus the analysis on the user's SPECIFIC goal. If they asked about "budget hiki
     },
     "emotionalTone": "Frustrated | Curious | Enthusiastic | Skeptical | Hopeful | Disappointed",
     "drivers": {
-      "positive": ["What's driving positive sentiment"],
-      "negative": ["What's driving negative sentiment"]
+      "positive": ["Specific thing driving positive sentiment with evidence"],
+      "negative": ["Specific thing driving negative sentiment with evidence"]
     }
   },
 
@@ -283,12 +283,17 @@ ANALYSIS RULES:${hasTranscript ? `
 0. videoOverview (for YouTube WITHOUT transcript):
    - topicsFromDescription: 2-5 topics from description.
    - summary: Inferred from title + description.` : '')}
-1. executiveSummary: DIRECTLY answer the user's goal in 2-4 sentences. Be specific to their query - if they asked about "budget hiking shoes", talk about budget hiking shoes, NOT generic hiking advice.
-2. sentimentAnalysis: Calculate REAL percentages from comments. Identify what drives positive and negative sentiment.
-3. confidence: Based on data volume and consistency. Be honest about limitations.
-4. All quotes must be EXACT text from comments provided - never paraphrase.
-5. If data is limited (< 15 comments), acknowledge this.
-6. CRITICAL: Stay focused on the user's specific query. Do NOT generate generic filler content unrelated to their research topic.${personaRules}
+1. executiveSummary: Lead with the MOST IMPORTANT finding. Be bold and specific - "46% of commenters are beginners struggling with X" is better than "the community has diverse opinions." Name specific products, numbers, pain points. If they asked about "budget hiking shoes", talk about specific shoe brands and price points mentioned.
+2. sentimentAnalysis: Calculate REAL percentages. Don't just say "positive" - identify WHY. Look for emotional undercurrents: desperation, frustration, hope, confusion.
+3. confidence: Be honest. Low comment count = low confidence. Lots of spam/motivational comments = lower data quality.
+4. All quotes must be EXACT text from comments - never paraphrase or clean up language.
+5. THINK LIKE AN ANALYST, NOT A SUMMARIZER:
+   - Flag suspicious patterns: astroturfing, paid promotions, bot-like comments
+   - Identify unmet needs and gaps that nobody is addressing
+   - Note what's conspicuously ABSENT from the discussion
+   - Find contradictions between popular opinion and evidence
+   - Quantify everything: "X out of Y comments mention Z" not "many users feel..."
+6. CRITICAL: Stay focused on the user's specific query. Do NOT generate generic filler content.${personaRules}
 LAST. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
@@ -546,12 +551,12 @@ Find viral content potential, audience desires, content gaps, and audience segme
 
     personaRules = `
 CONTENT CREATOR RULES:
-- contentGaps: 2-5 content opportunities. Focus on unanswered needs with high engagement.
-- audienceSegmentation: Discover ANY identifiable patterns - gender, life roles, experience, interests, occupation, etc. Multiple dimensions OK. Use REAL counts.
-- viralContentIdeas: Use audience's EXACT words. Each must have quantitative proof. Rate demand 1-10.
-- topOpenQuestions: Real questions = content opportunities. Note engagement as demand signal.
-- commentClassification: Classify EVERY comment. Calculate REAL percentages.
-- spamAndPromotions: Only flag clear cases. Empty array if none.`;
+- contentGaps: 2-5 real content opportunities where demand exists but supply doesn't. Evidence: unanswered questions, complaints about existing content, high-engagement comments asking for more.
+- audienceSegmentation: Find SPECIFIC persona types, not generic labels. "Recently retired professionals exploring YouTube" is better than "beginners." Use actual comment evidence to build each segment with real counts.
+- viralContentIdeas: Use the audience's EXACT words. Each idea needs quantitative proof. Look for frustrated questions, "I wish..." signals, and topics where comments show high emotional investment.
+- topOpenQuestions: Questions that represent UNMET DEMAND. Prioritize by engagement (upvotes, replies) not just recency.
+- commentClassification: Be ruthless. Flag motivational spam, promotional comments, and bot-like patterns. Calculate REAL percentages - honest data quality assessment.
+- spamAndPromotions: Flag astroturfing (suspiciously popular generic comments), tool/service mentions that look paid, and bot-like encouragement patterns.`;
 
   } else if (isMarketer) {
     personaContext = `You are analyzing this for a MARKETER. Focus on customer language, pain points, competitive intelligence, and marketing insights.
@@ -595,9 +600,9 @@ Find actionable marketing intelligence - what resonates, what frustrates, what t
 
     personaRules = `
 MARKETER RULES:
-- painPoints: Identify pains with severity and frequency. Each pain = marketing opportunity. Use exact quotes.
-- keyValueProposition: Distill what matters most. Use THEIR language for value prop - not AI-polished.
-- audienceSegmentation: Identify buyer segments. Look for purchase intent, budget indicators, use cases, experience levels.`;
+- painPoints: Find deep frustrations, not surface complaints. Quantify frequency. Each pain point is a marketing angle - spell out HOW to use it.
+- keyValueProposition: What do people actually value? Find it in their words, not your interpretation. Look for: what makes them subscribe, what makes them trust, what makes them pay.
+- audienceSegmentation: Identify buyer personas with evidence. Look for purchase intent, budget signals, life stage indicators, tool/platform preferences. Be specific.`;
 
   }
 
@@ -705,20 +710,19 @@ Return ONLY valid JSON (no markdown, no backticks). Structure:
 }
 
 ANALYSIS APPROACH:
-1. SCAN: Read ALL comments, identify themes and patterns
-2. GROUP: Cluster by topic/sentiment${isMixedSource ? '\n2b. COMPARE: Note Reddit vs YouTube differences' : ''}
-3. DEPTH: Identify nuances and contradictions per theme
-4. OUTLIERS: Find non-obvious insights
-5. SYNTHESIZE: Connect dots across themes
+1. SCAN: Read ALL comments. Note who is speaking, their expertise level, and what they reveal about themselves.
+2. QUANTIFY: Count everything. X out of Y comments mention Z. Don't say "many" - say "23 of 45 comments."
+3. FIND THE NON-OBVIOUS: What would someone miss on first read? Suspicious patterns? Unmet needs? Contradictions?
+4. CONNECT: What do the patterns across ${postCount} ${contentTypeLabel} reveal about this audience/market?${isMixedSource ? '\n5. COMPARE: How do Reddit and YouTube discussions genuinely differ?' : ''}
 
 RULES:
-1. topQuotes: 4-6 most impactful REAL quotes with source attribution.
-2. keyInsights: 3-5 insights focused on their GOAL. Stay on topic.
-3. forYourGoal: 3-5 bullets DIRECTLY answering: "${goal || 'insights'}"
-4. quantitativeInsights: Real counts and percentages from the data.
-5. evidenceAnalysis: Validate goal as hypothesis. supporting + counter = relevantCount.${isMixedSource ? `
-6. crossPlatformComparison: Compare Reddit vs YouTube perspectives genuinely.` : ''}${personaRules}
-LAST. Keep it concise. No fluff. Return ONLY the JSON object.`;
+1. topQuotes: 4-6 most REVEALING quotes - not generic praise. Pick quotes that expose pain points, unmet needs, or surprising opinions.
+2. keyInsights: 3-5 bold, specific insights. "46% of commenters are beginners with under 100 subscribers" beats "the community has diverse skill levels." Each insight should be useful for a ${role || 'researcher'}.
+3. forYourGoal: 3-5 bullets DIRECTLY answering the user's research question with evidence. Be specific and actionable.
+4. quantitativeInsights: REAL counts from the data. Flag suspicious patterns: astroturfing, bot comments, paid promotions.
+5. evidenceAnalysis: Validate goal as hypothesis. Be honest about what the data does and doesn't support.${isMixedSource ? `
+6. crossPlatformComparison: Compare Reddit vs YouTube perspectives genuinely - where do they agree and disagree?` : ''}${personaRules}
+LAST. Think like an analyst writing a pitch brief, not a student writing a summary. Return ONLY the JSON object.`;
 
   return prompt;
 }
