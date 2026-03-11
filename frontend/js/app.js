@@ -2567,44 +2567,12 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                 `;
             }
 
-            // Marketing Mix / 4Ps (Marketer)
-            if (structured.marketingMix) {
-                const mm = structured.marketingMix;
-                html += `
-                    <div class="quant-subsection">
-                        <h3 class="quant-subsection-title">Marketing Mix (4Ps) Analysis</h3>
-                        ${mm.summary ? `<p class="quant-subsection-summary">${escapeHtml(mm.summary)}</p>` : ''}
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
-                            ${['product', 'price', 'place', 'promotion'].map(p => {
-                                const data = mm[p];
-                                if (!data) return '';
-                                const labels = { product: 'Product', price: 'Price', place: 'Place', promotion: 'Promotion' };
-                                const colors = { product: '#667eea', price: '#48bb78', place: '#ed8936', promotion: '#e53e3e' };
-                                return `
-                                    <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; border-top: 3px solid ${colors[p]};">
-                                        <h4 style="color: ${colors[p]}; margin: 0 0 10px 0; font-size: 14px;">${labels[p]}</h4>
-                                        ${data.whatPeopleWant ? `<div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 12px;">What people want:</span><ul style="margin: 4px 0; padding-left: 16px;">${data.whatPeopleWant.map(w => `<li style="color: #cbd5e0; font-size: 13px;">${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
-                                        ${data.complaints ? `<div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 12px;">Complaints:</span><ul style="margin: 4px 0; padding-left: 16px;">${data.complaints.map(c => `<li style="color: #fc8181; font-size: 13px;">${escapeHtml(c)}</li>`).join('')}</ul></div>` : ''}
-                                        ${data.sensitivity ? `<div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 12px;">Sensitivity:</span> <span style="color: #cbd5e0;">${escapeHtml(data.sensitivity)}</span></div>` : ''}
-                                        ${data.expectations ? `<ul style="margin: 4px 0; padding-left: 16px;">${data.expectations.map(e => `<li style="color: #cbd5e0; font-size: 13px;">${escapeHtml(e)}</li>`).join('')}</ul>` : ''}
-                                        ${data.channels ? `<ul style="margin: 4px 0; padding-left: 16px;">${data.channels.map(c => `<li style="color: #cbd5e0; font-size: 13px;">${escapeHtml(c)}</li>`).join('')}</ul>` : ''}
-                                        ${data.whatResonates ? `<div style="margin-bottom: 8px;"><span style="color: #94a3b8; font-size: 12px;">Resonates:</span><ul style="margin: 4px 0; padding-left: 16px;">${data.whatResonates.map(w => `<li style="color: #48bb78; font-size: 13px;">${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
-                                        ${data.whatBackfires ? `<div><span style="color: #94a3b8; font-size: 12px;">Backfires:</span><ul style="margin: 4px 0; padding-left: 16px;">${data.whatBackfires.map(w => `<li style="color: #fc8181; font-size: 13px;">${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
-                                        ${data.quotes?.length > 0 ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #2d3a4d;">${data.quotes.slice(0, 2).map(q => `<p style="font-size: 12px; color: #a78bfa; font-style: italic;">"${escapeHtml(q.text)}"</p>`).join('')}</div>` : ''}
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
             // Pain Points (Marketer)
             if (structured.painPoints && structured.painPoints.points?.length > 0) {
                 const pp = structured.painPoints;
                 html += `
                     <div class="quant-subsection">
-                        <h3 class="quant-subsection-title">Pain Points & Competitor Weaknesses</h3>
+                        <h3 class="quant-subsection-title">Pain Points</h3>
                         ${pp.summary ? `<p class="quant-subsection-summary">${escapeHtml(pp.summary)}</p>` : ''}
                         ${pp.points.map(p => `
                             <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 3px solid ${p.severity === 'high' ? '#e53e3e' : p.severity === 'medium' ? '#ed8936' : '#48bb78'};">
@@ -2616,15 +2584,6 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                 ${p.quotes?.length > 0 ? `<p style="font-size: 12px; color: #a78bfa; font-style: italic;">"${escapeHtml(p.quotes[0].text)}"</p>` : ''}
                             </div>
                         `).join('')}
-                        ${pp.competitorWeaknesses?.length > 0 ? `
-                            <h4 style="color: #cbd5e0; margin: 12px 0 8px;">Competitor Weaknesses</h4>
-                            ${pp.competitorWeaknesses.map(cw => `
-                                <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
-                                    <span style="font-weight: 600; color: #ed8936;">${escapeHtml(cw.competitor)}</span>
-                                    <p style="color: #cbd5e0; font-size: 13px; margin-top: 4px;">${escapeHtml(cw.weakness)}</p>
-                                </div>
-                            `).join('')}
-                        ` : ''}
                     </div>
                 `;
             }
@@ -4074,8 +4033,7 @@ const reanalyzePersonaOutcomes = {
         role: 'Marketer',
         outcomes: [
             { id: 'social_content', label: 'Social Media Content Research', goal: 'Research what resonates for social media content creation.' },
-            { id: 'pain_points', label: 'Pain Points & Competitor Analysis', goal: 'Identify pain points and competitor weaknesses for marketing.' },
-            { id: 'four_ps', label: 'Marketing Mix (4Ps) Analysis', goal: 'Analyze Product, Price, Place, Promotion from comments.' },
+            { id: 'pain_points', label: 'Pain Points Analysis', goal: 'Identify pain points and frustrations for marketing opportunities.' },
             { id: 'kvp', label: 'Key Value Proposition Discovery', goal: 'Identify what users value most and their ideal solution language.' },
             { id: 'general_research', label: 'General Research', goal: 'Comprehensive analysis without marketing lens. Quantitative insights.' },
             { id: 'free_form', label: 'Other (specify your goal)', isCustom: true }
@@ -4128,13 +4086,27 @@ function selectReanalyzePersona(persona) {
         card.classList.toggle('selected', card.dataset.persona === persona);
     });
 
-    // Show outcome options
+    const outcomeSection = document.getElementById('reanalyzeOutcomeSection');
+    const outcomeLabel = document.getElementById('reanalyzeOutcomeLabel');
+    const outcomeOptions = document.getElementById('reanalyzeOutcomeOptions');
+
+    // Content Creator and Marketer - no outcome selection, enable submit directly
+    if (persona === 'content_creator') {
+        outcomeSection.style.display = 'none';
+        reanalyzeSelectedOutcome = 'Analyze comments to find viral content ideas, audience segments, top questions, and content opportunities. Use the audience exact language - not AI polished. Support with quantitative insights.';
+        document.getElementById('reanalyzeSubmitBtn').disabled = false;
+        return;
+    }
+    if (persona === 'marketer') {
+        outcomeSection.style.display = 'none';
+        reanalyzeSelectedOutcome = 'Analyze comments to identify pain points, voice of customer language, key value propositions, audience segments, and marketing opportunities. Support with quantitative insights.';
+        document.getElementById('reanalyzeSubmitBtn').disabled = false;
+        return;
+    }
+
+    // Custom/Other - show custom inputs
     const personaData = reanalyzePersonaOutcomes[persona];
     if (personaData) {
-        const outcomeSection = document.getElementById('reanalyzeOutcomeSection');
-        const outcomeLabel = document.getElementById('reanalyzeOutcomeLabel');
-        const outcomeOptions = document.getElementById('reanalyzeOutcomeOptions');
-
         outcomeLabel.textContent = `SELECT OUTCOME FOR ${personaData.role.toUpperCase()}`;
 
         let optionsHtml = personaData.outcomes.map(outcome => `
@@ -4144,7 +4116,6 @@ function selectReanalyzePersona(persona) {
             </div>
         `).join('');
 
-        // Add custom input field (hidden by default)
         optionsHtml += `
             <div id="reanalyzeFreeFormInput" class="free-form-goal-input" style="display: none;">
                 <input type="text" id="reanalyzeFreeFormGoal" placeholder="Describe your specific goal..."

@@ -160,30 +160,6 @@ The goal is actionable marketing intelligence - what resonates, what frustrates,
 
     personaJsonSchema = `,
 
-  "marketingMix": {
-    "product": {
-      "whatPeopleWant": ["Specific product features or qualities mentioned"],
-      "complaints": ["What's wrong with current products/services"],
-      "wishList": ["What they wish existed"],
-      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
-    },
-    "price": {
-      "sensitivity": "high | medium | low",
-      "expectations": ["What price points or value expectations are mentioned"],
-      "quotes": [{"text": "Exact quote about price/cost", "score": 0, "author": "@user"}]
-    },
-    "place": {
-      "channels": ["Where people discover/buy products in this space"],
-      "quotes": [{"text": "Exact quote about channels", "score": 0, "author": "@user"}]
-    },
-    "promotion": {
-      "whatResonates": ["Messaging and angles that get positive engagement"],
-      "whatBackfires": ["Marketing approaches people react negatively to"],
-      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
-    },
-    "summary": "Brief 4Ps overview for marketers"
-  },
-
   "painPoints": {
     "points": [
       {
@@ -192,14 +168,6 @@ The goal is actionable marketing intelligence - what resonates, what frustrates,
         "frequency": 0,
         "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}],
         "marketingAngle": "How to leverage this in marketing"
-      }
-    ],
-    "competitorWeaknesses": [
-      {
-        "competitor": "Product or brand mentioned",
-        "weakness": "What people complain about",
-        "frequency": 0,
-        "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
       }
     ],
     "summary": "Overview of pain landscape"
@@ -229,8 +197,7 @@ The goal is actionable marketing intelligence - what resonates, what frustrates,
 
     personaRules = `
 MARKETER RULES:
-- marketingMix: Analyze the 4Ps from comment data. Product: what features/qualities matter. Price: sensitivity and expectations. Place: where people buy/discover. Promotion: what messaging works. Use REAL quotes as evidence.
-- painPoints: Identify specific pain points with severity and frequency. Find competitor mentions and their weaknesses. Each pain point is a marketing opportunity.
+- painPoints: Identify specific pain points with severity and frequency. Each pain point is a marketing opportunity. Use exact quotes as evidence.
 - keyValueProposition: Distill what matters most to users. Use THEIR exact language for the value prop - do not AI-polish it. Find differentiators mentioned in comments.
 - audienceSegmentation: Identify buyer segments from comment patterns. Look for purchase intent signals, budget indicators, use cases, experience levels.`;
 
@@ -286,39 +253,6 @@ Focus the analysis on the user's SPECIFIC goal. If they asked about "budget hiki
 ` : '')}
   "executiveSummary": "2-4 sentence overview answering the user's goal directly. Be specific - if they asked about shoes, talk about shoes. What's the bottom line?",
 
-  "goalAnalysis": {
-    "hypothesis": "Infer the main hypothesis/question from their goal",
-    "verdict": "Strongly Supported | Supported | Mixed Evidence | Weakly Supported | Not Supported | Insufficient Data",
-    "confidenceLevel": "high | medium | low",
-    "confidenceReason": "Why this confidence level based on data volume and consistency",
-    "evidenceScore": 73,
-    "breakdown": {
-      "totalComments": ${commentCount},
-      "relevantComments": 0,
-      "supportingCount": 0,
-      "supportingPercentage": 0,
-      "counterCount": 0,
-      "counterPercentage": 0
-    }
-  },
-
-  "topicGroups": [
-    {
-      "topic": "Clear, descriptive topic name",
-      "description": "What people are saying about this topic",
-      "commentCount": 0,
-      "sentiment": "positive | negative | mixed | neutral",
-      "keyPoints": ["Main point 1", "Main point 2"],
-      "quotes": [
-        {
-          "text": "Exact quote from comments (max 200 chars)",
-          "score": 0,
-          "author": "username"
-        }
-      ]
-    }
-  ],
-
   "sentimentAnalysis": {
     "overall": "positive | negative | mixed | neutral",
     "breakdown": {
@@ -333,54 +267,11 @@ Focus the analysis on the user's SPECIFIC goal. If they asked about "budget hiki
     }
   },
 
-  "keyQuotes": [
-    {
-      "type": "INSIGHT | WARNING | TIP | COMPLAINT | PRAISE | QUESTION",
-      "text": "Exact quote from comments (max 200 chars)",
-      "score": 0,
-      "author": "username",
-      "context": "Why this quote matters (1 sentence)"
-    }
-  ],
-
-  "actionableInsights": [
-    {
-      "title": "Short title (3-6 words)",
-      "description": "1-2 sentence actionable insight directly related to the user's query",
-      "relevanceToGoal": "How this helps achieve the user's goal",
-      "priority": "high | medium | low"
-    }
-  ],
-
-  "patterns": [
-    {
-      "pattern": "Pattern name",
-      "description": "What this pattern means",
-      "frequency": "How often it appears",
-      "significance": "Why it matters"
-    }
-  ],
-
-  "goDeeper": {
-    "limitedData": ${commentCount < 15},
-    "suggestions": [
-      {
-        "type": "search | subreddit | channel | video",
-        "query": "Suggested search or resource",
-        "reason": "Why this would help"
-      }
-    ]
-  },
-
-  "statistics": {
-    "avgCommentScore": 0,
-    "topComment": {
-      "text": "Highest scored comment (max 200 chars)",
-      "score": 0,
-      "author": "username"
-    },
-    "discussionDepth": "surface | moderate | deep",
-    "engagementQuality": "high | medium | low"
+  "confidence": {
+    "level": "high | medium | low",
+    "reason": "Brief explanation based on data volume (${commentCount} comments) and consistency",
+    "totalComments": ${commentCount},
+    "relevantComments": 0
   }${personaJsonSchema}
 }
 
@@ -392,14 +283,12 @@ ANALYSIS RULES:${hasTranscript ? `
 0. videoOverview (for YouTube WITHOUT transcript):
    - topicsFromDescription: 2-5 topics from description.
    - summary: Inferred from title + description.` : '')}
-1. executiveSummary: DIRECTLY answer the user's goal in 2-4 sentences. Be specific to their query.
-2. goalAnalysis: Treat their goal as a hypothesis to validate. Calculate actual percentages.
-3. topicGroups: 3-7 distinct topics. Focus on topics RELEVANT to the user's query first.
-4. keyQuotes: 4-8 most impactful REAL quotes. Must be EXACT text from comments, not paraphrased.
-5. actionableInsights: 3-5 insights that DIRECTLY help achieve: "${goal || 'insights'}". Stay focused on the query topic.
-6. patterns: 2-4 recurring patterns across comments.
-7. All quotes must be EXACT text from comments provided.
-8. If data is limited (< 15 comments), acknowledge this.${personaRules}
+1. executiveSummary: DIRECTLY answer the user's goal in 2-4 sentences. Be specific to their query - if they asked about "budget hiking shoes", talk about budget hiking shoes, NOT generic hiking advice.
+2. sentimentAnalysis: Calculate REAL percentages from comments. Identify what drives positive and negative sentiment.
+3. confidence: Based on data volume and consistency. Be honest about limitations.
+4. All quotes must be EXACT text from comments provided - never paraphrase.
+5. If data is limited (< 15 comments), acknowledge this.
+6. CRITICAL: Stay focused on the user's specific query. Do NOT generate generic filler content unrelated to their research topic.${personaRules}
 LAST. Return ONLY the JSON object, nothing else.`;
 
   return prompt;
@@ -669,30 +558,6 @@ CONTENT CREATOR RULES:
 Find actionable marketing intelligence - what resonates, what frustrates, what they want.`;
 
     personaJsonSchema = `,
-  "marketingMix": {
-    "product": {
-      "whatPeopleWant": ["Features/qualities mentioned"],
-      "complaints": ["What's wrong with current offerings"],
-      "wishList": ["What they wish existed"],
-      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
-    },
-    "price": {
-      "sensitivity": "high | medium | low",
-      "expectations": ["Price points or value expectations"],
-      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
-    },
-    "place": {
-      "channels": ["Where people discover/buy"],
-      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
-    },
-    "promotion": {
-      "whatResonates": ["Messaging that gets positive engagement"],
-      "whatBackfires": ["Approaches people react negatively to"],
-      "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
-    },
-    "summary": "Brief 4Ps overview"
-  },
-
   "painPoints": {
     "points": [
       {
@@ -701,14 +566,6 @@ Find actionable marketing intelligence - what resonates, what frustrates, what t
         "frequency": 0,
         "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}],
         "marketingAngle": "How to leverage in marketing"
-      }
-    ],
-    "competitorWeaknesses": [
-      {
-        "competitor": "Product/brand mentioned",
-        "weakness": "What people complain about",
-        "frequency": 0,
-        "quotes": [{"text": "Exact quote", "score": 0, "author": "@user"}]
       }
     ],
     "summary": "Pain landscape overview"
@@ -738,8 +595,7 @@ Find actionable marketing intelligence - what resonates, what frustrates, what t
 
     personaRules = `
 MARKETER RULES:
-- marketingMix: Analyze 4Ps from comments. Use REAL quotes as evidence for each P.
-- painPoints: Identify pains with severity and frequency. Find competitor mentions and weaknesses. Each pain = marketing opportunity.
+- painPoints: Identify pains with severity and frequency. Each pain = marketing opportunity. Use exact quotes.
 - keyValueProposition: Distill what matters most. Use THEIR language for value prop - not AI-polished.
 - audienceSegmentation: Identify buyer segments. Look for purchase intent, budget indicators, use cases, experience levels.`;
 
