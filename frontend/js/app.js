@@ -1,5 +1,21 @@
 // Main application logic
 
+/**
+ * Check if a goal string is an internal persona prompt (not user-written)
+ * and return a clean display label instead
+ */
+function getDisplayGoal(goal, role) {
+    if (!goal) return null;
+    // Internal goals start with "Analyze comments to..." - these are auto-set by persona selection
+    if (goal.startsWith('Analyze comments to')) return null;
+    // Other internal patterns
+    if (goal.startsWith('Do a comprehensive AI analysis')) return null;
+    if (goal.startsWith('Research what resonates')) return null;
+    if (goal.startsWith('Identify pain points')) return null;
+    if (goal.startsWith('Identify what users value')) return null;
+    return goal;
+}
+
 // State management
 let topicSelectedPosts = new Set();
 let subredditSelectedPosts = new Set();
@@ -100,7 +116,8 @@ function updateInputCollapsedSummary(query, goal) {
         titleEl.textContent = `"${truncatedQuery}"`;
     }
     if (subtitleEl) {
-        subtitleEl.textContent = goal ? `Goal: ${goal.substring(0, 50)}` : 'Click to edit search';
+        const displayGoal = getDisplayGoal(goal);
+        subtitleEl.textContent = displayGoal ? `Goal: ${displayGoal.substring(0, 50)}` : 'Click to edit search';
     }
 }
 
@@ -1906,7 +1923,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             </div>
             <div class="analysis-meta">
                 <span>Topic: <strong>${window.currentResearchContext?.researchQuestion || window.currentResearchContext?.topic || 'Reddit Analysis'}</strong></span>
-                <span>Goal: <strong>${goal || 'Extract insights'}</strong></span>
+                ${getDisplayGoal(goal) ? `<span>Goal: <strong>${escapeHtml(getDisplayGoal(goal))}</strong></span>` : `<span>Persona: <strong>${escapeHtml(role || 'Researcher')}</strong></span>`}
             </div>
             <div class="analysis-actions">
                 <button onclick="downloadAllRawData()" class="btn-export">Export Comments (PDF)</button>
@@ -3835,7 +3852,7 @@ function loadSavedContent(index) {
             <body>
                 <h1>${item.icon || ''} ${item.label || 'Generated Content'}</h1>
                 <div class="meta">
-                    Topic: ${item.topic || 'N/A'} | Role: ${item.role || 'N/A'} | Goal: ${item.goal || 'N/A'}<br>
+                    Topic: ${item.topic || 'N/A'} | Role: ${item.role || 'N/A'}${getDisplayGoal(item.goal) ? ` | Goal: ${getDisplayGoal(item.goal)}` : ''}<br>
                     Generated: ${new Date(item.timestamp).toLocaleString()}
                 </div>
                 <div class="actions">
