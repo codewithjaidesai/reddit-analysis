@@ -2476,18 +2476,6 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                 `;
             }
 
-            // Legacy persona sections (old schema backward compat)
-            if (structured.viralContentIdeas?.ideas?.length > 0) {
-                const vc = structured.viralContentIdeas;
-                html += `<div class="quant-subsection"><h3 class="quant-subsection-title">Viral Content Ideas</h3>${vc.ideas.map(idea => `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; margin-bottom: 12px;"><span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(idea.idea)}</span><p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">${escapeHtml(idea.whyViral || '')}</p></div>`).join('')}</div>`;
-            }
-            if (structured.contentGaps?.gaps?.length > 0) {
-                const cg = structured.contentGaps;
-                html += `<div class="quant-subsection"><h3 class="quant-subsection-title">Content Gaps</h3>${cg.gaps.map(gap => `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px;"><span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(gap.topic)}</span><p style="color: #94a3b8; font-size: 13px;">${escapeHtml(gap.opportunity || '')}</p></div>`).join('')}</div>`;
-            }
-            if (structured.painPoints?.points?.length > 0) {
-                html += `<div class="quant-subsection"><h3 class="quant-subsection-title">Pain Points</h3>${structured.painPoints.points.map(p => `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 3px solid ${p.severity === 'high' ? '#e53e3e' : '#ed8936'};"><span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(p.pain)}</span>${p.marketingAngle ? `<p style="color: #48bb78; font-size: 13px; margin-top: 6px;">${escapeHtml(p.marketingAngle)}</p>` : ''}</div>`).join('')}</div>`;
-            }
             // Legacy evidence analysis
             if (structured.evidenceAnalysis) {
                 const evidence = structured.evidenceAnalysis;
@@ -2503,7 +2491,6 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                     const sb = quant.sentimentBreakdown;
                     html += `<div class="quant-subsection"><h3 class="quant-subsection-title">Sentiment Distribution</h3><div class="sentiment-breakdown"><div class="sentiment-bar-container"><div class="sentiment-bar">${sb.positive > 0 ? `<div class="sentiment-bar-segment positive" style="width: ${sb.positive}%">${sb.positive}%</div>` : ''}${sb.neutral > 0 ? `<div class="sentiment-bar-segment neutral" style="width: ${sb.neutral}%">${sb.neutral}%</div>` : ''}${sb.negative > 0 ? `<div class="sentiment-bar-segment negative" style="width: ${sb.negative}%">${sb.negative}%</div>` : ''}</div></div></div></div>`;
                 }
-            }
             }
 
             // Content Gap Opportunities (for Content Creator persona)
@@ -2559,79 +2546,6 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                 `).join('')}
                             </div>
                         ` : ''}
-                    </div>
-                `;
-            }
-
-            // Audience Segmentation (new demographic patterns format)
-            if (structured.audienceSegmentation && structured.audienceSegmentation.demographicPatterns?.length > 0) {
-                const as = structured.audienceSegmentation;
-                html += `
-                    <div class="quant-subsection">
-                        <h3 class="quant-subsection-title">Audience Segmentation <span class="info-label">${as.demographicPatterns.length} segments</span></h3>
-                        ${as.summary ? `<p class="quant-subsection-summary">${escapeHtml(as.summary)}</p>` : ''}
-                        <div class="audience-chart-container" style="margin-bottom: 16px;">
-                            <div style="display: flex; height: 32px; border-radius: 8px; overflow: hidden; margin-bottom: 8px;">
-                                ${as.demographicPatterns.map((seg, i) => {
-                                    const colors = ['#667eea', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac'];
-                                    return `<div style="width: ${seg.percentage || 0}%; background: ${colors[i % colors.length]}; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 600; min-width: ${seg.percentage > 5 ? '0' : '20px'};">${seg.percentage > 8 ? seg.percentage + '%' : ''}</div>`;
-                                }).join('')}
-                            </div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-                                ${as.demographicPatterns.map((seg, i) => {
-                                    const colors = ['#667eea', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac'];
-                                    return `<span style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: #cbd5e0;"><span style="width: 10px; height: 10px; border-radius: 50%; background: ${colors[i % colors.length]};"></span> ${escapeHtml(seg.identifier)} (${seg.percentage || 0}%)</span>`;
-                                }).join('')}
-                            </div>
-                        </div>
-                        <div class="audience-segments-grid">
-                            ${as.demographicPatterns.map(seg => `
-                                <div class="audience-segment-card">
-                                    <div class="segment-header">
-                                        <span class="segment-level-badge">${escapeHtml(seg.identifier || 'Unknown')}</span>
-                                        <span class="segment-stats">${seg.estimatedCount || 0} comments (${seg.percentage || 0}%)</span>
-                                    </div>
-                                    <p class="segment-description">${escapeHtml(seg.description || '')}</p>
-                                    ${seg.characteristics && seg.characteristics.length > 0 ? `
-                                        <div class="segment-characteristics">
-                                            ${seg.characteristics.map(c => `<span class="segment-trait">${escapeHtml(c)}</span>`).join('')}
-                                        </div>
-                                    ` : ''}
-                                    ${seg.evidence && seg.evidence.length > 0 ? `
-                                        <div style="margin-top: 8px;">
-                                            ${seg.evidence.map(e => `<p style="font-size: 12px; color: #94a3b8; font-style: italic;">"${escapeHtml(e)}"</p>`).join('')}
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Audience Segmentation (legacy format)
-            if (structured.audienceSegmentation && structured.audienceSegmentation.segments?.length > 0 && !structured.audienceSegmentation.demographicPatterns) {
-                const as = structured.audienceSegmentation;
-                html += `
-                    <div class="quant-subsection">
-                        <h3 class="quant-subsection-title">Audience Segmentation</h3>
-                        ${as.summary ? `<p class="quant-subsection-summary">${escapeHtml(as.summary)}</p>` : ''}
-                        <div class="audience-segments-grid">
-                            ${as.segments.map(seg => `
-                                <div class="audience-segment-card segment-${(seg.level || 'unknown').toLowerCase()}">
-                                    <div class="segment-header">
-                                        <span class="segment-level-badge level-${(seg.level || 'unknown').toLowerCase()}">${(seg.level || 'Unknown').toUpperCase()}</span>
-                                        <span class="segment-stats">${seg.estimatedCount || 0} comments (${seg.percentage || 0}%)</span>
-                                    </div>
-                                    <p class="segment-description">${escapeHtml(seg.description || '')}</p>
-                                    ${seg.characteristics && seg.characteristics.length > 0 ? `
-                                        <div class="segment-characteristics">
-                                            ${seg.characteristics.map(c => `<span class="segment-trait">${escapeHtml(c)}</span>`).join('')}
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
                     </div>
                 `;
             }
