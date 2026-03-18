@@ -443,429 +443,249 @@ function displayInsights(analysisText) {
  * @param {string} source - 'reddit' or 'youtube'
  */
 function displayStructuredInsights(analysis, model, source = 'reddit') {
-    // Store for export - keep both structured object and JSON string
+    // Store for export
     window.currentStructuredAnalysis = analysis;
     window.currentAnalysisSource = source;
     window.currentAIInsights = JSON.stringify(analysis, null, 2);
 
     const isYouTube = source === 'youtube';
-    const engagementLabel = isYouTube ? 'likes' : 'pts';
+    const isNewSchema = !!(analysis.theVerdict || analysis.rankedThemes || analysis.worthQuoting);
 
     let html = '';
 
-    // Video Summary (YouTube only, when transcript is available)
+    // Video Summary/Overview (YouTube only)
     if (isYouTube && analysis.videoSummary) {
         const vs = analysis.videoSummary;
-        html += `
-            <div class="content-analysis-section video-summary-section">
-                <h3>📺 Video Content Summary</h3>
-                <div class="video-summary-card">
-                    <div class="video-type-badge">${escapeHtml(vs.contentType || 'video')}</div>
-                    ${vs.summary ? `<p class="video-summary-text">${escapeHtml(vs.summary)}</p>` : ''}
-
-                    ${vs.keyPoints && vs.keyPoints.length > 0 ? `
-                        <div class="video-key-points">
-                            <h4>Key Takeaways</h4>
-                            <ul class="key-points-list">
-                                ${vs.keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
-                            </ul>
-                        </div>
-                    ` : ''}
-
-                    ${vs.concepts && vs.concepts.length > 0 ? `
-                        <div class="video-concepts">
-                            <h4>Concepts Explained</h4>
-                            <div class="concepts-grid">
-                                ${vs.concepts.map(concept => `
-                                    <div class="concept-card">
-                                        <span class="concept-term">${escapeHtml(concept.term)}</span>
-                                        <p class="concept-definition">${escapeHtml(concept.definition)}</p>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
+        html += `<div class="content-analysis-section video-summary-section"><h3>Video Content Summary</h3><div class="video-summary-card"><div class="video-type-badge">${escapeHtml(vs.contentType || 'video')}</div>${vs.summary ? `<p class="video-summary-text">${escapeHtml(vs.summary)}</p>` : ''}${vs.keyPoints?.length > 0 ? `<div class="video-key-points"><h4>Key Takeaways</h4><ul class="key-points-list">${vs.keyPoints.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div>` : ''}</div></div>`;
     }
-
-    // Video Overview (YouTube only, when NO transcript but has description)
     if (isYouTube && analysis.videoOverview && !analysis.videoSummary) {
         const vo = analysis.videoOverview;
-        html += `
-            <div class="content-analysis-section video-overview-section">
-                <h3>📋 Video Overview <span class="info-label">From description</span></h3>
-                <div class="video-overview-card">
-                    <div class="video-type-badge">${escapeHtml(vo.contentType || 'video')}</div>
-                    ${vo.summary ? `<p class="video-overview-text">${escapeHtml(vo.summary)}</p>` : ''}
-
-                    ${vo.topicsFromDescription && vo.topicsFromDescription.length > 0 ? `
-                        <div class="video-topics">
-                            <h4>Topics Covered</h4>
-                            <ul class="topics-list">
-                                ${vo.topicsFromDescription.map(topic => `<li>${escapeHtml(topic)}</li>`).join('')}
-                            </ul>
-                        </div>
-                    ` : ''}
-
-                    <p class="overview-note">ℹ️ ${escapeHtml(vo.note || 'Based on video description - transcript unavailable')}</p>
-                </div>
-            </div>
-        `;
+        html += `<div class="content-analysis-section"><h3>Video Overview</h3><div class="video-overview-card"><div class="video-type-badge">${escapeHtml(vo.contentType || 'video')}</div>${vo.summary ? `<p>${escapeHtml(vo.summary)}</p>` : ''}</div></div>`;
     }
 
-    // Executive Summary
-    if (analysis.executiveSummary) {
-        html += `
-            <div class="content-analysis-section">
-                <h3>Executive Summary</h3>
-                <p class="executive-summary-text">${escapeHtml(analysis.executiveSummary)}</p>
-            </div>
-        `;
-    }
+    if (isNewSchema) {
+        // ═══ NEW SCHEMA: Content Radar-style ═══
 
-    // Sentiment Analysis
-    if (analysis.sentimentAnalysis) {
-        const sa = analysis.sentimentAnalysis;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Sentiment Analysis <span class="info-label">Comment tone</span></h3>
-                <div class="sentiment-overview">
-                    <span class="sentiment-overall sentiment-${sa.overall || 'neutral'}">${(sa.overall || 'neutral').toUpperCase()}</span>
-                    ${sa.emotionalTone ? `<span class="emotional-tone">${escapeHtml(sa.emotionalTone)}</span>` : ''}
-                </div>
-                ${sa.breakdown ? `
-                    <div class="sentiment-bars">
-                        <div class="sentiment-bar-row">
-                            <span class="sentiment-label positive">Positive</span>
-                            <div class="sentiment-bar-track">
-                                <div class="sentiment-bar-fill positive" style="width: ${sa.breakdown.positive || 0}%"></div>
-                            </div>
-                            <span class="sentiment-percent">${sa.breakdown.positive || 0}%</span>
-                        </div>
-                        <div class="sentiment-bar-row">
-                            <span class="sentiment-label negative">Negative</span>
-                            <div class="sentiment-bar-track">
-                                <div class="sentiment-bar-fill negative" style="width: ${sa.breakdown.negative || 0}%"></div>
-                            </div>
-                            <span class="sentiment-percent">${sa.breakdown.negative || 0}%</span>
-                        </div>
-                        <div class="sentiment-bar-row">
-                            <span class="sentiment-label neutral">Neutral</span>
-                            <div class="sentiment-bar-track">
-                                <div class="sentiment-bar-fill neutral" style="width: ${sa.breakdown.neutral || 0}%"></div>
-                            </div>
-                            <span class="sentiment-percent">${sa.breakdown.neutral || 0}%</span>
+        // THE VERDICT
+        if (analysis.theVerdict) {
+            const v = analysis.theVerdict;
+            html += `
+                <div class="content-analysis-section verdict-section">
+                    <h3>THE VERDICT</h3>
+                    <div class="verdict-card verdict-${v.confidence || 'medium'}">
+                        <div class="verdict-answer">${escapeHtml(v.answer || '')}</div>
+                        <div class="verdict-meta">
+                            <span class="confidence-badge confidence-${v.confidence || 'medium'}">${(v.confidence || 'medium').toUpperCase()} CONFIDENCE</span>
+                            ${v.basis ? `<span class="verdict-basis">${escapeHtml(v.basis)}</span>` : ''}
                         </div>
                     </div>
-                ` : ''}
-                ${sa.drivers ? `
-                    <div class="sentiment-drivers">
-                        ${sa.drivers.positive && sa.drivers.positive.length > 0 ? `
-                            <div class="driver-col positive">
-                                <h4>Driving Positive</h4>
-                                <ul>${sa.drivers.positive.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>
-                            </div>
-                        ` : ''}
-                        ${sa.drivers.negative && sa.drivers.negative.length > 0 ? `
-                            <div class="driver-col negative">
-                                <h4>Driving Negative</h4>
-                                <ul>${sa.drivers.negative.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>
-                            </div>
-                        ` : ''}
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }
-
-    // Audience Segmentation (new demographic patterns format)
-    if (analysis.audienceSegmentation && analysis.audienceSegmentation.demographicPatterns?.length > 0) {
-        const as = analysis.audienceSegmentation;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Audience Segmentation <span class="info-label">${as.demographicPatterns.length} segments identified</span></h3>
-                ${as.summary ? `<p class="section-summary-text">${escapeHtml(as.summary)}</p>` : ''}
-                <div class="audience-chart-container" style="margin-bottom: 16px;">
-                    <div class="audience-bar-chart" style="display: flex; height: 32px; border-radius: 8px; overflow: hidden; margin-bottom: 8px;">
-                        ${as.demographicPatterns.map((seg, i) => {
-                            const colors = ['#667eea', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac'];
-                            return `<div style="width: ${seg.percentage || 0}%; background: ${colors[i % colors.length]}; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 600; min-width: ${seg.percentage > 5 ? '0' : '20px'};">${seg.percentage > 8 ? seg.percentage + '%' : ''}</div>`;
-                        }).join('')}
-                    </div>
-                    <div class="audience-chart-legend" style="display: flex; flex-wrap: wrap; gap: 12px;">
-                        ${as.demographicPatterns.map((seg, i) => {
-                            const colors = ['#667eea', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac'];
-                            return `<span style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: #cbd5e0;"><span style="width: 10px; height: 10px; border-radius: 50%; background: ${colors[i % colors.length]};"></span> ${escapeHtml(seg.identifier)} (${seg.percentage || 0}%)</span>`;
-                        }).join('')}
-                    </div>
                 </div>
-                <div class="audience-segments-grid">
-                    ${as.demographicPatterns.map(seg => `
-                        <div class="audience-segment-card">
-                            <div class="segment-header">
-                                <span class="segment-level-badge">${escapeHtml(seg.identifier || 'Unknown')}</span>
-                                <span class="segment-stats">${seg.estimatedCount || 0} comments (${seg.percentage || 0}%)</span>
-                            </div>
-                            <p class="segment-description">${escapeHtml(seg.description || '')}</p>
-                            ${seg.characteristics && seg.characteristics.length > 0 ? `
-                                <div class="segment-characteristics">
-                                    ${seg.characteristics.map(c => `<span class="segment-trait">${escapeHtml(c)}</span>`).join('')}
-                                </div>
-                            ` : ''}
-                            ${seg.evidence && seg.evidence.length > 0 ? `
-                                <div class="segment-evidence" style="margin-top: 8px;">
-                                    ${seg.evidence.map(e => `<p class="segment-evidence-quote" style="font-size: 12px; color: #94a3b8; font-style: italic;">"${escapeHtml(e)}"</p>`).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
+            `;
+        }
 
-    // Audience Segmentation (legacy format - experience levels)
-    if (analysis.audienceSegmentation && analysis.audienceSegmentation.segments?.length > 0 && !analysis.audienceSegmentation.demographicPatterns) {
-        const as = analysis.audienceSegmentation;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Audience Segmentation <span class="info-label">${as.segments.length} segments identified</span></h3>
-                ${as.summary ? `<p class="section-summary-text">${escapeHtml(as.summary)}</p>` : ''}
-                <div class="audience-segments-grid">
-                    ${as.segments.map(seg => `
-                        <div class="audience-segment-card segment-${(seg.level || 'unknown').toLowerCase()}">
-                            <div class="segment-header">
-                                <span class="segment-level-badge level-${(seg.level || 'unknown').toLowerCase()}">${(seg.level || 'Unknown').toUpperCase()}</span>
-                                <span class="segment-stats">${seg.estimatedCount || 0} comments (${seg.percentage || 0}%)</span>
-                            </div>
-                            <p class="segment-description">${escapeHtml(seg.description || '')}</p>
-                            ${seg.characteristics && seg.characteristics.length > 0 ? `
-                                <div class="segment-characteristics">
-                                    ${seg.characteristics.map(c => `<span class="segment-trait">${escapeHtml(c)}</span>`).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
+        // SENTIMENT
+        if (analysis.sentimentAnalysis) {
+            const sa = analysis.sentimentAnalysis;
+            html += `<div class="content-analysis-section"><h3>Sentiment <span class="info-label">${escapeHtml(sa.emotionalTone || sa.overall || 'mixed')}</span></h3>`;
+            if (sa.breakdown) {
+                const sb = sa.breakdown;
+                html += `<div class="sentiment-bars"><div class="sentiment-bar-row"><span class="sentiment-label positive">Positive</span><div class="sentiment-bar-track"><div class="sentiment-bar-fill positive" style="width: ${sb.positive || 0}%"></div></div><span class="sentiment-percent">${sb.positive || 0}%</span></div><div class="sentiment-bar-row"><span class="sentiment-label negative">Negative</span><div class="sentiment-bar-track"><div class="sentiment-bar-fill negative" style="width: ${sb.negative || 0}%"></div></div><span class="sentiment-percent">${sb.negative || 0}%</span></div><div class="sentiment-bar-row"><span class="sentiment-label neutral">Neutral</span><div class="sentiment-bar-track"><div class="sentiment-bar-fill neutral" style="width: ${sb.neutral || 0}%"></div></div><span class="sentiment-percent">${sb.neutral || 0}%</span></div></div>`;
+            }
+            if (sa.drivers) {
+                html += `<div class="sentiment-drivers">${sa.drivers.positive?.length > 0 ? `<div class="driver-col positive"><h4>Driving Positive</h4><ul>${sa.drivers.positive.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul></div>` : ''}${sa.drivers.negative?.length > 0 ? `<div class="driver-col negative"><h4>Driving Negative</h4><ul>${sa.drivers.negative.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul></div>` : ''}</div>`;
+            }
+            html += `</div>`;
+        }
 
-    // Viral Content Ideas (Content Creator)
-    if (analysis.viralContentIdeas && analysis.viralContentIdeas.ideas?.length > 0) {
-        const vc = analysis.viralContentIdeas;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Viral Content Ideas <span class="info-label success">From audience language</span></h3>
-                ${vc.summary ? `<p class="section-summary-text">${escapeHtml(vc.summary)}</p>` : ''}
-                <div class="viral-ideas-list">
-                    ${vc.ideas.map(idea => `
-                        <div class="viral-idea-card" style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                                <span style="font-weight: 600; color: #f1f5f9; font-size: 15px;">${escapeHtml(idea.idea)}</span>
-                                <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; white-space: nowrap;">Demand: ${idea.demandScore || '?'}/10</span>
-                            </div>
-                            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 8px;">${escapeHtml(idea.whyViral || '')}</p>
-                            ${idea.audienceQuotes && idea.audienceQuotes.length > 0 ? `
-                                <div style="margin-bottom: 8px;">
-                                    ${idea.audienceQuotes.map(q => `<p style="font-size: 12px; color: #a78bfa; font-style: italic; margin: 4px 0;">"${escapeHtml(q)}"</p>`).join('')}
-                                </div>
-                            ` : ''}
-                            ${idea.suggestedFormats && idea.suggestedFormats.length > 0 ? `
-                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                    ${idea.suggestedFormats.map(f => `<span style="background: #2d3a4d; color: #cbd5e0; padding: 3px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(f)}</span>`).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    // Top Open Questions (Content Creator)
-    if (analysis.topOpenQuestions && analysis.topOpenQuestions.questions?.length > 0) {
-        const toq = analysis.topOpenQuestions;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Top Open Questions <span class="info-label success">Engagement opportunities</span></h3>
-                ${toq.summary ? `<p class="section-summary-text">${escapeHtml(toq.summary)}</p>` : ''}
-                <div class="unanswered-questions-list">
-                    ${toq.questions.map(q => `
-                        <div class="unanswered-q-card">
-                            <div class="unanswered-q-header">
-                                <span class="unanswered-q-text">${escapeHtml(q.question)}</span>
-                                <span class="content-opportunity-tag">Content Idea</span>
-                            </div>
-                            <div class="unanswered-q-meta">
-                                <span class="unanswered-q-author">-- @${escapeHtml(q.author || 'anonymous')}</span>
-                                <span class="unanswered-q-score">${q.score || 0} ${engagementLabel}</span>
-                                ${q.engagementSignal ? `<span style="color: #48bb78; font-size: 12px;">${escapeHtml(q.engagementSignal)}</span>` : ''}
-                            </div>
-                            ${q.contentOpportunity ? `<p class="unanswered-q-opportunity">${escapeHtml(q.contentOpportunity)}</p>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    // Pain Points (Marketer)
-    if (analysis.painPoints) {
-        const pp = analysis.painPoints;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Pain Points</h3>
-                ${pp.summary ? `<p class="section-summary-text">${escapeHtml(pp.summary)}</p>` : ''}
-                ${pp.points && pp.points.length > 0 ? `
-                    <div style="margin-bottom: 16px;">
-                        ${pp.points.map(p => `
-                            <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 3px solid ${p.severity === 'high' ? '#e53e3e' : p.severity === 'medium' ? '#ed8936' : '#48bb78'};">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                    <span style="font-weight: 600; color: #f1f5f9; font-size: 14px;">${escapeHtml(p.pain)}</span>
-                                    <div style="display: flex; gap: 6px;">
-                                        <span style="background: ${p.severity === 'high' ? '#e53e3e33' : p.severity === 'medium' ? '#ed893633' : '#48bb7833'}; color: ${p.severity === 'high' ? '#fc8181' : p.severity === 'medium' ? '#fbd38d' : '#9ae6b4'}; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${(p.severity || 'medium').toUpperCase()}</span>
-                                        ${p.frequency ? `<span style="color: #94a3b8; font-size: 11px;">${p.frequency}x mentioned</span>` : ''}
+        // RANKED THEMES
+        if (analysis.rankedThemes?.length > 0) {
+            html += `
+                <div class="content-analysis-section">
+                    <h3>RANKED THEMES</h3>
+                    <div class="ranked-themes-list">
+                        ${analysis.rankedThemes.map(theme => `
+                            <div class="ranked-theme-card">
+                                <div class="ranked-theme-header">
+                                    <span class="ranked-theme-rank">#${theme.rank || '?'}</span>
+                                    <span class="ranked-theme-name">${escapeHtml(theme.theme)}</span>
+                                    <div class="ranked-theme-stats">
+                                        <span class="ranked-theme-mentions">${theme.mentions || 0}x</span>
+                                        <span class="sentiment-badge sentiment-${theme.sentiment || 'neutral'}">${theme.sentiment || 'neutral'}</span>
                                     </div>
                                 </div>
-                                ${p.marketingAngle ? `<p style="color: #48bb78; font-size: 13px; margin-top: 6px;">Marketing angle: ${escapeHtml(p.marketingAngle)}</p>` : ''}
-                                ${p.quotes && p.quotes.length > 0 ? `<p style="font-size: 12px; color: #a78bfa; font-style: italic; margin-top: 6px;">"${escapeHtml(p.quotes[0].text)}"</p>` : ''}
+                                <div class="ranked-theme-oneliner">${escapeHtml(theme.oneLiner || '')}</div>
+                                ${theme.topQuote ? `<div class="ranked-theme-quote"><span class="quote-icon">"</span>"${escapeHtml(theme.topQuote.text || '')}" <span class="ranked-theme-quote-meta">@${escapeHtml(theme.topQuote.author || 'anon')} · ${theme.topQuote.score || 0} pts</span></div>` : ''}
                             </div>
                         `).join('')}
                     </div>
-                ` : ''}
-            </div>
-        `;
-    }
-
-    // Key Value Proposition (Marketer)
-    if (analysis.keyValueProposition) {
-        const kvp = analysis.keyValueProposition;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Key Value Proposition</h3>
-                <div style="background: #1c2432; border: 1px solid #667eea; border-radius: 8px; padding: 20px; margin-bottom: 12px;">
-                    <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 12px;">${escapeHtml(kvp.primaryValue || '')}</div>
-                    ${kvp.supportingValues && kvp.supportingValues.length > 0 ? `
-                        <div style="margin-bottom: 12px;">
-                            ${kvp.supportingValues.map(v => `<span style="background: #2d3a4d; color: #cbd5e0; padding: 4px 10px; border-radius: 4px; font-size: 13px; margin-right: 6px; display: inline-block; margin-bottom: 4px;">${escapeHtml(v)}</span>`).join('')}
-                        </div>
-                    ` : ''}
-                    ${kvp.userLanguage && kvp.userLanguage.length > 0 ? `
-                        <div style="margin-bottom: 12px;">
-                            <span style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">In their own words:</span>
-                            ${kvp.userLanguage.map(l => `<p style="color: #a78bfa; font-style: italic; font-size: 13px; margin: 4px 0;">"${escapeHtml(l)}"</p>`).join('')}
-                        </div>
-                    ` : ''}
-                    ${kvp.differentiators && kvp.differentiators.length > 0 ? `
-                        <div>
-                            <span style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">Differentiators:</span>
-                            <ul style="margin: 0; padding-left: 16px;">${kvp.differentiators.map(d => `<li style="color: #48bb78; font-size: 13px;">${escapeHtml(d)}</li>`).join('')}</ul>
-                        </div>
-                    ` : ''}
                 </div>
-            </div>
-        `;
-    }
+            `;
+        }
 
-    // Unanswered Questions (legacy format)
-    if (analysis.unansweredQuestions && analysis.unansweredQuestions.questions?.length > 0) {
-        const uq = analysis.unansweredQuestions;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Unanswered Questions <span class="info-label success">Content opportunities</span></h3>
-                ${uq.summary ? `<p class="section-summary-text">${escapeHtml(uq.summary)}</p>` : ''}
-                <div class="unanswered-questions-list">
-                    ${uq.questions.map(q => `
-                        <div class="unanswered-q-card">
-                            <div class="unanswered-q-header">
-                                <span class="unanswered-q-text">${escapeHtml(q.question)}</span>
-                                <span class="content-opportunity-tag">Content Idea</span>
-                            </div>
-                            <div class="unanswered-q-meta">
-                                <span class="unanswered-q-author">— @${escapeHtml(q.author || 'anonymous')}</span>
-                                <span class="unanswered-q-score">${q.score || 0} ${engagementLabel}</span>
-                            </div>
-                            ${q.contentOpportunity ? `<p class="unanswered-q-opportunity">${escapeHtml(q.contentOpportunity)}</p>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    // Comment Classification
-    if (analysis.commentClassification && analysis.commentClassification.breakdown) {
-        const cc = analysis.commentClassification;
-        const bd = cc.breakdown;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Comment Substance Analysis <span class="info-label">Engagement quality</span></h3>
-                ${cc.summary ? `<p class="section-summary-text">${escapeHtml(cc.summary)}</p>` : ''}
-                <div class="classification-bar-container">
-                    <div class="classification-bar">
-                        ${bd.substantive?.percentage > 0 ? `<div class="classification-segment substantive" style="width: ${bd.substantive.percentage}%"><span>${bd.substantive.percentage}%</span></div>` : ''}
-                        ${bd.motivational?.percentage > 0 ? `<div class="classification-segment motivational" style="width: ${bd.motivational.percentage}%"><span>${bd.motivational.percentage}%</span></div>` : ''}
-                        ${bd.conversational?.percentage > 0 ? `<div class="classification-segment conversational" style="width: ${bd.conversational.percentage}%"><span>${bd.conversational.percentage}%</span></div>` : ''}
-                        ${bd.promotional?.percentage > 0 ? `<div class="classification-segment promotional" style="width: ${bd.promotional.percentage}%"><span>${bd.promotional.percentage}%</span></div>` : ''}
-                    </div>
-                    <div class="classification-legend">
-                        <span class="legend-item"><span class="legend-dot substantive"></span> Substantive ${bd.substantive?.count || 0}</span>
-                        <span class="legend-item"><span class="legend-dot motivational"></span> Motivational ${bd.motivational?.count || 0}</span>
-                        <span class="legend-item"><span class="legend-dot conversational"></span> Conversational ${bd.conversational?.count || 0}</span>
-                        <span class="legend-item"><span class="legend-dot promotional"></span> Promotional ${bd.promotional?.count || 0}</span>
-                    </div>
-                </div>
-                ${cc.topSubstantiveComments && cc.topSubstantiveComments.length > 0 ? `
-                    <div class="top-substantive-list">
-                        <h4>Top Substantive Comments</h4>
-                        ${cc.topSubstantiveComments.map(c => `
-                            <div class="substantive-comment-card">
-                                <p class="substantive-snippet">"${escapeHtml(c.snippet)}"</p>
-                                <div class="substantive-meta">
-                                    <span class="substantive-author">— @${escapeHtml(c.author || 'anonymous')}</span>
-                                    <span class="substantive-score">${c.score || 0} ${engagementLabel}</span>
-                                </div>
-                                ${c.whyValuable ? `<p class="substantive-why">${escapeHtml(c.whyValuable)}</p>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }
-
-    // Spam & Promotions
-    if (analysis.spamAndPromotions) {
-        const sp = analysis.spamAndPromotions;
-        const hasFlagged = sp.flaggedComments && sp.flaggedComments.length > 0;
-        html += `
-            <div class="content-analysis-section">
-                <h3>Spam & Promotions <span class="info-label ${hasFlagged ? 'warning' : ''}">${hasFlagged ? sp.flaggedComments.length + ' flagged' : 'Clean'}</span></h3>
-                ${sp.summary ? `<p class="section-summary-text">${escapeHtml(sp.summary)}</p>` : ''}
-                ${hasFlagged ? `
-                    <div class="spam-flagged-list">
-                        ${sp.flaggedComments.map(f => `
-                            <div class="spam-flagged-item severity-${(f.severity || 'low').toLowerCase()}">
-                                <div class="spam-flagged-header">
-                                    <span class="spam-type-badge type-${(f.type || 'spam').replace(/_/g, '-')}">${(f.type || 'spam').replace(/_/g, ' ')}</span>
-                                    <span class="spam-severity-badge severity-${(f.severity || 'low').toLowerCase()}">${(f.severity || 'low').toUpperCase()}</span>
-                                </div>
-                                <p class="spam-snippet">"${escapeHtml(f.snippet || '')}"</p>
-                                <div class="spam-meta">
-                                    <span class="spam-author">— @${escapeHtml(f.author || 'anonymous')}</span>
-                                    ${f.reason ? `<span class="spam-reason">${escapeHtml(f.reason)}</span>` : ''}
+        // FROM THE TRENCHES
+        if (analysis.fromTheTrenches?.length > 0) {
+            html += `
+                <div class="content-analysis-section trenches-section">
+                    <h3>FROM THE TRENCHES</h3>
+                    <p class="section-subtitle">Real data and tools people shared</p>
+                    <div class="trenches-list">
+                        ${analysis.fromTheTrenches.map(item => `
+                            <div class="trenches-item">
+                                <div class="trenches-insight">${escapeHtml(item.insight)}</div>
+                                <div class="trenches-meta">
+                                    <span class="trenches-author">@${escapeHtml(item.author || 'anon')}</span>
+                                    ${item.score ? `<span class="trenches-score">${item.score} pts</span>` : ''}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                ` : `
-                    <div class="spam-clean-notice">No spam or promotional comments detected.</div>
-                `}
-            </div>
-        `;
+                </div>
+            `;
+        }
+
+        // WHAT THEY'RE ASKING
+        if (analysis.whatTheyreAsking?.length > 0) {
+            html += `
+                <div class="content-analysis-section asking-section">
+                    <h3>WHAT THEY'RE ASKING</h3>
+                    <div class="asking-list">
+                        ${analysis.whatTheyreAsking.map(q => `
+                            <div class="asking-item">
+                                <div class="asking-question">${escapeHtml(q.question)}</div>
+                                <div class="asking-meta">
+                                    <span class="asking-author">@${escapeHtml(q.author || 'anon')}</span>
+                                    ${q.score ? `<span class="asking-score">${q.score} pts</span>` : ''}
+                                </div>
+                                ${q.demandSignal ? `<div class="asking-demand">${escapeHtml(q.demandSignal)}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // WORTH QUOTING
+        if (analysis.worthQuoting?.length > 0) {
+            html += `
+                <div class="content-analysis-section">
+                    <h3>WORTH QUOTING</h3>
+                    <div class="quotes-grid">
+                        ${analysis.worthQuoting.map(q => `
+                            <div class="quote-card quote-${(q.category || 'insight').toLowerCase()}">
+                                <span class="quote-type-badge">${(q.category || 'INSIGHT').toUpperCase()}</span>
+                                <div class="quote-icon">"</div>
+                                <p class="quote-text">"${escapeHtml(q.quote)}"</p>
+                                <div class="quote-footer">
+                                    <span class="quote-source">@${escapeHtml(q.author || 'anon')}</span>
+                                    ${q.score ? `<span class="quote-score">${q.score} pts</span>` : ''}
+                                </div>
+                                ${q.context ? `<p class="quote-context">${escapeHtml(q.context)}</p>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // FUNNY & MEMORABLE
+        if (analysis.funnyAndMemorable?.length > 0) {
+            html += `
+                <div class="content-analysis-section funny-section">
+                    <h3>FUNNY & MEMORABLE</h3>
+                    <div class="funny-list">
+                        ${analysis.funnyAndMemorable.map(f => `
+                            <div class="funny-item">
+                                <div class="funny-quote">"${escapeHtml(f.quote)}"</div>
+                                <div class="funny-meta">
+                                    <span class="funny-author">@${escapeHtml(f.author || 'anon')}</span>
+                                    ${f.score ? `<span class="funny-score">${f.score} pts</span>` : ''}
+                                </div>
+                                ${f.context ? `<div class="funny-context">${escapeHtml(f.context)}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // CONFIDENCE
+        if (analysis.confidence) {
+            const conf = analysis.confidence;
+            html += `
+                <div class="content-analysis-section">
+                    <h3>CONFIDENCE</h3>
+                    <div class="confidence-card confidence-${conf.level || 'medium'}">
+                        <span class="confidence-level">${(conf.level || 'medium').toUpperCase()}</span>
+                        <span class="confidence-reason">${escapeHtml(conf.dataQuality || conf.reason || '')}</span>
+                    </div>
+                    <div class="confidence-details">
+                        ${conf.totalComments ? `<span class="confidence-stat">${conf.totalComments} comments</span>` : ''}
+                        ${conf.relevantComments ? `<span class="confidence-stat">${conf.relevantComments} relevant</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Persona sections (new schema)
+        if (analysis.contentOpportunities?.length > 0) {
+            html += `<div class="content-analysis-section"><h3>Content Opportunities</h3>${analysis.contentOpportunities.map(opp => `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; margin-bottom: 12px;"><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(opp.idea)}</span><span style="background: ${opp.urgency === 'high' ? '#e53e3e' : '#667eea'}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px;">${(opp.urgency || 'medium').toUpperCase()}</span></div><div style="color: #94a3b8; font-size: 13px;">${escapeHtml(opp.format || '')} — ${escapeHtml(opp.demandSignal || '')}</div>${opp.audienceQuote ? `<p style="font-size: 12px; color: #a78bfa; font-style: italic; margin-top: 6px;">"${escapeHtml(opp.audienceQuote)}"</p>` : ''}</div>`).join('')}</div>`;
+        }
+
+        // Audience Segmentation (new schema)
+        const segments = analysis.audienceSegmentation?.segments || [];
+        if (segments.length > 0) {
+            html += `<div class="content-analysis-section"><h3>Audience Segmentation</h3><div class="audience-segments-grid">${segments.map(seg => `<div class="audience-segment-card"><div class="segment-header"><span class="segment-level-badge">${escapeHtml(seg.who || 'Unknown')}</span><span class="segment-stats">${seg.percentage || 0}%</span></div><p class="segment-description">${escapeHtml(seg.whatTheyWant || seg.evidence || '')}</p></div>`).join('')}</div></div>`;
+        }
+
+        // Pain Points (new schema - array format)
+        if (Array.isArray(analysis.painPoints) && analysis.painPoints.length > 0) {
+            html += `<div class="content-analysis-section"><h3>Pain Points</h3>${analysis.painPoints.map(p => `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 3px solid ${p.severity === 'high' ? '#e53e3e' : '#ed8936'};"><span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(p.pain)}</span>${p.marketingAngle ? `<p style="color: #48bb78; font-size: 13px; margin-top: 6px;">${escapeHtml(p.marketingAngle)}</p>` : ''}${p.topQuote ? `<p style="font-size: 12px; color: #a78bfa; font-style: italic; margin-top: 6px;">"${escapeHtml(p.topQuote.text)}"</p>` : ''}</div>`).join('')}</div>`;
+        }
+
+        // Comment Classification (simplified new schema)
+        if (analysis.commentClassification && typeof analysis.commentClassification.substantive === 'number') {
+            const cc = analysis.commentClassification;
+            html += `<div class="content-analysis-section"><h3>Comment Quality</h3><p class="section-summary-text">${escapeHtml(cc.summary || '')}</p><div style="display:flex;gap:12px;flex-wrap:wrap;"><span style="color:#48bb78;">${cc.substantive}% substantive</span><span style="color:#ed8936;">${cc.motivational}% motivational</span><span style="color:#e53e3e;">${cc.promotional}% promotional</span><span style="color:#94a3b8;">${cc.conversational}% conversational</span></div></div>`;
+        }
+
+    } else {
+        // ═══ OLD SCHEMA: Legacy rendering ═══
+
+        if (analysis.executiveSummary) {
+            html += `<div class="content-analysis-section"><h3>Executive Summary</h3><p class="executive-summary-text">${escapeHtml(analysis.executiveSummary)}</p></div>`;
+        }
+
+        if (analysis.sentimentAnalysis) {
+            const sa = analysis.sentimentAnalysis;
+            html += `<div class="content-analysis-section"><h3>Sentiment Analysis</h3><div class="sentiment-overview"><span class="sentiment-overall sentiment-${sa.overall || 'neutral'}">${(sa.overall || 'neutral').toUpperCase()}</span>${sa.emotionalTone ? `<span class="emotional-tone">${escapeHtml(sa.emotionalTone)}</span>` : ''}</div>`;
+            if (sa.breakdown) {
+                const sb = sa.breakdown;
+                html += `<div class="sentiment-bars"><div class="sentiment-bar-row"><span class="sentiment-label positive">Positive</span><div class="sentiment-bar-track"><div class="sentiment-bar-fill positive" style="width: ${sb.positive || 0}%"></div></div><span class="sentiment-percent">${sb.positive || 0}%</span></div><div class="sentiment-bar-row"><span class="sentiment-label negative">Negative</span><div class="sentiment-bar-track"><div class="sentiment-bar-fill negative" style="width: ${sb.negative || 0}%"></div></div><span class="sentiment-percent">${sb.negative || 0}%</span></div></div>`;
+            }
+            html += `</div>`;
+        }
+
+        // Legacy persona sections
+        if (analysis.audienceSegmentation?.demographicPatterns?.length > 0) {
+            const as = analysis.audienceSegmentation;
+            html += `<div class="content-analysis-section"><h3>Audience Segmentation</h3><div class="audience-segments-grid">${as.demographicPatterns.map(seg => `<div class="audience-segment-card"><div class="segment-header"><span class="segment-level-badge">${escapeHtml(seg.identifier || 'Unknown')}</span><span class="segment-stats">${seg.percentage || 0}%</span></div><p class="segment-description">${escapeHtml(seg.description || '')}</p></div>`).join('')}</div></div>`;
+        }
+
+        if (analysis.viralContentIdeas?.ideas?.length > 0) {
+            html += `<div class="content-analysis-section"><h3>Viral Content Ideas</h3>${analysis.viralContentIdeas.ideas.map(idea => `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; margin-bottom: 12px;"><span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(idea.idea)}</span><p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">${escapeHtml(idea.whyViral || '')}</p></div>`).join('')}</div>`;
+        }
+
+        if (analysis.topOpenQuestions?.questions?.length > 0) {
+            html += `<div class="content-analysis-section"><h3>Top Open Questions</h3>${analysis.topOpenQuestions.questions.map(q => `<div class="unanswered-q-card"><span class="unanswered-q-text">${escapeHtml(q.question)}</span><div class="unanswered-q-meta"><span class="unanswered-q-author">@${escapeHtml(q.author || 'anon')}</span><span class="unanswered-q-score">${q.score || 0} pts</span></div></div>`).join('')}</div>`;
+        }
+
+        if (analysis.painPoints?.points?.length > 0) {
+            html += `<div class="content-analysis-section"><h3>Pain Points</h3>${analysis.painPoints.points.map(p => `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 3px solid ${p.severity === 'high' ? '#e53e3e' : '#ed8936'};"><span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(p.pain)}</span></div>`).join('')}</div>`;
+        }
+
+        if (analysis.confidence) {
+            html += `<div class="content-analysis-section"><h3>Confidence</h3><div class="confidence-card confidence-${analysis.confidence.level || 'medium'}"><span class="confidence-level">${(analysis.confidence.level || 'medium').toUpperCase()}</span><span class="confidence-reason">${escapeHtml(analysis.confidence.reason || '')}</span></div></div>`;
+        }
     }
 
     // Model attribution
@@ -874,6 +694,7 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
     document.getElementById('insightsContent').innerHTML = html;
     document.getElementById('insightsCard').style.display = 'block';
 }
+
 
 /**
  * Get CSS class for verdict
