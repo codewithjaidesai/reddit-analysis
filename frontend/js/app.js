@@ -2041,7 +2041,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
     if (structured) {
         // Detect schema: new (whatBlewUp/theVerdict) vs old (executiveSummary/keyInsights)
         const isNewSchema = !!(structured.whatBlewUp || structured.theVerdict || structured.rankedThemes);
-        const hasPersonaData = !!(structured.contentOpportunities || structured.audienceSegmentation || structured.painPoints || structured.valueProp || structured.contentGaps || structured.viralContentIdeas);
+        const hasPersonaData = !!(structured.contentOpportunities || structured.audienceSegmentation || structured.painPoints || structured.valueProp || structured.contentGaps || structured.viralContentIdeas || structured.suggestedItinerary || structured.buyingGuide);
         const hasGenerated = generatedContents.length > 0;
 
         html += `
@@ -2474,6 +2474,131 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                 </div>
                             ` : ''}
                         </div>
+                    </div>
+                `;
+            }
+
+            // Suggested Itinerary (Travel/Planning goal)
+            if (structured.suggestedItinerary) {
+                const itin = structured.suggestedItinerary;
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">📍 Suggested Itinerary</h3>
+                        ${itin.overview ? `<p style="color: #cbd5e0; margin-bottom: 16px; line-height: 1.6;">${escapeHtml(itin.overview)}</p>` : ''}
+                        ${(itin.phases || []).map(phase => `
+                            <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; margin-bottom: 12px; border-left: 3px solid #667eea;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <span style="font-weight: 600; color: #667eea; font-size: 15px;">${escapeHtml(phase.phase || '')}</span>
+                                    <span style="color: #94a3b8; font-size: 13px;">${escapeHtml(phase.region || '')}</span>
+                                </div>
+                                ${phase.destinations && phase.destinations.length > 0 ? `
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: #94a3b8; font-size: 12px;">Destinations:</span>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                                            ${phase.destinations.map(d => `<span style="background: #2d3a4d; color: #e2e8f0; padding: 4px 10px; border-radius: 4px; font-size: 13px;">${escapeHtml(d)}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${phase.activities && phase.activities.length > 0 ? `
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: #94a3b8; font-size: 12px;">Activities:</span>
+                                        <ul style="margin: 4px 0 0 16px; padding: 0; color: #cbd5e0; font-size: 13px;">
+                                            ${phase.activities.map(a => `<li style="margin-bottom: 3px;">${escapeHtml(a)}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                                ${phase.accommodation ? `<div style="font-size: 13px; color: #94a3b8; margin-bottom: 4px;">🏨 ${escapeHtml(phase.accommodation)}</div>` : ''}
+                                ${phase.transport ? `<div style="font-size: 13px; color: #94a3b8; margin-bottom: 4px;">🚆 ${escapeHtml(phase.transport)}</div>` : ''}
+                                ${phase.tips && phase.tips.length > 0 ? `
+                                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #2d3a4d;">
+                                        ${phase.tips.map(t => `<div style="font-size: 12px; color: #48bb78; margin-bottom: 3px;">💡 ${escapeHtml(t)}</div>`).join('')}
+                                    </div>
+                                ` : ''}
+                                ${phase.warnings && phase.warnings.length > 0 ? `
+                                    <div style="margin-top: 6px;">
+                                        ${phase.warnings.map(w => `<div style="font-size: 12px; color: #fc8181; margin-bottom: 3px;">⚠️ ${escapeHtml(w)}</div>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                        ${itin.logistics ? `
+                            <div style="background: #1a2332; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; margin-top: 12px;">
+                                <h4 style="color: #f1f5f9; font-size: 14px; margin-bottom: 10px;">Logistics & Practical Info</h4>
+                                ${itin.logistics.bestTransport ? `<div style="font-size: 13px; color: #cbd5e0; margin-bottom: 6px;">🚆 <strong>Transport:</strong> ${escapeHtml(itin.logistics.bestTransport)}</div>` : ''}
+                                ${itin.logistics.budget ? `<div style="font-size: 13px; color: #cbd5e0; margin-bottom: 6px;">💰 <strong>Budget:</strong> ${escapeHtml(itin.logistics.budget)}</div>` : ''}
+                                ${itin.logistics.seasonal ? `<div style="font-size: 13px; color: #cbd5e0; margin-bottom: 6px;">🌤️ <strong>Seasonal:</strong> ${escapeHtml(itin.logistics.seasonal)}</div>` : ''}
+                                ${itin.logistics.mustHave && itin.logistics.mustHave.length > 0 ? `
+                                    <div style="margin-top: 8px;">
+                                        <span style="color: #94a3b8; font-size: 12px;">Must-have:</span>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                                            ${itin.logistics.mustHave.map(item => `<span style="background: #48bb7822; color: #9ae6b4; padding: 4px 10px; border-radius: 4px; font-size: 12px;">${escapeHtml(item)}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // Buying Guide (Purchase decision goal)
+            if (structured.buyingGuide) {
+                const bg = structured.buyingGuide;
+                html += `
+                    <div class="quant-subsection">
+                        <h3 class="quant-subsection-title">🛒 Buying Guide</h3>
+                        ${(bg.topPicks || []).map((pick, i) => `
+                            <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 3px solid ${i === 0 ? '#48bb78' : '#667eea'};">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-weight: 600; color: #f1f5f9; font-size: 15px;">#${i + 1} ${escapeHtml(pick.name)}</span>
+                                    ${pick.priceRange ? `<span style="color: #48bb78; font-size: 13px; font-weight: 600;">${escapeHtml(pick.priceRange)}</span>` : ''}
+                                </div>
+                                ${pick.bestFor ? `<div style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">Best for: ${escapeHtml(pick.bestFor)}</div>` : ''}
+                                <div style="display: flex; gap: 12px;">
+                                    ${pick.prosFromUsers && pick.prosFromUsers.length > 0 ? `
+                                        <div style="flex: 1;">
+                                            <span style="color: #48bb78; font-size: 12px;">Pros:</span>
+                                            <ul style="margin: 4px 0 0 16px; padding: 0; color: #9ae6b4; font-size: 12px;">
+                                                ${pick.prosFromUsers.map(p => `<li style="margin-bottom: 2px;">${escapeHtml(p)}</li>`).join('')}
+                                            </ul>
+                                        </div>
+                                    ` : ''}
+                                    ${pick.consFromUsers && pick.consFromUsers.length > 0 ? `
+                                        <div style="flex: 1;">
+                                            <span style="color: #fc8181; font-size: 12px;">Cons:</span>
+                                            <ul style="margin: 4px 0 0 16px; padding: 0; color: #fc8181; font-size: 12px;">
+                                                ${pick.consFromUsers.map(c => `<li style="margin-bottom: 2px;">${escapeHtml(c)}</li>`).join('')}
+                                            </ul>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                ${pick.source ? `<div style="font-size: 11px; color: #64748b; margin-top: 6px;">Source: ${escapeHtml(pick.source)}</div>` : ''}
+                            </div>
+                        `).join('')}
+                        ${bg.avoidList && bg.avoidList.length > 0 ? `
+                            <div style="background: #1c2432; border: 1px solid #e53e3e33; border-radius: 8px; padding: 14px; margin-top: 10px;">
+                                <span style="color: #fc8181; font-weight: 600; font-size: 13px;">⚠️ Avoid:</span>
+                                <ul style="margin: 6px 0 0 16px; padding: 0; color: #fca5a5; font-size: 13px;">
+                                    ${bg.avoidList.map(item => `<li style="margin-bottom: 3px;">${escapeHtml(item)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${bg.budgetTips && bg.budgetTips.length > 0 ? `
+                            <div style="margin-top: 10px;">
+                                <span style="color: #48bb78; font-size: 13px;">💰 Budget tips:</span>
+                                <ul style="margin: 4px 0 0 16px; padding: 0; color: #9ae6b4; font-size: 13px;">
+                                    ${bg.budgetTips.map(tip => `<li style="margin-bottom: 3px;">${escapeHtml(tip)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${bg.keyDecisionFactors && bg.keyDecisionFactors.length > 0 ? `
+                            <div style="margin-top: 10px;">
+                                <span style="color: #94a3b8; font-size: 12px;">Key decision factors:</span>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                                    ${bg.keyDecisionFactors.map(f => `<span style="background: #2d3a4d; color: #e2e8f0; padding: 4px 10px; border-radius: 4px; font-size: 12px;">${escapeHtml(f)}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }

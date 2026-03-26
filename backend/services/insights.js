@@ -19,9 +19,18 @@ const config = require('../config');
 
 function detectPersona(role, goal) {
   const r = (role || '').toLowerCase();
+  const g = (goal || '').toLowerCase();
   const isContentCreator = r.includes('content') || r.includes('creator');
   const isMarketer = r.includes('market') || r.includes('copywriter');
-  return { isContentCreator, isMarketer };
+
+  // Detect goal types that need specialized output formatting
+  const isItinerary = g.includes('itinerary') || g.includes('plan') || g.includes('schedule') ||
+    g.includes('route') || g.includes('agenda') ||
+    (r.includes('travel') && (g.includes('trip') || g.includes('recommend')));
+  const isBuyingGuide = g.includes('buy') || g.includes('purchase') ||
+    g.includes('comparison') || g.includes('review') || g.includes('which');
+
+  return { isContentCreator, isMarketer, isItinerary, isBuyingGuide };
 }
 
 // ============================================================
@@ -33,13 +42,17 @@ function detectPersona(role, goal) {
  * Each post gets its own analysis block in the response
  */
 function formatPerPostBatchPrompt(postsBatch, role, goal, topic = null) {
-  const { isContentCreator, isMarketer } = detectPersona(role, goal);
+  const { isContentCreator, isMarketer, isItinerary, isBuyingGuide } = detectPersona(role, goal);
 
   let personaLens = '';
   if (isContentCreator) {
     personaLens = 'You are extracting data for a CONTENT CREATOR. Pay special attention to: what the audience wants, questions they ask, content gaps, funny/relatable moments, and language they use.';
   } else if (isMarketer) {
     personaLens = 'You are extracting data for a MARKETER. Pay special attention to: pain points, product mentions, purchase signals, competitive comparisons, and the exact language people use to describe problems.';
+  } else if (isItinerary) {
+    personaLens = 'You are extracting data for someone planning a TRIP/ITINERARY. Pay special attention to: specific places/destinations mentioned, day-by-day activities, logistics (transport, accommodation, costs), timing/seasonal advice, family/group-specific tips, and warnings from people who have been there.';
+  } else if (isBuyingGuide) {
+    personaLens = 'You are extracting data for someone making a PURCHASE DECISION. Pay special attention to: specific product names/models, prices, pros/cons, comparisons between options, deal-breaker issues, and personal experience reports.';
   }
 
   const postsContent = postsBatch.map((data, idx) => {
@@ -175,7 +188,7 @@ function formatSynthesisPrompt(perPostAnalyses, postsData, role, goal, topic = n
   const totalComments = postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
   const postCount = postsData.length;
 
-  const { isContentCreator, isMarketer } = detectPersona(role, goal);
+  const { isContentCreator, isMarketer, isItinerary, isBuyingGuide } = detectPersona(role, goal);
 
   // Source info
   const sources = {
@@ -311,6 +324,75 @@ MARKETER RULES:
 - audienceSegmentation: Buyer personas with purchase signals. Budget mentions, tool comparisons, "looking for" statements.`;
   }
 
+  // Goal-specific schemas (additive — these complement persona schemas)
+  let goalJsonSchema = '';
+  let goalRules = '';
+
+  if (isItinerary) {
+    personaContext = personaContext || `Think like a travel planner building an actionable itinerary from real traveler experiences. Focus on logistics, timing, and practical advice.`;
+
+    goalJsonSchema = `,
+
+  "suggestedItinerary": {
+    "overview": "One-paragraph summary of the recommended approach (e.g. 'A 30-day clockwise loop starting in Taipei, spending roughly one week per region')",
+    "phases": [
+      {
+        "phase": "Week 1 (or Day 1-3, etc.)",
+        "region": "Area or city focus",
+        "destinations": ["Specific places to visit"],
+        "activities": ["Specific things to do — sourced from real traveler recommendations"],
+        "accommodation": "Type and price range mentioned by travelers",
+        "transport": "How to get there/around — specific advice from comments",
+        "tips": ["Practical tips from people who have been there"],
+        "warnings": ["Things to watch out for — weather, crowds, scams, etc."]
+      }
+    ],
+    "logistics": {
+      "bestTransport": "Primary transport method recommended by travelers",
+      "budget": "Budget estimates mentioned in discussions (per day/week/total)",
+      "mustHave": ["Essential items/cards/apps travelers recommend"],
+      "seasonal": "Weather and seasonal advice specific to the requested travel dates"
+    }
+  }`;
+
+    goalRules = `
+ITINERARY RULES:
+- suggestedItinerary: Build a STRUCTURED itinerary from the collective wisdom in the data. Break it into logical phases (weeks, regions, or day-blocks) based on the user's stated duration.
+- Each phase should include specific destinations, activities, and practical tips — all sourced from real traveler comments, not generic AI knowledge.
+- logistics: Extract budget numbers, transport recommendations, must-have items from REAL comments. Include seasonal advice if available.
+- If the data doesn't support a full itinerary, fill what you can and note gaps honestly in the confidence section.
+- Prioritize actionable advice over general impressions.`;
+  }
+
+  if (isBuyingGuide) {
+    personaContext = personaContext || `Think like a product research assistant helping someone make a purchase decision. Focus on specific products, prices, pros/cons, and real user experiences.`;
+
+    goalJsonSchema = `,
+
+  "buyingGuide": {
+    "topPicks": [
+      {
+        "name": "Specific product/model name",
+        "priceRange": "Price or price range mentioned",
+        "prosFromUsers": ["Specific pros mentioned by real users"],
+        "consFromUsers": ["Specific cons mentioned by real users"],
+        "bestFor": "Who this is best for",
+        "source": "r/subreddit or YouTube: Channel"
+      }
+    ],
+    "avoidList": ["Products/brands users explicitly warn against and why"],
+    "budgetTips": ["Ways to save money mentioned by real users"],
+    "keyDecisionFactors": ["The main things users say matter most when choosing"]
+  }`;
+
+    goalRules = `
+BUYING GUIDE RULES:
+- topPicks: List SPECIFIC products/models mentioned by real users with real pros/cons from their experience. Not generic recommendations.
+- Include price points where mentioned. If the query specifies a budget, flag which picks fit within it.
+- avoidList: Products or brands that users explicitly warn against — with reasons.
+- budgetTips: Real money-saving advice from commenters.`;
+  }
+
   const topicContext = topic
     ? `\nORIGINAL SEARCH QUERY: "${topic}"\nThis is what the user searched for. Every insight, quote, theme, and recommendation MUST be filtered through the lens of this specific query. If the query specifies a duration (e.g. "30 days"), audience (e.g. "family"), timing (e.g. "april-may"), budget, or other constraints — prioritize content that addresses those specifics. Deprioritize or skip content that doesn't match the user's intent.\n`
     : '';
@@ -432,7 +514,7 @@ Return ONLY valid JSON (no markdown, no backticks):
     "relevantComments": 0,
     "dataQuality": "Honest assessment — how much of the data was substantive vs generic",
     "caveats": ["Important limitation or bias in the data"]
-  }${personaJsonSchema}
+  }${personaJsonSchema}${goalJsonSchema}
 }
 
 SYNTHESIS RULES:
@@ -449,7 +531,7 @@ SYNTHESIS RULES:
 9. soWhat: Connect the dots across posts. What pattern emerges? What's the implication most people would miss?
 10. confidence: Be brutally honest. If 30% of comments were "nice post!" type filler, say so.
 11. ALL quotes must be EXACT text from the source data. Never paraphrase or invent quotes.
-12. FOCUS on the research goal. Every section should relate back to what they asked about.${personaRules}
+12. FOCUS on the research goal. Every section should relate back to what they asked about.${personaRules}${goalRules}
 LAST. Return ONLY the JSON object.`;
 
   return prompt;
