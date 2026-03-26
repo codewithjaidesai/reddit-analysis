@@ -4622,7 +4622,7 @@ async function researchAndCreate(type, index, btnElement) {
         const totalFound = searchResult.posts.length;
         showStatus(`Found ${totalFound} results, filtering for relevance...`, 25);
         let postsToAnalyze = searchResult.posts;
-        const analyzeLimit = 5;
+        const analyzeLimit = 15;
 
         // Always pre-screen to filter out irrelevant results regardless of count
         if (totalFound > 0) {

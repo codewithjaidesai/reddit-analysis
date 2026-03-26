@@ -96,7 +96,7 @@ router.post('/topic', async (req, res) => {
 
     if (searchReddit) {
       promises.push(
-        searchRedditByTopic(topic, timeRange || 'year', subreddits || '', limit || 15)
+        searchRedditByTopic(topic, timeRange || 'year', subreddits || '', limit || 25)
           .then(r => ({ _searchSource: 'reddit', ...r }))
           .catch(err => {
             console.error('Reddit search failed:', err.message);
@@ -107,7 +107,11 @@ router.post('/topic', async (req, res) => {
 
     if (searchYouTube) {
       const publishedAfter = timeRangeToPublishedAfter(timeRange || 'year');
-      const ytLimit = Math.min(limit || 10, config.youtube?.searchMaxResults || 10);
+      // When YouTube is the sole source, fetch more results for better coverage
+      const ytMaxResults = sourceMode === 'youtube'
+        ? Math.max(config.youtube?.searchMaxResults || 10, 25)
+        : (config.youtube?.searchMaxResults || 10);
+      const ytLimit = Math.min(limit || 10, ytMaxResults);
       promises.push(
         searchVideos(topic, { maxResults: ytLimit, publishedAfter })
           .then(r => ({ _searchSource: 'youtube', ...r }))
