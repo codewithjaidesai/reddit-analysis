@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { searchRedditByTopic, searchSubredditTopPosts, getSubredditInfo, fetchTimeBucketedPosts } = require('../services/search');
+const { searchRedditByTopic, searchSubredditTopPosts, getSubredditInfo, fetchTimeBucketedPosts, calculateTitleRelevance } = require('../services/search');
 const { preScreenPosts } = require('../services/mapReduceAnalysis');
 const { searchVideos, timeRangeToPublishedAfter } = require('../services/youtube');
 const { canAffordSearch, getQuotaStatus } = require('../services/youtubeQuota');
@@ -131,12 +131,29 @@ router.post('/topic', async (req, res) => {
     }
 
     if (youtubeResult?.success && youtubeResult.videos?.length > 0) {
-      const normalizedVideos = youtubeResult.videos.map(v => normalizeYouTubeVideo(v));
+      const normalizedVideos = youtubeResult.videos.map(v => {
+        const normalized = normalizeYouTubeVideo(v);
+        // Apply title relevance scoring (same as Reddit posts get)
+        const titleRelevance = calculateTitleRelevance(
+          normalized.title + ' ' + (normalized.selftext || ''),
+          topic
+        );
+        return { ...normalized, titleRelevance };
+      });
       allPosts.push(...normalizedVideos);
     }
 
-    // Sort combined results by engagementScore descending
-    allPosts.sort((a, b) => b.engagementScore - a.engagementScore);
+    // Sort combined results by relevance first, then engagement as tiebreaker.
+    // This prevents high-view-count but irrelevant YouTube videos from dominating.
+    allPosts.sort((a, b) => {
+      const relA = a.titleRelevance || 0;
+      const relB = b.titleRelevance || 0;
+      const relevanceDiff = relB - relA;
+      // If relevance differs significantly, sort by relevance
+      if (Math.abs(relevanceDiff) >= 0.3) return relevanceDiff;
+      // Otherwise sort by engagement
+      return b.engagementScore - a.engagementScore;
+    });
 
     const response = {
       success: true,
