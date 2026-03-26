@@ -273,12 +273,17 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
     }
     console.log('======================\n');
 
-    // Filter and score posts
-    const MIN_SCORE = 20;
-    const MIN_COMMENTS = 10;
-    const MIN_UPVOTE_RATIO = 0.7;
+    // Filter and score posts with dynamic threshold relaxation.
+    // Niche queries (e.g. "Taiwan 30 days family itinerary") produce detailed
+    // posts that rarely hit 20 upvotes or 10 comments, so we progressively
+    // relax thresholds if too few posts pass the initial filters.
+    const FILTER_TIERS = [
+      { minScore: 20, minComments: 10, minUpvoteRatio: 0.7 },  // Strict (default)
+      { minScore: 5,  minComments: 3,  minUpvoteRatio: 0.6 },  // Relaxed
+      { minScore: 2,  minComments: 1,  minUpvoteRatio: 0.5 },  // Minimal
+    ];
+    const MIN_DESIRED_POSTS = 25; // Only relax thresholds if fewer than this pass
 
-    // Track filter reasons for debugging
     let filterStats = {
       total: posts.length,
       lowScore: 0,
@@ -286,28 +291,47 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       lowUpvoteRatio: 0,
       isVideo: 0,
       isStickied: 0,
-      passed: 0
+      passed: 0,
+      filterTierUsed: 0
     };
 
-    const scoredPosts = posts
-      .filter(post => {
-        // Track why posts are filtered
-        if (post.score < MIN_SCORE) filterStats.lowScore++;
-        if (post.num_comments < MIN_COMMENTS) filterStats.lowComments++;
-        if (post.upvote_ratio < MIN_UPVOTE_RATIO) filterStats.lowUpvoteRatio++;
-        if (post.is_video) filterStats.isVideo++;
-        if (post.stickied) filterStats.isStickied++;
+    // Try each filter tier until we get enough posts
+    let filteredPosts = [];
+    let usedTier = 0;
 
-        const passes = post.score >= MIN_SCORE &&
-               post.num_comments >= MIN_COMMENTS &&
-               post.upvote_ratio >= MIN_UPVOTE_RATIO &&
-               !post.is_video &&
-               !post.stickied;
+    for (let tierIdx = 0; tierIdx < FILTER_TIERS.length; tierIdx++) {
+      const tier = FILTER_TIERS[tierIdx];
+      const results = posts.filter(post =>
+        post.score >= tier.minScore &&
+        post.num_comments >= tier.minComments &&
+        post.upvote_ratio >= tier.minUpvoteRatio &&
+        !post.is_video &&
+        !post.stickied
+      );
 
-        if (passes) filterStats.passed++;
+      if (results.length >= MIN_DESIRED_POSTS || tierIdx === FILTER_TIERS.length - 1) {
+        filteredPosts = results;
+        usedTier = tierIdx;
+        if (tierIdx > 0) {
+          console.log(`Filter relaxed to tier ${tierIdx} (minScore=${tier.minScore}, minComments=${tier.minComments}): ${results.length} posts pass`);
+        }
+        break;
+      }
+    }
 
-        return passes;
-      })
+    // Track filter stats using the strictest tier for debugging
+    const strictTier = FILTER_TIERS[0];
+    posts.forEach(post => {
+      if (post.score < strictTier.minScore) filterStats.lowScore++;
+      if (post.num_comments < strictTier.minComments) filterStats.lowComments++;
+      if (post.upvote_ratio < strictTier.minUpvoteRatio) filterStats.lowUpvoteRatio++;
+      if (post.is_video) filterStats.isVideo++;
+      if (post.stickied) filterStats.isStickied++;
+    });
+    filterStats.passed = filteredPosts.length;
+    filterStats.filterTierUsed = usedTier;
+
+    const scoredPosts = filteredPosts
       .map(post => {
         const engagementScore = post.score + (post.num_comments * 2);
         const engagementRate = post.subreddit_subscribers > 0
@@ -372,54 +396,24 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       .slice(0, limit);
 
     // Capture filter stats for debug info
+    const activeTier = FILTER_TIERS[usedTier];
     debugInfo.filterStats = {
       ...filterStats,
-      minScore: MIN_SCORE,
-      minComments: MIN_COMMENTS,
-      minUpvoteRatio: MIN_UPVOTE_RATIO
+      minScore: activeTier.minScore,
+      minComments: activeTier.minComments,
+      minUpvoteRatio: activeTier.minUpvoteRatio
     };
 
-    // Add examples of filtered posts if all were filtered
-    if (filterStats.passed === 0 && posts.length > 0) {
-      debugInfo.filteredExamples = posts.slice(0, 3).map(post => {
-        const reasons = [];
-        if (post.score < MIN_SCORE) reasons.push(`score=${post.score}`);
-        if (post.num_comments < MIN_COMMENTS) reasons.push(`comments=${post.num_comments}`);
-        if (post.upvote_ratio < MIN_UPVOTE_RATIO) reasons.push(`ratio=${post.upvote_ratio}`);
-        if (post.is_video) reasons.push('video');
-        if (post.stickied) reasons.push('stickied');
-        return {
-          subreddit: post.subreddit,
-          title: post.title.substring(0, 60) + (post.title.length > 60 ? '...' : ''),
-          failedReasons: reasons
-        };
-      });
-    }
-
     console.log(`\n=== FILTERING RESULTS ===`);
-    console.log(`Passed filters: ${filterStats.passed} out of ${filterStats.total}`);
-    console.log(`Filter breakdown (posts can fail multiple criteria):`);
-    console.log(`  - Low score (<${MIN_SCORE}): ${filterStats.lowScore}`);
-    console.log(`  - Low comments (<${MIN_COMMENTS}): ${filterStats.lowComments}`);
-    console.log(`  - Low upvote ratio (<${MIN_UPVOTE_RATIO}): ${filterStats.lowUpvoteRatio}`);
+    console.log(`Passed filters: ${filterStats.passed} out of ${filterStats.total} (tier ${usedTier})`);
+    console.log(`Active thresholds: score>=${activeTier.minScore}, comments>=${activeTier.minComments}, ratio>=${activeTier.minUpvoteRatio}`);
+    console.log(`Filter breakdown at strict tier (posts can fail multiple criteria):`);
+    console.log(`  - Low score (<${strictTier.minScore}): ${filterStats.lowScore}`);
+    console.log(`  - Low comments (<${strictTier.minComments}): ${filterStats.lowComments}`);
+    console.log(`  - Low upvote ratio (<${strictTier.minUpvoteRatio}): ${filterStats.lowUpvoteRatio}`);
     console.log(`  - Is video: ${filterStats.isVideo}`);
     console.log(`  - Is stickied: ${filterStats.isStickied}`);
     console.log(`Final results after limit (${limit}): ${scoredPosts.length}`);
-
-    // Show examples of filtered out posts for debugging
-    if (filterStats.passed === 0 && posts.length > 0) {
-      console.log('\n⚠️  ALL POSTS FILTERED OUT - Examples of what was filtered:');
-      posts.slice(0, 3).forEach((post, i) => {
-        const reasons = [];
-        if (post.score < MIN_SCORE) reasons.push(`score=${post.score}`);
-        if (post.num_comments < MIN_COMMENTS) reasons.push(`comments=${post.num_comments}`);
-        if (post.upvote_ratio < MIN_UPVOTE_RATIO) reasons.push(`ratio=${post.upvote_ratio}`);
-        if (post.is_video) reasons.push('video');
-        if (post.stickied) reasons.push('stickied');
-        console.log(`  ${i+1}. r/${post.subreddit} - ${post.title.substring(0, 60)}...`);
-        console.log(`     Failed: ${reasons.join(', ')}`);
-      });
-    }
     console.log('========================\n');
 
     return {

@@ -2041,7 +2041,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
     if (structured) {
         // Detect schema: new (whatBlewUp/theVerdict) vs old (executiveSummary/keyInsights)
         const isNewSchema = !!(structured.whatBlewUp || structured.theVerdict || structured.rankedThemes);
-        const hasPersonaData = !!(structured.contentOpportunities || structured.audienceSegmentation || structured.painPoints || structured.valueProp || structured.contentGaps || structured.viralContentIdeas);
+        const hasPersonaData = !!(structured.contentOpportunities || structured.audienceSegmentation || structured.painPoints || structured.valueProp || structured.contentGaps || structured.viralContentIdeas || (structured.actionableContent && structured.actionableContent.length > 0));
         const hasGenerated = generatedContents.length > 0;
 
         html += `
@@ -2476,6 +2476,99 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                         </div>
                     </div>
                 `;
+            }
+
+            // Dynamic Actionable Content — AI-chosen sections based on query intent
+            if (structured.actionableContent && structured.actionableContent.length > 0) {
+                const sectionColors = ['#667eea', '#48bb78', '#ed8936', '#9f7aea', '#38b2ac', '#e53e3e'];
+                structured.actionableContent
+                    .sort((a, b) => (a.priority || 99) - (b.priority || 99))
+                    .forEach((section, sIdx) => {
+                        const color = sectionColors[sIdx % sectionColors.length];
+                        const items = section.items || [];
+                        html += `<div class="quant-subsection">
+                            <h3 class="quant-subsection-title">${escapeHtml(section.sectionTitle || 'Actionable Insights')}</h3>`;
+
+                        if (section.sectionType === 'phases') {
+                            // Ordered phases: itineraries, timelines, step-by-step
+                            html += items.map((item, i) => `
+                                <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; margin-bottom: 12px; border-left: 3px solid ${color};">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <span style="font-weight: 600; color: ${color}; font-size: 15px;">${escapeHtml(item.label || 'Phase ' + (i + 1))}</span>
+                                        ${item.meta?.duration ? `<span style="color: #94a3b8; font-size: 13px;">${escapeHtml(item.meta.duration)}</span>` : ''}
+                                        ${item.meta?.region ? `<span style="color: #94a3b8; font-size: 13px;">${escapeHtml(item.meta.region)}</span>` : ''}
+                                    </div>
+                                    ${item.description ? `<p style="color: #cbd5e0; font-size: 13px; margin-bottom: 8px;">${escapeHtml(item.description)}</p>` : ''}
+                                    ${item.details && item.details.length > 0 ? `<ul style="margin: 4px 0 0 16px; padding: 0; color: #cbd5e0; font-size: 13px;">${item.details.map(d => `<li style="margin-bottom: 3px;">${escapeHtml(d)}</li>`).join('')}</ul>` : ''}
+                                    ${item.tags && item.tags.length > 0 ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">${item.tags.map(t => `<span style="background: #2d3a4d; color: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+                                </div>
+                            `).join('');
+
+                        } else if (section.sectionType === 'picks') {
+                            // Ranked recommendations: products, tools, places
+                            html += items.map((item, i) => `
+                                <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 3px solid ${i === 0 ? '#48bb78' : color};">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                        <span style="font-weight: 600; color: #f1f5f9; font-size: 15px;">#${i + 1} ${escapeHtml(item.label)}</span>
+                                        ${item.meta?.price ? `<span style="color: #48bb78; font-size: 13px; font-weight: 600;">${escapeHtml(item.meta.price)}</span>` : ''}
+                                        ${item.meta?.rating ? `<span style="color: #fbd38d; font-size: 13px;">${escapeHtml(item.meta.rating)}</span>` : ''}
+                                    </div>
+                                    ${item.description ? `<p style="color: #cbd5e0; font-size: 13px; margin-bottom: 6px;">${escapeHtml(item.description)}</p>` : ''}
+                                    ${item.details && item.details.length > 0 ? `<ul style="margin: 4px 0 0 16px; padding: 0; color: #94a3b8; font-size: 12px;">${item.details.map(d => `<li style="margin-bottom: 2px;">${escapeHtml(d)}</li>`).join('')}</ul>` : ''}
+                                </div>
+                            `).join('');
+
+                        } else if (section.sectionType === 'comparison') {
+                            // Side-by-side comparison
+                            html += `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px; overflow-x: auto;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                    ${items.map(item => `
+                                        <tr style="border-bottom: 1px solid #2d3a4d;">
+                                            <td style="padding: 8px; color: #94a3b8; font-weight: 600; white-space: nowrap;">${escapeHtml(item.label)}</td>
+                                            ${(item.details || []).map(d => `<td style="padding: 8px; color: #cbd5e0;">${escapeHtml(d)}</td>`).join('')}
+                                        </tr>
+                                    `).join('')}
+                                </table>
+                            </div>`;
+
+                        } else if (section.sectionType === 'checklist') {
+                            // Checklist items
+                            html += `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px;">
+                                ${items.map(item => `
+                                    <div style="display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #2d3a4d22;">
+                                        <span style="color: #48bb78; font-size: 14px; margin-top: 1px;">☐</span>
+                                        <div>
+                                            <span style="color: #f1f5f9; font-size: 14px;">${escapeHtml(item.label)}</span>
+                                            ${item.description ? `<p style="color: #94a3b8; font-size: 12px; margin-top: 2px;">${escapeHtml(item.description)}</p>` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>`;
+
+                        } else if (section.sectionType === 'info') {
+                            // Key-value information
+                            html += `<div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 16px;">
+                                ${items.map(item => `
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #2d3a4d22;">
+                                        <span style="color: #94a3b8; font-size: 13px; font-weight: 600; min-width: 120px;">${escapeHtml(item.label)}</span>
+                                        <span style="color: #f1f5f9; font-size: 13px; text-align: right;">${escapeHtml(item.description || '')}</span>
+                                    </div>
+                                `).join('')}
+                            </div>`;
+
+                        } else {
+                            // Default: tips/advice list (also handles unknown types)
+                            html += items.map(item => `
+                                <div style="background: #1c2432; border: 1px solid #2d3a4d; border-radius: 8px; padding: 14px; margin-bottom: 8px;">
+                                    <span style="font-weight: 600; color: #f1f5f9; font-size: 14px;">${escapeHtml(item.label)}</span>
+                                    ${item.description ? `<p style="color: #cbd5e0; font-size: 13px; margin-top: 4px;">${escapeHtml(item.description)}</p>` : ''}
+                                    ${item.details && item.details.length > 0 ? `<ul style="margin: 6px 0 0 16px; padding: 0; color: #94a3b8; font-size: 12px;">${item.details.map(d => `<li style="margin-bottom: 2px;">${escapeHtml(d)}</li>`).join('')}</ul>` : ''}
+                                </div>
+                            `).join('');
+                        }
+
+                        html += `</div>`;
+                    });
             }
 
             // Legacy evidence analysis

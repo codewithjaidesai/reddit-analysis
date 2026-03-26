@@ -218,7 +218,7 @@ router.post('/full', async (req, res) => {
  */
 router.post('/combined', async (req, res) => {
   try {
-    const { urls, role, goal } = req.body;
+    const { urls, role, goal, topic } = req.body;
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({
@@ -228,6 +228,7 @@ router.post('/combined', async (req, res) => {
     }
 
     console.log(`Combined analysis for ${urls.length} posts`);
+    if (topic) console.log('Search topic:', topic);
     if (role) console.log('User role:', role);
     if (goal) console.log('User goal:', goal);
 
@@ -264,7 +265,7 @@ router.post('/combined', async (req, res) => {
     }
 
     // Step 2: Generate combined analysis
-    const combinedInsights = await generateCombinedInsights(postsData, role, goal);
+    const combinedInsights = await generateCombinedInsights(postsData, role, goal, topic);
 
     res.json({
       success: true,
