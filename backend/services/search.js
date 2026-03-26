@@ -282,7 +282,7 @@ async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', l
       { minScore: 5,  minComments: 3,  minUpvoteRatio: 0.6 },  // Relaxed
       { minScore: 2,  minComments: 1,  minUpvoteRatio: 0.5 },  // Minimal
     ];
-    const MIN_DESIRED_POSTS = 5; // Relax if fewer than this pass
+    const MIN_DESIRED_POSTS = 25; // Only relax thresholds if fewer than this pass
 
     let filterStats = {
       total: posts.length,

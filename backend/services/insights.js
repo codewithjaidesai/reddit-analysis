@@ -19,18 +19,9 @@ const config = require('../config');
 
 function detectPersona(role, goal) {
   const r = (role || '').toLowerCase();
-  const g = (goal || '').toLowerCase();
   const isContentCreator = r.includes('content') || r.includes('creator');
   const isMarketer = r.includes('market') || r.includes('copywriter');
-
-  // Detect goal types that need specialized output formatting
-  const isItinerary = g.includes('itinerary') || g.includes('plan') || g.includes('schedule') ||
-    g.includes('route') || g.includes('agenda') ||
-    (r.includes('travel') && (g.includes('trip') || g.includes('recommend')));
-  const isBuyingGuide = g.includes('buy') || g.includes('purchase') ||
-    g.includes('comparison') || g.includes('review') || g.includes('which');
-
-  return { isContentCreator, isMarketer, isItinerary, isBuyingGuide };
+  return { isContentCreator, isMarketer };
 }
 
 // ============================================================
@@ -42,17 +33,15 @@ function detectPersona(role, goal) {
  * Each post gets its own analysis block in the response
  */
 function formatPerPostBatchPrompt(postsBatch, role, goal, topic = null) {
-  const { isContentCreator, isMarketer, isItinerary, isBuyingGuide } = detectPersona(role, goal);
+  const { isContentCreator, isMarketer } = detectPersona(role, goal);
 
   let personaLens = '';
   if (isContentCreator) {
     personaLens = 'You are extracting data for a CONTENT CREATOR. Pay special attention to: what the audience wants, questions they ask, content gaps, funny/relatable moments, and language they use.';
   } else if (isMarketer) {
     personaLens = 'You are extracting data for a MARKETER. Pay special attention to: pain points, product mentions, purchase signals, competitive comparisons, and the exact language people use to describe problems.';
-  } else if (isItinerary) {
-    personaLens = 'You are extracting data for someone planning a TRIP/ITINERARY. Pay special attention to: specific places/destinations mentioned, day-by-day activities, logistics (transport, accommodation, costs), timing/seasonal advice, family/group-specific tips, and warnings from people who have been there.';
-  } else if (isBuyingGuide) {
-    personaLens = 'You are extracting data for someone making a PURCHASE DECISION. Pay special attention to: specific product names/models, prices, pros/cons, comparisons between options, deal-breaker issues, and personal experience reports.';
+  } else if (topic) {
+    personaLens = `You are extracting data relevant to this specific query: "${topic}". Pay special attention to: actionable details, specific recommendations, logistics, practical tips, real experiences, and data points that directly help answer the query.`;
   }
 
   const postsContent = postsBatch.map((data, idx) => {
@@ -188,7 +177,7 @@ function formatSynthesisPrompt(perPostAnalyses, postsData, role, goal, topic = n
   const totalComments = postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
   const postCount = postsData.length;
 
-  const { isContentCreator, isMarketer, isItinerary, isBuyingGuide } = detectPersona(role, goal);
+  const { isContentCreator, isMarketer } = detectPersona(role, goal);
 
   // Source info
   const sources = {
@@ -249,7 +238,7 @@ ${funny ? 'Funny:\n' + funny : ''}`;
     `[${c.score} pts, @${c.author}, ${c.source}] ${c.text}`
   ).join('\n');
 
-  // Persona-specific schema
+  // Persona-specific schema additions (for content creators / marketers)
   let personaContext = '';
   let personaJsonSchema = '';
   let personaRules = '';
@@ -324,75 +313,6 @@ MARKETER RULES:
 - audienceSegmentation: Buyer personas with purchase signals. Budget mentions, tool comparisons, "looking for" statements.`;
   }
 
-  // Goal-specific schemas (additive — these complement persona schemas)
-  let goalJsonSchema = '';
-  let goalRules = '';
-
-  if (isItinerary) {
-    personaContext = personaContext || `Think like a travel planner building an actionable itinerary from real traveler experiences. Focus on logistics, timing, and practical advice.`;
-
-    goalJsonSchema = `,
-
-  "suggestedItinerary": {
-    "overview": "One-paragraph summary of the recommended approach (e.g. 'A 30-day clockwise loop starting in Taipei, spending roughly one week per region')",
-    "phases": [
-      {
-        "phase": "Week 1 (or Day 1-3, etc.)",
-        "region": "Area or city focus",
-        "destinations": ["Specific places to visit"],
-        "activities": ["Specific things to do — sourced from real traveler recommendations"],
-        "accommodation": "Type and price range mentioned by travelers",
-        "transport": "How to get there/around — specific advice from comments",
-        "tips": ["Practical tips from people who have been there"],
-        "warnings": ["Things to watch out for — weather, crowds, scams, etc."]
-      }
-    ],
-    "logistics": {
-      "bestTransport": "Primary transport method recommended by travelers",
-      "budget": "Budget estimates mentioned in discussions (per day/week/total)",
-      "mustHave": ["Essential items/cards/apps travelers recommend"],
-      "seasonal": "Weather and seasonal advice specific to the requested travel dates"
-    }
-  }`;
-
-    goalRules = `
-ITINERARY RULES:
-- suggestedItinerary: Build a STRUCTURED itinerary from the collective wisdom in the data. Break it into logical phases (weeks, regions, or day-blocks) based on the user's stated duration.
-- Each phase should include specific destinations, activities, and practical tips — all sourced from real traveler comments, not generic AI knowledge.
-- logistics: Extract budget numbers, transport recommendations, must-have items from REAL comments. Include seasonal advice if available.
-- If the data doesn't support a full itinerary, fill what you can and note gaps honestly in the confidence section.
-- Prioritize actionable advice over general impressions.`;
-  }
-
-  if (isBuyingGuide) {
-    personaContext = personaContext || `Think like a product research assistant helping someone make a purchase decision. Focus on specific products, prices, pros/cons, and real user experiences.`;
-
-    goalJsonSchema = `,
-
-  "buyingGuide": {
-    "topPicks": [
-      {
-        "name": "Specific product/model name",
-        "priceRange": "Price or price range mentioned",
-        "prosFromUsers": ["Specific pros mentioned by real users"],
-        "consFromUsers": ["Specific cons mentioned by real users"],
-        "bestFor": "Who this is best for",
-        "source": "r/subreddit or YouTube: Channel"
-      }
-    ],
-    "avoidList": ["Products/brands users explicitly warn against and why"],
-    "budgetTips": ["Ways to save money mentioned by real users"],
-    "keyDecisionFactors": ["The main things users say matter most when choosing"]
-  }`;
-
-    goalRules = `
-BUYING GUIDE RULES:
-- topPicks: List SPECIFIC products/models mentioned by real users with real pros/cons from their experience. Not generic recommendations.
-- Include price points where mentioned. If the query specifies a budget, flag which picks fit within it.
-- avoidList: Products or brands that users explicitly warn against — with reasons.
-- budgetTips: Real money-saving advice from commenters.`;
-  }
-
   const topicContext = topic
     ? `\nORIGINAL SEARCH QUERY: "${topic}"\nThis is what the user searched for. Every insight, quote, theme, and recommendation MUST be filtered through the lens of this specific query. If the query specifies a duration (e.g. "30 days"), audience (e.g. "family"), timing (e.g. "april-may"), budget, or other constraints — prioritize content that addresses those specifics. Deprioritize or skip content that doesn't match the user's intent.\n`
     : '';
@@ -419,14 +339,6 @@ TONE RULES:
 Return ONLY valid JSON (no markdown, no backticks):
 
 {
-  "whatBlewUp": [
-    {
-      "hook": "Story-style one-liner that makes you want to read more — write it like a magazine headline, not a summary",
-      "detail": "One sentence with the specific data behind it",
-      "source": "r/subreddit or YouTube: Channel"
-    }
-  ],
-
   "theVerdict": {
     "answer": "Bold, direct 2-3 sentence answer to their research goal. Lead with the conclusion, then the evidence. No hedging unless the data genuinely conflicts.",
     "confidence": "high or medium or low",
@@ -435,6 +347,15 @@ Return ONLY valid JSON (no markdown, no backticks):
       "Specific data-backed finding that supports the verdict"
     ]
   },
+
+  "fromTheTrenches": [
+    {
+      "insight": "Real data point, number, tool, price, or practitioner advice someone shared — not opinions, FACTS",
+      "author": "@username",
+      "score": 0,
+      "source": "r/subreddit or YouTube: Channel"
+    }
+  ],
 
   "rankedThemes": [
     {
@@ -449,11 +370,27 @@ Return ONLY valid JSON (no markdown, no backticks):
     }
   ],
 
-  "fromTheTrenches": [
+  "actionableContent": [
     {
-      "insight": "Real data point, number, tool, price, or practitioner advice someone shared — not opinions, FACTS",
-      "author": "@username",
-      "score": 0,
+      "sectionTitle": "Descriptive title for this section — based on what is most useful for the user's query and goal",
+      "priority": 1,
+      "sectionType": "phases or picks or tips or comparison or checklist or info",
+      "items": [
+        {
+          "label": "Item title or name",
+          "description": "Detail text — sourced from real comments, NOT generic AI knowledge",
+          "details": ["Sub-items, bullet points, or specifics"],
+          "tags": ["Optional categorization tags"],
+          "meta": {"key": "value pairs — prices, durations, ratings, etc."}
+        }
+      ]
+    }
+  ],
+
+  "whatBlewUp": [
+    {
+      "hook": "Story-style one-liner that makes you want to read more — write it like a magazine headline, not a summary",
+      "detail": "One sentence with the specific data behind it",
       "source": "r/subreddit or YouTube: Channel"
     }
   ],
@@ -514,24 +451,44 @@ Return ONLY valid JSON (no markdown, no backticks):
     "relevantComments": 0,
     "dataQuality": "Honest assessment — how much of the data was substantive vs generic",
     "caveats": ["Important limitation or bias in the data"]
-  }${personaJsonSchema}${goalJsonSchema}
+  }${personaJsonSchema}
 }
 
 SYNTHESIS RULES:
-1. whatBlewUp: 3-5 story hooks. Each one should make the reader think "wait, what?" Write them like the Content Radar examples:
-   BAD: "AI tools were discussed by many community members"
-   GOOD: "A developer's CI/CD pipeline ran an LLM on every PR review — and caught a security bug their team missed for 6 months"
-2. theVerdict: Answer the research goal DIRECTLY. "Yes, and here's why" or "No, but with caveats" — not "it depends on many factors." Use numbers.
+
+CORE SECTIONS (always include):
+1. theVerdict: Answer the research goal DIRECTLY. "Yes, and here's why" or "No, but with caveats" — not "it depends on many factors." Use numbers.
+2. fromTheTrenches: 4-6 REAL data points from comments. Specific numbers, tools, prices, timeframes. Not opinions or feelings. NEVER extrapolate or invent data — only include facts explicitly stated in the source comments.
 3. rankedThemes: Stack rank by (mentions x posts appeared in). #1 is the strongest signal. Include nuance — conditions and caveats matter.
-4. fromTheTrenches: 4-6 REAL data points from comments. Specific numbers, tools, prices, timeframes. Not opinions or feelings.
-5. whatTheyreAsking: 3-5 questions ranked by demand signal (score + replies). These represent unmet needs.
-6. theDebate: Only include if there's a GENUINE split. Null is better than a manufactured disagreement.
-7. worthQuoting: 4-6 quotes that expose something — pain, expertise, surprising opinion. Not generic praise.
-8. funnyAndMemorable: 2-4 actually funny comments. If nothing is genuinely funny, return empty array. Don't force humor.
-9. soWhat: Connect the dots across posts. What pattern emerges? What's the implication most people would miss?
-10. confidence: Be brutally honest. If 30% of comments were "nice post!" type filler, say so.
-11. ALL quotes must be EXACT text from the source data. Never paraphrase or invent quotes.
-12. FOCUS on the research goal. Every section should relate back to what they asked about.${personaRules}${goalRules}
+4. confidence: Be brutally honest. If 30% of comments were "nice post!" type filler, say so.
+
+ACTIONABLE CONTENT (the most important section — ALWAYS include):
+5. actionableContent: 2-5 sections that directly serve the user's SPECIFIC query and goal. YOU decide what sections are most useful. Examples:
+   - For "Taiwan 30 days family itinerary": sections like "Suggested Itinerary" (type: phases), "Logistics & Budget" (type: info), "Family-Specific Tips" (type: tips)
+   - For "weight training shoes under $50": sections like "Top Shoe Picks" (type: picks), "What To Look For" (type: tips), "Budget Hacks" (type: tips)
+   - For "how to start a podcast": sections like "Recommended Setup" (type: picks), "Launch Checklist" (type: checklist), "Common Mistakes" (type: tips)
+   - For "Notion vs Obsidian": sections like "Feature Comparison" (type: comparison), "Best For" (type: info)
+   Section types and when to use them:
+   - "phases": Ordered stages/phases (itineraries, project plans, timelines, step-by-step processes). Items should have label=phase name, description=overview, details=specific items, meta=duration/timing.
+   - "picks": Ranked recommendations (products, tools, places, services). Items should have label=name, description=why recommended, details=pros/cons, meta=price/rating.
+   - "tips": Advice list (practical how-tos, best practices, warnings). Items should have label=tip title, description=explanation.
+   - "comparison": Side-by-side (option A vs B, pros/cons). Items should have label=dimension, details=[option A value, option B value].
+   - "checklist": Action items (packing lists, prep steps, requirements). Items should have label=item, description=context.
+   - "info": Key-value information (budget breakdowns, logistics, specs). Items should have label=key, description=value.
+   ALL content in actionableContent MUST be sourced from real comments and discussions. Never invent or extrapolate data.
+
+CONTEXTUAL SECTIONS (include ONLY when genuinely useful for this specific query):
+6. whatBlewUp: Include 2-4 hooks ONLY if there are genuinely surprising/viral findings. Skip entirely for practical queries like itineraries or buying guides where the user wants actionable answers, not entertainment.
+7. whatTheyreAsking: Include ONLY if there are genuine unanswered questions in the data that the user would care about.
+8. theDebate: Include ONLY if there's a GENUINE split in opinion. Set to null if no real disagreement exists. Don't manufacture debates.
+9. worthQuoting: Include ONLY if there are quotes that add real value — expertise, warnings, surprising insights. Not generic praise.
+10. funnyAndMemorable: Include ONLY if something is genuinely funny. Return empty array rather than forcing humor.
+11. soWhat: Include ONLY if there's a non-obvious pattern worth calling out.
+
+GENERAL RULES:
+12. ALL quotes must be EXACT text from the source data. Never paraphrase or invent quotes.
+13. FOCUS on the research goal. Every section should relate back to what they asked about.
+14. NEVER extrapolate or generate content from general AI knowledge. Only use data from the provided comments and discussions.${personaRules}
 LAST. Return ONLY the JSON object.`;
 
   return prompt;
@@ -963,19 +920,24 @@ TONE: Write like a sharp analyst, not a summarizer. Every sentence must contain 
 
 Return ONLY valid JSON matching this structure:
 {
-  "whatBlewUp": [{"hook": "story-style headline", "detail": "data behind it", "source": "r/sub or YouTube: Channel"}],
   "theVerdict": {"answer": "direct answer to goal", "confidence": "high or medium or low", "basis": "data basis", "keyDataPoints": ["data point"]},
+  "fromTheTrenches": [{"insight": "real data/number/tool", "author": "@user", "score": 0, "source": "r/sub or YouTube: Channel"}],
   "rankedThemes": [{"rank": 1, "theme": "name", "mentions": 0, "postsFoundIn": 0, "sentiment": "sentiment", "oneLiner": "summary", "topQuote": {"text": "quote", "author": "@user", "score": 0}, "nuance": "caveat"}],
-  "fromTheTrenches": [{"insight": "real data/number/tool", "author": "@user", "score": 0, "source": "r/sub"}],
+  "actionableContent": [{"sectionTitle": "title based on query intent", "priority": 1, "sectionType": "phases or picks or tips or comparison or checklist or info", "items": [{"label": "item name", "description": "detail", "details": ["sub-items"], "tags": ["tags"], "meta": {"key": "value"}}]}],
+  "whatBlewUp": [{"hook": "story-style headline", "detail": "data behind it", "source": "r/sub or YouTube: Channel"}],
   "whatTheyreAsking": [{"question": "exact question", "author": "@user", "score": 0, "demandSignal": "why it matters"}],
-  "theDebate": {"topic": "disagreement topic or null", "sideA": {"position": "position", "quotes": [{"text": "quote", "author": "@user", "score": 0}]}, "sideB": {"position": "position", "quotes": [{"text": "quote", "author": "@user", "score": 0}]}},
+  "theDebate": {"topic": "disagreement or null", "sideA": {"position": "position", "quotes": [{"text": "quote", "author": "@user", "score": 0}]}, "sideB": {"position": "position", "quotes": [{"text": "quote", "author": "@user", "score": 0}]}},
   "worthQuoting": [{"quote": "exact text", "author": "@user", "score": 0, "category": "insight or warning or tip or brutal-honesty", "context": "why it matters"}],
   "funnyAndMemorable": [{"quote": "funny comment", "author": "@user", "score": 0, "context": "context"}],
   "soWhat": {"signal": "pattern across posts", "implications": ["now", "future", "for ${role || 'researcher'}"]},
   "confidence": {"level": "level", "totalComments": ${totalComments}, "postsAnalyzed": ${postCount}, "relevantComments": 0, "dataQuality": "assessment", "caveats": ["limitation"]}${personaJsonSchema}
 }
 
-ALL quotes must be EXACT text from comments. Focus on the research goal. Quantify everything.${personaRules}
+RULES:
+- theVerdict, fromTheTrenches, rankedThemes, confidence: ALWAYS include.
+- actionableContent: ALWAYS include 2-5 sections that directly serve the user's query/goal. YOU choose section types and titles. Only use real data from comments — never extrapolate.
+- whatBlewUp, whatTheyreAsking, theDebate, worthQuoting, funnyAndMemorable, soWhat: Include ONLY when genuinely useful. Skip for practical queries. Set to empty array/null if not applicable.
+- ALL quotes must be EXACT text from comments. Focus on the research goal. Quantify everything.${personaRules}
 Return ONLY the JSON object.`;
 }
 
