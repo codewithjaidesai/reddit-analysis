@@ -23,11 +23,12 @@ function extractKeywords(query) {
   ];
 
   // Split into words and filter
+  // Preserve numbers (e.g. "30" in "30 days") since they carry intent about quantity/duration
   let keywords = query
     .toLowerCase()
     .replace(/[?!.,;]/g, '') // Remove punctuation
     .split(' ')
-    .filter(word => !fillerWords.includes(word) && word.length > 2)
+    .filter(word => !fillerWords.includes(word) && (word.length > 2 || /^\d+$/.test(word)))
     .join(' ');
 
   // If we filtered too much, use original

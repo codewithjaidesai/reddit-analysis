@@ -32,7 +32,7 @@ function detectPersona(role, goal) {
  * Build prompt to analyze a batch of posts individually
  * Each post gets its own analysis block in the response
  */
-function formatPerPostBatchPrompt(postsBatch, role, goal) {
+function formatPerPostBatchPrompt(postsBatch, role, goal, topic = null) {
   const { isContentCreator, isMarketer } = detectPersona(role, goal);
 
   let personaLens = '';
@@ -60,8 +60,10 @@ ${post.selftext ? `Body: ${post.selftext.substring(0, 200)}${post.selftext.lengt
 ${formattedComments}`;
   }).join('\n\n');
 
+  const topicLine = topic ? `\nUSER'S SEARCH QUERY: "${topic}"\nFocus extraction on content relevant to this specific query. Prioritize comments addressing the query's specifics (duration, audience, timing, budget, etc.).\n` : '';
+
   return `Extract structured data from each post below. Read every comment carefully.
-${personaLens ? '\n' + personaLens + '\n' : ''}
+${personaLens ? '\n' + personaLens + '\n' : ''}${topicLine}
 RESEARCH CONTEXT: "${goal || 'Extract insights'}"
 
 ${postsContent}
@@ -106,7 +108,7 @@ EXTRACTION RULES:
  * Run Phase 1: Analyze posts in batches using Flash model
  * Returns array of per-post analysis objects
  */
-async function runPerPostAnalysis(postsData, role, goal) {
+async function runPerPostAnalysis(postsData, role, goal, topic = null) {
   const batchSize = 3; // Posts per batch for Phase 1
   const mapModel = config.mapReduce?.mapModel || 'gemini-2.5-flash';
   const batches = [];
@@ -122,7 +124,7 @@ async function runPerPostAnalysis(postsData, role, goal) {
 
   for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
     const batch = batches[batchIdx];
-    const prompt = formatPerPostBatchPrompt(batch, role, goal);
+    const prompt = formatPerPostBatchPrompt(batch, role, goal, topic);
 
     console.log(`[Phase 1] Batch ${batchIdx + 1}/${batches.length}: ${batch.length} posts, ${prompt.length} chars`);
 
@@ -169,7 +171,7 @@ async function runPerPostAnalysis(postsData, role, goal) {
  * Build the synthesis prompt from per-post analyses
  * Produces Content Radar-style output
  */
-function formatSynthesisPrompt(perPostAnalyses, postsData, role, goal) {
+function formatSynthesisPrompt(perPostAnalyses, postsData, role, goal, topic = null) {
   const totalComments = postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
   const postCount = postsData.length;
 
@@ -309,8 +311,12 @@ MARKETER RULES:
 - audienceSegmentation: Buyer personas with purchase signals. Budget mentions, tool comparisons, "looking for" statements.`;
   }
 
+  const topicContext = topic
+    ? `\nORIGINAL SEARCH QUERY: "${topic}"\nThis is what the user searched for. Every insight, quote, theme, and recommendation MUST be filtered through the lens of this specific query. If the query specifies a duration (e.g. "30 days"), audience (e.g. "family"), timing (e.g. "april-may"), budget, or other constraints — prioritize content that addresses those specifics. Deprioritize or skip content that doesn't match the user's intent.\n`
+    : '';
+
   const prompt = `You are synthesizing research findings from ${postCount} analyzed posts for a ${role || 'researcher'}.
-${personaContext ? '\n' + personaContext + '\n' : ''}
+${personaContext ? '\n' + personaContext + '\n' : ''}${topicContext}
 RESEARCH GOAL: "${goal || 'Extract insights'}"
 DATA SCOPE: ${postCount} posts, ${totalComments} quality comments from ${sourceDescription}
 
@@ -737,12 +743,12 @@ async function generateAIInsights(contentData, role = null, goal = null) {
  * Phase 1: Per-post analysis (Flash)
  * Phase 2: Cross-post synthesis (Pro)
  */
-async function generateCombinedInsights(postsData, role = null, goal = null) {
+async function generateCombinedInsights(postsData, role = null, goal = null, topic = null) {
   const totalComments = postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
 
   console.log('=== TWO-PHASE ANALYSIS ===');
   console.log(`Posts: ${postsData.length}, Comments: ${totalComments}`);
-  console.log(`Role: ${role || 'not specified'}, Goal: ${goal || 'not specified'}`);
+  console.log(`Topic: ${topic || 'not specified'}, Role: ${role || 'not specified'}, Goal: ${goal || 'not specified'}`);
 
   try {
     // Phase 1: Per-post analysis
@@ -750,7 +756,7 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
     let perPostAnalyses = [];
 
     try {
-      perPostAnalyses = await runPerPostAnalysis(postsData, role, goal);
+      perPostAnalyses = await runPerPostAnalysis(postsData, role, goal, topic);
     } catch (phase1Error) {
       console.error('Phase 1 failed, proceeding with direct synthesis:', phase1Error.message);
     }
@@ -761,10 +767,10 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
     let synthesisPrompt;
     if (perPostAnalyses.length > 0) {
       // Use per-post analyses for richer synthesis
-      synthesisPrompt = formatSynthesisPrompt(perPostAnalyses, postsData, role, goal);
+      synthesisPrompt = formatSynthesisPrompt(perPostAnalyses, postsData, role, goal, topic);
     } else {
       // Fallback: direct synthesis from raw data (if Phase 1 failed entirely)
-      synthesisPrompt = formatDirectSynthesisPrompt(postsData, role, goal);
+      synthesisPrompt = formatDirectSynthesisPrompt(postsData, role, goal, topic);
     }
 
     console.log('Synthesis prompt length:', synthesisPrompt.length, 'characters');
@@ -811,7 +817,7 @@ async function generateCombinedInsights(postsData, role = null, goal = null) {
  * Fallback: Direct synthesis when Phase 1 fails
  * Uses the same output schema but builds from raw comments
  */
-function formatDirectSynthesisPrompt(postsData, role, goal) {
+function formatDirectSynthesisPrompt(postsData, role, goal, topic = null) {
   const totalComments = postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
   const postCount = postsData.length;
   const { isContentCreator, isMarketer } = detectPersona(role, goal);
@@ -859,8 +865,10 @@ ${comments.map(c => `[${c.score} ${engLabel}, @${c.author || 'anon'}] ${c.body.s
     personaRules = '\n- painPoints: Deep frustrations with frequency counts.\n- valueProp: What people value in their own words.';
   }
 
+  const topicLine = topic ? `\nORIGINAL SEARCH QUERY: "${topic}"\nFilter all insights through the lens of this specific query. Prioritize content matching the query's specifics (duration, audience, timing, budget, etc.).\n` : '';
+
   return `Analyze ${postCount} posts (${totalComments} comments) for a ${role || 'researcher'}.
-GOAL: "${goal || 'Extract insights'}"
+${topicLine}GOAL: "${goal || 'Extract insights'}"
 DATA FROM: ${sourceDescription}
 
 APPROACH: First understand each post's discussion individually, then find patterns across all posts.

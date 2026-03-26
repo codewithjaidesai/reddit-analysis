@@ -58,9 +58,9 @@ POSTS TO EVALUATE:
 ${postList}
 
 For each post, score its relevance to the SPECIFIC research topic from 1-5:
-- 5: Directly and specifically about the topic
-- 4: Closely related, contains useful discussion on the topic
-- 3: Tangentially related - mentions the topic but is mainly about something else
+- 5: Directly and specifically about the topic, addressing the user's exact intent (duration, audience, timing, budget, etc.)
+- 4: Closely related and USEFUL for the user's specific intent — contains discussion that would help answer their query even if not a perfect match
+- 3: Same general subject area but does NOT address the user's specific intent (e.g. a 4-day trip when they asked about 30 days, or solo travel when they asked about family)
 - 2: Barely related - shares a keyword but discusses a different subject
 - 1: Not relevant at all - completely different topic
 
@@ -68,7 +68,13 @@ STRICT SCORING RULES:
 - A post about "content creation" is NOT relevant to "hiking shoes" even if both are popular
 - Keyword matches alone do NOT make a post relevant - the ACTUAL DISCUSSION must be about the research topic
 - If a post's main discussion is about a different subject, score it 1-2 even if it contains a passing mention of a related keyword
-- Only score 4-5 for posts where the CORE discussion is about the research topic
+- INTENT MATTERS: Score based on how well the post serves the user's SPECIFIC need, not just topical overlap
+  * If the user asks about "30 days" → a "4-day itinerary" is at most a 3 (tangentially useful for general tips but wrong duration)
+  * If the user asks about "family" → a "solo backpacker budget trip" is at most a 3 (some general tips may apply but wrong audience)
+  * If the user asks about "april-may" → a post specifically warning about summer heat is useful (4-5), a generic "visit anytime" post is less so (3)
+- Score 5 ONLY for posts that substantively address the user's specific combination of requirements
+- Score 4 for posts that address MOST of the user's requirements or provide highly transferable advice
+- A post can be topically related but still score 3 if it doesn't match the user's stated intent
 
 Return ONLY valid JSON (no markdown, no backticks). Structure:
 {

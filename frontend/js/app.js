@@ -500,7 +500,7 @@ async function runAutoAnalyze(urls, role, goal, researchQuestion) {
     );
 
     try {
-        const result = await autoAnalysis(urls, role, goal);
+        const result = await autoAnalysis(urls, role, goal, researchQuestion);
 
         // Clear progress timers
         progressTimers.forEach(timer => clearTimeout(timer));
@@ -4554,7 +4554,7 @@ async function researchAndCreate(type, index, btnElement) {
 
         const urls = postsToAnalyze.map(p => p.url);
         const researchGoal = `Create content about: ${searchQuery}`;
-        const analysisResult = await autoAnalysis(urls, role, researchGoal);
+        const analysisResult = await autoAnalysis(urls, role, researchGoal, searchQuery);
 
         if (!analysisResult.success) {
             throw new Error(analysisResult.error || 'Analysis failed');
