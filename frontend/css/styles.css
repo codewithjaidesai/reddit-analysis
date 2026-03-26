@@ -8002,3 +8002,459 @@ footer a {
         padding: 4px 0;
     }
 }
+
+/* ============================================
+   MOBILE-FIRST UI ENHANCEMENTS
+   ============================================ */
+
+/* ---- Mobile Bottom Navigation ---- */
+.mobile-bottom-nav {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 900;
+        background: var(--bg-main);
+        border-top: 1px solid var(--border);
+        padding: 6px 0;
+        padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+        justify-content: space-around;
+        align-items: center;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-nav-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 12px;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 0.65rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color 0.2s ease;
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+        min-width: 60px;
+    }
+
+    .mobile-nav-btn.active {
+        color: var(--primary-light);
+    }
+
+    .mobile-nav-btn:active {
+        color: var(--primary);
+    }
+
+    .mobile-nav-icon {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* Hide top tab navigation on mobile */
+    .tab-navigation {
+        display: none !important;
+    }
+
+    /* Add bottom padding to body so content isn't hidden behind bottom nav */
+    body {
+        padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 12px;
+    }
+
+    /* ---- Header Compact ---- */
+    header {
+        margin-bottom: 20px;
+    }
+
+    header h1 {
+        font-size: 1.5rem;
+    }
+
+    .subtitle {
+        font-size: 0.85rem;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* ---- Main Container ---- */
+    main {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    /* ---- Larger Tap Targets ---- */
+    .persona-card {
+        padding: 14px;
+        min-height: 44px;
+    }
+
+    .outcome-option {
+        min-height: 44px;
+        padding: 12px;
+    }
+
+    .depth-card {
+        min-height: 44px;
+    }
+
+    .url-subtab-btn {
+        min-height: 44px;
+        padding: 10px 16px;
+    }
+
+    /* ---- Input Improvements ---- */
+    .url-input {
+        font-size: 16px; /* Prevents iOS zoom on focus */
+        padding: 14px 16px;
+    }
+
+    .search-textarea,
+    textarea {
+        font-size: 16px; /* Prevents iOS zoom */
+    }
+
+    /* ---- Export Buttons → Horizontal Scroll ---- */
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .card-header > div {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+    }
+
+    .card-header > div::-webkit-scrollbar {
+        display: none;
+    }
+
+    .export-btn {
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding: 10px 14px;
+        font-size: 0.82rem;
+    }
+
+    /* ---- Result Cards ---- */
+    .result-card {
+        padding: 16px;
+        border-radius: 10px;
+        margin-bottom: 14px;
+    }
+
+    .result-card h2 {
+        font-size: 1.2rem;
+    }
+
+    /* ---- Status Section: Sticky on Mobile ---- */
+    .status-section {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        margin: 0 -16px;
+        padding: 0 16px;
+        background: var(--bg-main);
+    }
+
+    .status-card {
+        padding: 20px 16px;
+        border-radius: 10px;
+    }
+
+    .status-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+
+    .status-text {
+        font-size: 1rem;
+    }
+
+    /* ---- Persona/Outcome Layout ---- */
+    .persona-outcome-container {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .outcome-selection {
+        padding-left: 0;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+    }
+
+    .persona-selection {
+        min-width: auto;
+    }
+
+    .outcome-options {
+        grid-template-columns: 1fr;
+    }
+
+    /* ---- Collapsible Sections: Better Spacing ---- */
+    .collapsible-section {
+        margin-bottom: 12px;
+    }
+
+    .collapsed-summary {
+        padding: 12px;
+        min-height: 44px;
+    }
+
+    /* ---- Research Goal Section ---- */
+    .research-goal-section {
+        padding: 12px;
+    }
+
+    .section-label {
+        font-size: 0.9rem;
+    }
+
+    /* ---- Community Pulse ---- */
+    .pulse-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        flex-wrap: nowrap;
+    }
+
+    .pulse-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .pulse-tab {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* ---- Topic Search Results ---- */
+    .post-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .post-card {
+        padding: 14px;
+    }
+
+    .selected-summary {
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+    }
+
+    .selected-summary span {
+        font-size: 0.95rem;
+    }
+
+    /* ---- Structured Analysis ---- */
+    .analysis-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .analysis-actions {
+        width: 100%;
+    }
+
+    .analysis-actions button {
+        flex: 1;
+        min-height: 44px;
+    }
+
+    /* ---- Modals → Bottom Sheets ---- */
+    .reanalyze-modal,
+    .generate-modal {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .reanalyze-modal-content,
+    .generate-modal-content {
+        max-width: 100%;
+        border-radius: 16px 16px 0 0;
+        max-height: 85vh;
+        padding: 20px 16px;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+        animation: slideUpSheet 0.3s ease-out;
+    }
+
+    /* Bottom sheet drag handle indicator */
+    .reanalyze-modal-content::before,
+    .generate-modal-content::before {
+        content: '';
+        display: block;
+        width: 36px;
+        height: 4px;
+        background: var(--border-light);
+        border-radius: 2px;
+        margin: 0 auto 16px auto;
+    }
+
+    .reanalyze-modal-footer,
+    .generate-modal-footer {
+        padding-bottom: 8px;
+    }
+
+    .reanalyze-modal-btn,
+    .generate-modal-btn {
+        min-height: 44px;
+        padding: 12px 20px;
+    }
+
+    /* Generate type grid on mobile */
+    .generate-type-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .generate-type-btn {
+        min-height: 44px;
+    }
+
+    /* ---- User Stats ---- */
+    .user-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* ---- Tables ---- */
+    .markdown-fallback table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* ---- Footer ---- */
+    footer {
+        margin-bottom: 10px;
+    }
+
+    /* ---- Filter rows ---- */
+    .filter-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .filter-group {
+        min-width: auto;
+    }
+
+    /* ---- Search filters ---- */
+    .search-filters-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* ---- Stats ---- */
+    .stats {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* ---- Trend cards ---- */
+    .trend-cards {
+        grid-template-columns: 1fr;
+    }
+
+    /* ---- Evidence columns ---- */
+    .evidence-columns {
+        grid-template-columns: 1fr;
+    }
+
+    /* ---- Quotes grid ---- */
+    .quotes-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* ---- Content analysis grids ---- */
+    .topic-groups-grid,
+    .sentiment-drivers,
+    .patterns-list,
+    .data-analysis-grid,
+    .community-voice-grid,
+    .platform-comparison-grid,
+    .content-gaps-grid,
+    .audience-segments-grid,
+    .language-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .engagement-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ---- Bottom Sheet Animation ---- */
+@keyframes slideUpSheet {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* ---- Extra small screens (≤ 400px) ---- */
+@media (max-width: 400px) {
+    body {
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 8px;
+    }
+
+    main {
+        padding: 12px;
+    }
+
+    header h1 {
+        font-size: 1.3rem;
+    }
+
+    .mobile-nav-btn {
+        min-width: 50px;
+        padding: 6px 8px;
+        font-size: 0.6rem;
+    }
+
+    .mobile-nav-icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .result-card {
+        padding: 12px;
+    }
+
+    .status-card {
+        padding: 16px 12px;
+    }
+
+    .export-btn {
+        padding: 8px 10px;
+        font-size: 0.75rem;
+    }
+}
