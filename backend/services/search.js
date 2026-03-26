@@ -568,6 +568,7 @@ module.exports = {
   extractKeywords,
   suggestSubreddits,
   formatSearchQuery,
+  calculateTitleRelevance,
   getSubredditInfo,
   fetchTimeBucketedPosts,
   samplePostsForComments,

@@ -408,8 +408,10 @@ async function handleSearchByTopic() {
         // Track other relevant posts not selected for AI analysis
         let otherRelevantPosts = [];
 
-        // Only pre-screen if we have more posts than the limit
-        if (result.posts.length > limit) {
+        // Always pre-screen posts for relevance to filter out off-topic results,
+        // even when the result count is small (e.g. YouTube videos about gym bags
+        // should not appear in a search for "weight training shoes under $50")
+        if (result.posts.length > 0) {
             try {
                 const screenResult = await preScreenPosts(result.posts, researchQuestion, role, goal);
                 if (screenResult.success && screenResult.posts.length > 0) {
@@ -4529,7 +4531,8 @@ async function researchAndCreate(type, index, btnElement) {
         let postsToAnalyze = searchResult.posts;
         const analyzeLimit = 5;
 
-        if (totalFound > analyzeLimit) {
+        // Always pre-screen to filter out irrelevant results regardless of count
+        if (totalFound > 0) {
             try {
                 const screenResult = await preScreenPosts(searchResult.posts, searchQuery, role, goal);
                 if (screenResult.success && screenResult.posts.length > 0) {
