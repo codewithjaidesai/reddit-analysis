@@ -116,11 +116,12 @@ async function preScreenPosts(posts, topic, role = null, goal = null) {
 /**
  * Auto-analyze: batched extraction + map-reduce analysis
  */
-async function autoAnalysis(urls, role = null, goal = null) {
+async function autoAnalysis(urls, role = null, goal = null, topic = null) {
     return await callAPI(API_CONFIG.endpoints.auto, {
         urls,
         role,
-        goal
+        goal,
+        topic
     });
 }
 

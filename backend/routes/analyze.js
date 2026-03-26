@@ -289,7 +289,7 @@ router.post('/combined', async (req, res) => {
  */
 router.post('/auto', async (req, res) => {
   try {
-    const { urls, role, goal } = req.body;
+    const { urls, role, goal, topic } = req.body;
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({
@@ -299,6 +299,7 @@ router.post('/auto', async (req, res) => {
     }
 
     console.log(`\n=== AUTO-ANALYZE: ${urls.length} posts ===`);
+    if (topic) console.log('Search topic:', topic);
     if (role) console.log('User role:', role);
     if (goal) console.log('User goal:', goal);
 
@@ -318,7 +319,7 @@ router.post('/auto', async (req, res) => {
 
     // Step 2: Single-call analysis (simpler and faster than map-reduce for free tier)
     console.log('Step 2: Single-call analysis...');
-    const combinedInsights = await generateCombinedInsights(postsData, role, goal);
+    const combinedInsights = await generateCombinedInsights(postsData, role, goal, topic);
 
     // Format response to match /combined endpoint for frontend compatibility
     const posts = postsData.map(data => ({ extractedData: data }));
@@ -350,7 +351,7 @@ router.post('/auto', async (req, res) => {
  */
 router.post('/reanalyze', async (req, res) => {
   try {
-    const { postsData, role, goal } = req.body;
+    const { postsData, role, goal, topic } = req.body;
 
     if (!postsData || !Array.isArray(postsData) || postsData.length === 0) {
       return res.status(400).json({
@@ -360,11 +361,12 @@ router.post('/reanalyze', async (req, res) => {
     }
 
     console.log(`Re-analyzing ${postsData.length} posts with new perspective`);
+    if (topic) console.log('Search topic:', topic);
     if (role) console.log('New role:', role);
     if (goal) console.log('New goal:', goal);
 
     // Generate combined analysis with new role/goal (skip extraction)
-    const combinedInsights = await generateCombinedInsights(postsData, role, goal);
+    const combinedInsights = await generateCombinedInsights(postsData, role, goal, topic);
 
     // Return in same format as /combined endpoint for frontend compatibility
     const posts = postsData.map(data => ({ extractedData: data }));
