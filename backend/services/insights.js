@@ -451,7 +451,15 @@ Return ONLY valid JSON (no markdown, no backticks):
     "relevantComments": 0,
     "dataQuality": "Honest assessment — how much of the data was substantive vs generic",
     "caveats": ["Important limitation or bias in the data"]
-  }${personaJsonSchema}
+  },
+
+  "exploreNext": [
+    {
+      "query": "A ready-to-run follow-up search query, phrased the way a user would type it",
+      "why": "What gap or thread in THIS data makes it worth researching (cite the signal)",
+      "angle": "deeper or adjacent or contrarian or audience"
+    }
+  ]${personaJsonSchema}
 }
 
 SYNTHESIS RULES:
@@ -484,6 +492,14 @@ CONTEXTUAL SECTIONS (include ONLY when genuinely useful for this specific query)
 9. worthQuoting: Include ONLY if there are quotes that add real value — expertise, warnings, surprising insights. Not generic praise.
 10. funnyAndMemorable: Include ONLY if something is genuinely funny. Return empty array rather than forcing humor.
 11. soWhat: Include ONLY if there's a non-obvious pattern worth calling out.
+
+EXPLORE NEXT (always include — 3-5 suggestions):
+- exploreNext: Suggest 3-5 follow-up research queries based on what THIS data revealed. Each must be grounded in a real signal from the analyzed discussions:
+  * "deeper": An unanswered question or thin area in this data (e.g. many asked about X but few answered)
+  * "adjacent": A related topic the community kept bringing up unprompted
+  * "contrarian": A minority opinion or debate side worth investigating on its own
+  * "audience": A specific segment/persona that appeared in the data worth targeting
+  Each query must be self-contained and ready to run as a new search. NEVER suggest generic queries — tie each to a specific observation from the data.
 
 GENERAL RULES:
 12. ALL quotes must be EXACT text from the source data. Never paraphrase or invent quotes.
@@ -930,12 +946,14 @@ Return ONLY valid JSON matching this structure:
   "worthQuoting": [{"quote": "exact text", "author": "@user", "score": 0, "category": "insight or warning or tip or brutal-honesty", "context": "why it matters"}],
   "funnyAndMemorable": [{"quote": "funny comment", "author": "@user", "score": 0, "context": "context"}],
   "soWhat": {"signal": "pattern across posts", "implications": ["now", "future", "for ${role || 'researcher'}"]},
-  "confidence": {"level": "level", "totalComments": ${totalComments}, "postsAnalyzed": ${postCount}, "relevantComments": 0, "dataQuality": "assessment", "caveats": ["limitation"]}${personaJsonSchema}
+  "confidence": {"level": "level", "totalComments": ${totalComments}, "postsAnalyzed": ${postCount}, "relevantComments": 0, "dataQuality": "assessment", "caveats": ["limitation"]},
+  "exploreNext": [{"query": "ready-to-run follow-up search query", "why": "the signal in this data that makes it worth researching", "angle": "deeper or adjacent or contrarian or audience"}]${personaJsonSchema}
 }
 
 RULES:
 - theVerdict, fromTheTrenches, rankedThemes, confidence: ALWAYS include.
 - actionableContent: ALWAYS include 2-5 sections that directly serve the user's query/goal. YOU choose section types and titles. Only use real data from comments — never extrapolate.
+- exploreNext: ALWAYS include 3-5 follow-up queries, each tied to a specific signal in this data (unanswered questions, adjacent topics the community raised, minority opinions, audience segments).
 - whatBlewUp, whatTheyreAsking, theDebate, worthQuoting, funnyAndMemorable, soWhat: Include ONLY when genuinely useful. Skip for practical queries. Set to empty array/null if not applicable.
 - ALL quotes must be EXACT text from comments. Focus on the research goal. Quantify everything.${personaRules}
 Return ONLY the JSON object.`;
