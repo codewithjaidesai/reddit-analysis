@@ -23,8 +23,21 @@ function switchTab(tabName) {
         selectedTab.style.display = 'block';
     }
 
-    // Activate button
-    event.target.classList.add('active');
+    // Activate button — by data-tab so programmatic calls work too
+    const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    } else if (typeof event !== 'undefined' && event && event.target) {
+        event.target.classList.add('active');
+    }
+
+    // Lazy-load the Content Radar frame on first visit
+    if (tabName === 'radar') {
+        const frame = document.getElementById('radarFrame');
+        if (frame && !frame.src && frame.dataset.src) {
+            frame.src = frame.dataset.src;
+        }
+    }
 
     // Hide results and status
     hideAll();
@@ -464,24 +477,14 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
     }
 
     if (isNewSchema) {
-        // ═══ NEW SCHEMA: Content Radar-style ═══
+        // ═══ NEW SCHEMA ═══
+        // Core sections composed from shared builders (insightsSections.js) —
+        // same source of truth as the multi-post flow in app.js.
+        const sharedOpts = { tag: 'h3', cls: 'content-analysis-section' };
 
-        // THE VERDICT
-        if (analysis.theVerdict) {
-            const v = analysis.theVerdict;
-            html += `
-                <div class="content-analysis-section verdict-section">
-                    <h3>THE VERDICT</h3>
-                    <div class="verdict-card verdict-${v.confidence || 'medium'}">
-                        <div class="verdict-answer">${escapeHtml(v.answer || '')}</div>
-                        <div class="verdict-meta">
-                            <span class="confidence-badge confidence-${v.confidence || 'medium'}">${(v.confidence || 'medium').toUpperCase()} CONFIDENCE</span>
-                            ${v.basis ? `<span class="verdict-basis">${escapeHtml(v.basis)}</span>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
+        html += InsightSections.verdict(analysis, sharedOpts);
+        html += InsightSections.whatBlewUp(analysis, sharedOpts);
+        html += InsightSections.actionable(analysis, sharedOpts);
 
         // SENTIMENT
         if (analysis.sentimentAnalysis) {
@@ -497,134 +500,15 @@ function displayStructuredInsights(analysis, model, source = 'reddit') {
             html += `</div>`;
         }
 
-        // RANKED THEMES
-        if (analysis.rankedThemes?.length > 0) {
-            html += `
-                <div class="content-analysis-section">
-                    <h3>RANKED THEMES</h3>
-                    <div class="ranked-themes-list">
-                        ${analysis.rankedThemes.map(theme => `
-                            <div class="ranked-theme-card">
-                                <div class="ranked-theme-header">
-                                    <span class="ranked-theme-rank">#${theme.rank || '?'}</span>
-                                    <span class="ranked-theme-name">${escapeHtml(theme.theme)}</span>
-                                    <div class="ranked-theme-stats">
-                                        <span class="ranked-theme-mentions">${theme.mentions || 0}x</span>
-                                        <span class="sentiment-badge sentiment-${theme.sentiment || 'neutral'}">${theme.sentiment || 'neutral'}</span>
-                                    </div>
-                                </div>
-                                <div class="ranked-theme-oneliner">${escapeHtml(theme.oneLiner || '')}</div>
-                                ${theme.topQuote ? `<div class="ranked-theme-quote"><span class="quote-icon">"</span>"${escapeHtml(theme.topQuote.text || '')}" <span class="ranked-theme-quote-meta">@${escapeHtml(theme.topQuote.author || 'anon')} · ${theme.topQuote.score || 0} pts</span></div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // FROM THE TRENCHES
-        if (analysis.fromTheTrenches?.length > 0) {
-            html += `
-                <div class="content-analysis-section trenches-section">
-                    <h3>FROM THE TRENCHES</h3>
-                    <p class="section-subtitle">Real data and tools people shared</p>
-                    <div class="trenches-list">
-                        ${analysis.fromTheTrenches.map(item => `
-                            <div class="trenches-item">
-                                <div class="trenches-insight">${escapeHtml(item.insight)}</div>
-                                <div class="trenches-meta">
-                                    <span class="trenches-author">@${escapeHtml(item.author || 'anon')}</span>
-                                    ${item.score ? `<span class="trenches-score">${item.score} pts</span>` : ''}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // WHAT THEY'RE ASKING
-        if (analysis.whatTheyreAsking?.length > 0) {
-            html += `
-                <div class="content-analysis-section asking-section">
-                    <h3>WHAT THEY'RE ASKING</h3>
-                    <div class="asking-list">
-                        ${analysis.whatTheyreAsking.map(q => `
-                            <div class="asking-item">
-                                <div class="asking-question">${escapeHtml(q.question)}</div>
-                                <div class="asking-meta">
-                                    <span class="asking-author">@${escapeHtml(q.author || 'anon')}</span>
-                                    ${q.score ? `<span class="asking-score">${q.score} pts</span>` : ''}
-                                </div>
-                                ${q.demandSignal ? `<div class="asking-demand">${escapeHtml(q.demandSignal)}</div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // WORTH QUOTING
-        if (analysis.worthQuoting?.length > 0) {
-            html += `
-                <div class="content-analysis-section">
-                    <h3>WORTH QUOTING</h3>
-                    <div class="quotes-grid">
-                        ${analysis.worthQuoting.map(q => `
-                            <div class="quote-card quote-${(q.category || 'insight').toLowerCase()}">
-                                <span class="quote-type-badge">${(q.category || 'INSIGHT').toUpperCase()}</span>
-                                <div class="quote-icon">"</div>
-                                <p class="quote-text">"${escapeHtml(q.quote)}"</p>
-                                <div class="quote-footer">
-                                    <span class="quote-source">@${escapeHtml(q.author || 'anon')}</span>
-                                    ${q.score ? `<span class="quote-score">${q.score} pts</span>` : ''}
-                                </div>
-                                ${q.context ? `<p class="quote-context">${escapeHtml(q.context)}</p>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // FUNNY & MEMORABLE
-        if (analysis.funnyAndMemorable?.length > 0) {
-            html += `
-                <div class="content-analysis-section funny-section">
-                    <h3>FUNNY & MEMORABLE</h3>
-                    <div class="funny-list">
-                        ${analysis.funnyAndMemorable.map(f => `
-                            <div class="funny-item">
-                                <div class="funny-quote">"${escapeHtml(f.quote)}"</div>
-                                <div class="funny-meta">
-                                    <span class="funny-author">@${escapeHtml(f.author || 'anon')}</span>
-                                    ${f.score ? `<span class="funny-score">${f.score} pts</span>` : ''}
-                                </div>
-                                ${f.context ? `<div class="funny-context">${escapeHtml(f.context)}</div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        // CONFIDENCE
-        if (analysis.confidence) {
-            const conf = analysis.confidence;
-            html += `
-                <div class="content-analysis-section">
-                    <h3>CONFIDENCE</h3>
-                    <div class="confidence-card confidence-${conf.level || 'medium'}">
-                        <span class="confidence-level">${(conf.level || 'medium').toUpperCase()}</span>
-                        <span class="confidence-reason">${escapeHtml(conf.dataQuality || conf.reason || '')}</span>
-                    </div>
-                    <div class="confidence-details">
-                        ${conf.totalComments ? `<span class="confidence-stat">${conf.totalComments} comments</span>` : ''}
-                        ${conf.relevantComments ? `<span class="confidence-stat">${conf.relevantComments} relevant</span>` : ''}
-                    </div>
-                </div>
-            `;
-        }
+        html += InsightSections.rankedThemes(analysis, sharedOpts);
+        html += InsightSections.trenches(analysis, sharedOpts);
+        html += InsightSections.asking(analysis, sharedOpts);
+        html += InsightSections.debate(analysis, sharedOpts);
+        html += InsightSections.worthQuoting(analysis, sharedOpts);
+        html += InsightSections.funny(analysis, sharedOpts);
+        html += InsightSections.soWhat(analysis, sharedOpts);
+        html += InsightSections.exploreNext(analysis, sharedOpts);
+        html += InsightSections.confidence(analysis, sharedOpts);
 
         // Persona sections (new schema)
         if (analysis.contentOpportunities?.length > 0) {

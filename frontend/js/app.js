@@ -1837,100 +1837,6 @@ async function analyzeMultiplePosts(urls, isReanalyze = false) {
 window.combinedResultsData = null;
 
 /**
- * Render the dynamic AI-chosen actionable sections (phases/picks/tips/comparison/checklist/info).
- * Shown on the primary Insights tab — this is the direct answer to the user's query.
- */
-function renderActionableContentHTML(structured) {
-    if (!structured.actionableContent || structured.actionableContent.length === 0) return '';
-
-    let out = '';
-    const sections = [...structured.actionableContent].sort((a, b) => (a.priority || 99) - (b.priority || 99));
-
-    sections.forEach((section, sIdx) => {
-        const items = section.items || [];
-        out += `<div class="analysis-section actionable-section">
-            <h2 class="section-title section-title-accent">${escapeHtml(section.sectionTitle || 'Actionable Insights')}</h2>`;
-
-        if (section.sectionType === 'phases') {
-            out += items.map((item, i) => `
-                <div class="actionable-card actionable-phase">
-                    <div class="actionable-card-header">
-                        <span class="actionable-label">${escapeHtml(item.label || 'Phase ' + (i + 1))}</span>
-                        ${item.meta?.duration ? `<span class="actionable-meta">${escapeHtml(item.meta.duration)}</span>` : ''}
-                        ${item.meta?.region ? `<span class="actionable-meta">${escapeHtml(item.meta.region)}</span>` : ''}
-                    </div>
-                    ${item.description ? `<p class="actionable-desc">${escapeHtml(item.description)}</p>` : ''}
-                    ${item.details && item.details.length > 0 ? `<ul class="actionable-details">${item.details.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>` : ''}
-                    ${item.tags && item.tags.length > 0 ? `<div class="actionable-tags">${item.tags.map(t => `<span class="actionable-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-                </div>
-            `).join('');
-
-        } else if (section.sectionType === 'picks') {
-            out += items.map((item, i) => `
-                <div class="actionable-card actionable-pick ${i === 0 ? 'actionable-pick-top' : ''}">
-                    <div class="actionable-card-header">
-                        <span class="actionable-label">#${i + 1} ${escapeHtml(item.label)}</span>
-                        ${item.meta?.price ? `<span class="actionable-price">${escapeHtml(item.meta.price)}</span>` : ''}
-                        ${item.meta?.rating ? `<span class="actionable-rating">${escapeHtml(item.meta.rating)}</span>` : ''}
-                    </div>
-                    ${item.description ? `<p class="actionable-desc">${escapeHtml(item.description)}</p>` : ''}
-                    ${item.details && item.details.length > 0 ? `<ul class="actionable-details actionable-details-muted">${item.details.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>` : ''}
-                </div>
-            `).join('');
-
-        } else if (section.sectionType === 'comparison') {
-            out += `<div class="actionable-card actionable-comparison">
-                <table class="actionable-table">
-                    ${items.map(item => `
-                        <tr>
-                            <td class="actionable-table-label">${escapeHtml(item.label)}</td>
-                            ${(item.details || []).map(d => `<td>${escapeHtml(d)}</td>`).join('')}
-                        </tr>
-                    `).join('')}
-                </table>
-            </div>`;
-
-        } else if (section.sectionType === 'checklist') {
-            out += `<div class="actionable-card">
-                ${items.map(item => `
-                    <div class="actionable-check-item">
-                        <span class="actionable-check-box">☐</span>
-                        <div>
-                            <span class="actionable-check-label">${escapeHtml(item.label)}</span>
-                            ${item.description ? `<p class="actionable-check-desc">${escapeHtml(item.description)}</p>` : ''}
-                        </div>
-                    </div>
-                `).join('')}
-            </div>`;
-
-        } else if (section.sectionType === 'info') {
-            out += `<div class="actionable-card">
-                ${items.map(item => `
-                    <div class="actionable-info-row">
-                        <span class="actionable-info-key">${escapeHtml(item.label)}</span>
-                        <span class="actionable-info-value">${escapeHtml(item.description || '')}</span>
-                    </div>
-                `).join('')}
-            </div>`;
-
-        } else {
-            // Default: tips/advice list (also handles unknown types)
-            out += items.map(item => `
-                <div class="actionable-card actionable-tip">
-                    <span class="actionable-label">${escapeHtml(item.label)}</span>
-                    ${item.description ? `<p class="actionable-desc">${escapeHtml(item.description)}</p>` : ''}
-                    ${item.details && item.details.length > 0 ? `<ul class="actionable-details actionable-details-muted">${item.details.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>` : ''}
-                </div>
-            `).join('');
-        }
-
-        out += `</div>`;
-    });
-
-    return out;
-}
-
-/**
  * Run an AI-suggested follow-up search from an Explore Next card.
  * Fills the research question and re-runs the topic search flow.
  */
@@ -2176,254 +2082,23 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
         html += `<div id="qualitativeTab" class="analysis-tab-content active">`;
 
         if (isNewSchema) {
-            // ═══ NEW SCHEMA: Content Radar-style sections ═══
-            // Editorial reading order (mirrors the email digest): verdict first,
-            // then hooks, then the actionable answer, then supporting material.
-
-            // THE VERDICT — the direct answer leads
-            if (structured.theVerdict) {
-                const v = structured.theVerdict;
-                html += `
-                    <div class="analysis-section verdict-section">
-                        <h2 class="section-title">THE VERDICT</h2>
-                        <div class="verdict-card verdict-${v.confidence || 'medium'}">
-                            <div class="verdict-answer">${escapeHtml(v.answer || '')}</div>
-                            <div class="verdict-meta">
-                                <span class="confidence-badge confidence-${v.confidence || 'medium'}">${(v.confidence || 'medium').toUpperCase()} CONFIDENCE</span>
-                                ${v.basis ? `<span class="verdict-basis">${escapeHtml(v.basis)}</span>` : ''}
-                            </div>
-                            ${v.keyDataPoints && v.keyDataPoints.length > 0 ? `
-                                <div class="verdict-data-points">
-                                    ${v.keyDataPoints.map(dp => `
-                                        <div class="verdict-dp">
-                                            <span class="verdict-dp-arrow">→</span>
-                                            <span>${escapeHtml(dp)}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // WHAT BLEW UP
-            if (structured.whatBlewUp && structured.whatBlewUp.length > 0) {
-                html += `
-                    <div class="analysis-section blew-up-section">
-                        <h2 class="section-title section-title-accent">WHAT BLEW UP</h2>
-                        <div class="blew-up-list">
-                            ${structured.whatBlewUp.map(item => `
-                                <div class="blew-up-item">
-                                    <div class="blew-up-hook">${escapeHtml(item.hook)}</div>
-                                    ${item.detail ? `<div class="blew-up-detail">${escapeHtml(item.detail)}</div>` : ''}
-                                    ${item.source ? `<span class="blew-up-source">${escapeHtml(item.source)}</span>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // ACTIONABLE CONTENT — the AI-chosen answer sections, promoted to the
-            // primary tab (previously buried in Data & Persona)
-            html += renderActionableContentHTML(structured);
-
-            // FROM THE TRENCHES
-            if (structured.fromTheTrenches && structured.fromTheTrenches.length > 0) {
-                html += `
-                    <div class="analysis-section trenches-section">
-                        <h2 class="section-title">FROM THE TRENCHES</h2>
-                        <p class="section-subtitle">Real data, numbers, and tools people actually shared</p>
-                        <div class="trenches-list">
-                            ${structured.fromTheTrenches.map(item => `
-                                <div class="trenches-item">
-                                    <div class="trenches-insight">${escapeHtml(item.insight)}</div>
-                                    <div class="trenches-meta">
-                                        <span class="trenches-author">@${escapeHtml(item.author || 'anon')}</span>
-                                        ${item.score ? `<span class="trenches-score">${item.score} pts</span>` : ''}
-                                        ${item.source ? `<span class="trenches-source">${escapeHtml(item.source)}</span>` : ''}
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // WHAT THEY'RE ASKING
-            if (structured.whatTheyreAsking && structured.whatTheyreAsking.length > 0) {
-                html += `
-                    <div class="analysis-section asking-section">
-                        <h2 class="section-title">WHAT THEY'RE ASKING</h2>
-                        <p class="section-subtitle">Questions ranked by demand signal</p>
-                        <div class="asking-list">
-                            ${structured.whatTheyreAsking.map(q => `
-                                <div class="asking-item">
-                                    <div class="asking-question">${escapeHtml(q.question)}</div>
-                                    <div class="asking-meta">
-                                        <span class="asking-author">@${escapeHtml(q.author || 'anon')}</span>
-                                        ${q.score ? `<span class="asking-score">${q.score} pts</span>` : ''}
-                                    </div>
-                                    ${q.demandSignal ? `<div class="asking-demand">${escapeHtml(q.demandSignal)}</div>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // THE DEBATE
-            if (structured.theDebate && structured.theDebate.topic) {
-                const d = structured.theDebate;
-                html += `
-                    <div class="analysis-section debate-section">
-                        <h2 class="section-title">THE DEBATE</h2>
-                        <div class="debate-topic">${escapeHtml(d.topic)}</div>
-                        <div class="debate-sides">
-                            <div class="debate-side side-a">
-                                <div class="debate-side-label">Side A</div>
-                                <div class="debate-position">${escapeHtml(d.sideA?.position || '')}</div>
-                                ${d.sideA?.quotes ? d.sideA.quotes.map(q => `
-                                    <div class="debate-quote">
-                                        <span class="debate-quote-text">"${escapeHtml(q.text)}"</span>
-                                        <span class="debate-quote-meta">@${escapeHtml(q.author || 'anon')} · ${q.score || 0} pts</span>
-                                    </div>
-                                `).join('') : ''}
-                            </div>
-                            <div class="debate-vs">VS</div>
-                            <div class="debate-side side-b">
-                                <div class="debate-side-label">Side B</div>
-                                <div class="debate-position">${escapeHtml(d.sideB?.position || '')}</div>
-                                ${d.sideB?.quotes ? d.sideB.quotes.map(q => `
-                                    <div class="debate-quote">
-                                        <span class="debate-quote-text">"${escapeHtml(q.text)}"</span>
-                                        <span class="debate-quote-meta">@${escapeHtml(q.author || 'anon')} · ${q.score || 0} pts</span>
-                                    </div>
-                                `).join('') : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // WORTH QUOTING
-            if (structured.worthQuoting && structured.worthQuoting.length > 0) {
-                html += `
-                    <div class="analysis-section">
-                        <h2 class="section-title">WORTH QUOTING</h2>
-                        <div class="quotes-grid">
-                            ${structured.worthQuoting.map(q => `
-                                <div class="quote-card quote-${(q.category || 'insight').toLowerCase()}">
-                                    <span class="quote-type-badge">${(q.category || 'INSIGHT').toUpperCase()}</span>
-                                    <div class="quote-icon">"</div>
-                                    <p class="quote-text">"${escapeHtml(q.quote)}"</p>
-                                    <div class="quote-footer">
-                                        <span class="quote-source">@${escapeHtml(q.author || 'anon')}</span>
-                                        ${q.score ? `<span class="quote-score">${q.score} pts</span>` : ''}
-                                    </div>
-                                    ${q.context ? `<p class="quote-context">${escapeHtml(q.context)}</p>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // FUNNY & MEMORABLE
-            if (structured.funnyAndMemorable && structured.funnyAndMemorable.length > 0) {
-                html += `
-                    <div class="analysis-section funny-section">
-                        <h2 class="section-title">FUNNY & MEMORABLE</h2>
-                        <div class="funny-list">
-                            ${structured.funnyAndMemorable.map(f => `
-                                <div class="funny-item">
-                                    <div class="funny-quote">"${escapeHtml(f.quote)}"</div>
-                                    <div class="funny-meta">
-                                        <span class="funny-author">@${escapeHtml(f.author || 'anon')}</span>
-                                        ${f.score ? `<span class="funny-score">${f.score} pts</span>` : ''}
-                                    </div>
-                                    ${f.context ? `<div class="funny-context">${escapeHtml(f.context)}</div>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // SO WHAT
-            if (structured.soWhat && structured.soWhat.signal) {
-                html += `
-                    <div class="analysis-section sowhat-section">
-                        <h2 class="section-title">SO WHAT</h2>
-                        <div class="sowhat-card">
-                            <div class="sowhat-signal">${escapeHtml(structured.soWhat.signal)}</div>
-                            ${structured.soWhat.implications && structured.soWhat.implications.length > 0 ? `
-                                <div class="sowhat-implications">
-                                    ${structured.soWhat.implications.map(imp => `
-                                        <div class="sowhat-implication">
-                                            <span class="sowhat-arrow">→</span>
-                                            <span>${escapeHtml(imp)}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // EXPLORE NEXT — AI-suggested follow-up research, clickable
-            if (structured.exploreNext && structured.exploreNext.length > 0) {
-                const angleLabels = {
-                    deeper: 'GO DEEPER',
-                    adjacent: 'ADJACENT TOPIC',
-                    contrarian: 'CONTRARIAN TAKE',
-                    audience: 'AUDIENCE SEGMENT'
-                };
-                html += `
-                    <div class="analysis-section explore-next-section">
-                        <h2 class="section-title">EXPLORE NEXT</h2>
-                        <p class="section-subtitle">Follow-up research suggested by what this data revealed — click to run</p>
-                        <div class="explore-next-list">
-                            ${structured.exploreNext.map(s => `
-                                <button class="explore-next-card" onclick="runSuggestedSearch(this.dataset.query)" data-query="${escapeHtml(s.query || '')}">
-                                    <div class="explore-next-header">
-                                        <span class="explore-next-angle angle-${escapeHtml(s.angle || 'deeper')}">${angleLabels[s.angle] || 'GO DEEPER'}</span>
-                                        <span class="explore-next-run">Search →</span>
-                                    </div>
-                                    <div class="explore-next-query">${escapeHtml(s.query || '')}</div>
-                                    ${s.why ? `<div class="explore-next-why">${escapeHtml(s.why)}</div>` : ''}
-                                </button>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // CONFIDENCE
-            if (structured.confidence) {
-                const conf = structured.confidence;
-                html += `
-                    <div class="analysis-section">
-                        <h2 class="section-title">CONFIDENCE</h2>
-                        <div class="confidence-card confidence-${conf.level || 'medium'}">
-                            <span class="confidence-level">${(conf.level || 'medium').toUpperCase()}</span>
-                            <span class="confidence-reason">${escapeHtml(conf.dataQuality || conf.reason || '')}</span>
-                        </div>
-                        <div class="confidence-details">
-                            ${conf.totalComments ? `<span class="confidence-stat">${conf.totalComments.toLocaleString()} comments analyzed</span>` : ''}
-                            ${conf.postsAnalyzed ? `<span class="confidence-stat">${conf.postsAnalyzed} posts</span>` : ''}
-                            ${conf.relevantComments ? `<span class="confidence-stat">${conf.relevantComments} relevant</span>` : ''}
-                        </div>
-                        ${conf.caveats && conf.caveats.length > 0 ? `
-                            <div class="confidence-caveats">
-                                ${conf.caveats.map(c => `<div class="confidence-caveat">${escapeHtml(c)}</div>`).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
+            // ═══ NEW SCHEMA ═══
+            // Composed from shared builders (insightsSections.js) in the email
+            // digest's editorial order: verdict first, then hooks, then the
+            // actionable answer, then supporting material, closing with
+            // follow-up research suggestions.
+            const opts = { tag: 'h2', cls: 'analysis-section' };
+            html += InsightSections.verdict(structured, opts);
+            html += InsightSections.whatBlewUp(structured, opts);
+            html += InsightSections.actionable(structured, opts);
+            html += InsightSections.trenches(structured, opts);
+            html += InsightSections.asking(structured, opts);
+            html += InsightSections.debate(structured, opts);
+            html += InsightSections.worthQuoting(structured, opts);
+            html += InsightSections.funny(structured, opts);
+            html += InsightSections.soWhat(structured, opts);
+            html += InsightSections.exploreNext(structured, opts);
+            html += InsightSections.confidence(structured, opts);
 
         } else {
             // ═══ OLD SCHEMA: Legacy rendering (backward compat) ═══
@@ -2474,39 +2149,8 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
         if (hasPersonaData || structured.rankedThemes) {
             html += `<div id="quantitativeTab" class="analysis-tab-content">`;
 
-            // RANKED THEMES (stack ranked with data)
-            if (structured.rankedThemes && structured.rankedThemes.length > 0) {
-                html += `
-                    <div class="quant-subsection">
-                        <h3 class="quant-subsection-title">Ranked Themes</h3>
-                        <p class="section-subtitle">Stack-ranked by mention frequency across posts</p>
-                        <div class="ranked-themes-list">
-                            ${structured.rankedThemes.map(theme => `
-                                <div class="ranked-theme-card">
-                                    <div class="ranked-theme-header">
-                                        <span class="ranked-theme-rank">#${theme.rank || '?'}</span>
-                                        <span class="ranked-theme-name">${escapeHtml(theme.theme)}</span>
-                                        <div class="ranked-theme-stats">
-                                            <span class="ranked-theme-mentions">${theme.mentions || 0}x mentioned</span>
-                                            ${theme.postsFoundIn ? `<span class="ranked-theme-posts">${theme.postsFoundIn} posts</span>` : ''}
-                                            <span class="sentiment-badge sentiment-${theme.sentiment || 'neutral'}">${theme.sentiment || 'neutral'}</span>
-                                        </div>
-                                    </div>
-                                    <div class="ranked-theme-oneliner">${escapeHtml(theme.oneLiner || '')}</div>
-                                    ${theme.topQuote ? `
-                                        <div class="ranked-theme-quote">
-                                            <span class="quote-icon">"</span>
-                                            <span class="ranked-theme-quote-text">"${escapeHtml(theme.topQuote.text || '')}"</span>
-                                            <span class="ranked-theme-quote-meta">@${escapeHtml(theme.topQuote.author || 'anon')} · ${theme.topQuote.score || 0} pts</span>
-                                        </div>
-                                    ` : ''}
-                                    ${theme.nuance ? `<div class="ranked-theme-nuance">${escapeHtml(theme.nuance)}</div>` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }
+            // RANKED THEMES (stack ranked with data) — shared builder
+            html += InsightSections.rankedThemes(structured, { tag: 'h3', cls: 'quant-subsection', titleCls: 'quant-subsection-title' });
 
             // Content Opportunities (Content Creator - new schema)
             if (structured.contentOpportunities && structured.contentOpportunities.length > 0) {
@@ -2622,7 +2266,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                 `;
             }
 
-            // (Actionable Content now renders on the Insights tab — see renderActionableContentHTML)
+            // (Actionable Content now renders on the Insights tab — see InsightSections.actionable)
 
             // Legacy evidence analysis
             if (structured.evidenceAnalysis) {

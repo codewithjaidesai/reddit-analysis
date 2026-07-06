@@ -8727,3 +8727,25 @@ footer a {
     font-size: 12px;
     line-height: 1.45;
 }
+
+/* ============================================================
+   CONTENT RADAR — embedded tab
+   ============================================================ */
+
+.radar-embed-frame {
+    width: 100%;
+    height: calc(100vh - 200px);
+    min-height: 640px;
+    border: 1px solid var(--border-color, #2d3a4d);
+    border-radius: 12px;
+    background: var(--bg-main);
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .radar-embed-frame {
+        height: calc(100vh - 160px);
+        min-height: 480px;
+        border-radius: 8px;
+    }
+}
