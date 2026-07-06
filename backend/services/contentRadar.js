@@ -80,16 +80,63 @@ async function fetchRecentPostsForDigest(subreddit, days = 7) {
 }
 
 /**
- * Generate a digest for a subreddit
+ * Fetch recent posts for a QUERY-based radar (topic / learning) across all of
+ * Reddit, with an AI relevance quality gate so digests never fill with trash.
+ * @param {string} query - The topic/learning query
+ * @param {number} days - Lookback window
+ * @returns {Promise<Array>} Relevant posts (empty array = quiet period)
+ */
+async function fetchRecentPostsForTopic(query, days = 7) {
+  const { searchRedditByTopic } = require('./search');
+  const { preScreenPosts } = require('./mapReduceAnalysis');
+
+  console.log(`[Digest] Fetching topic posts for "${query}" (last ${days} days)`);
+  const timeRange = days <= 7 ? 'week' : 'month';
+
+  const result = await searchRedditByTopic(query, timeRange, '', 40);
+  if (!result?.success || !result.posts || result.posts.length === 0) {
+    console.log(`[Digest] No posts found for topic "${query}"`);
+    return [];
+  }
+
+  // QUALITY GATE 1: AI relevance pre-screen — only genuinely on-topic posts
+  // (score >= 4 of 5) make it into a digest. Better a quiet week than trash.
+  let relevant = result.posts;
+  try {
+    const screened = await preScreenPosts(result.posts, query);
+    relevant = screened.filter(p => (p.relevanceScore || 0) >= 4);
+  } catch (err) {
+    console.log(`[Digest] Pre-screen failed, using engagement-sorted posts: ${err.message}`);
+  }
+
+  // QUALITY GATE 2: minimum substance — a digest needs at least 3 relevant
+  // discussions or it reads as padding. Caller treats [] as a quiet period.
+  if (relevant.length < 3) {
+    console.log(`[Digest] Only ${relevant.length} relevant posts for "${query}" — quiet period`);
+    return [];
+  }
+
+  // Normalize shape for the digest pipeline (needs permalink-style access + created_utc)
+  return relevant.map(p => ({
+    ...p,
+    permalink: p.permalink || (p.url ? p.url.replace(/^https?:\/\/(www\.)?reddit\.com/, '') : ''),
+    num_comments: p.num_comments ?? p.numComments ?? 0
+  }));
+}
+
+/**
+ * Generate a digest for a subreddit or query-based radar
  * @param {Object} params - Generation parameters
- * @param {string} params.subreddit - Subreddit name
+ * @param {string} params.subreddit - Subreddit name, or the query for topic/learning radars
+ * @param {string} params.radarType - 'subreddit' (default) | 'topic' | 'learning'
  * @param {string} params.subscriptionId - Optional subscription ID for personalization
  * @param {string} params.focusTopic - Optional focus topic
  * @param {string} params.frequency - 'daily' or 'weekly'
- * @returns {Promise<Object>} Generated digest
+ * @returns {Promise<Object>} Generated digest (digest.quiet === true means don't send)
  */
-async function generateDigest({ subreddit, subscriptionId = null, focusTopic = null, frequency = 'weekly', isPreview = false }) {
-  console.log(`Generating ${frequency} digest for r/${subreddit}... (preview: ${isPreview})`);
+async function generateDigest({ subreddit, radarType = 'subreddit', subscriptionId = null, focusTopic = null, frequency = 'weekly', isPreview = false }) {
+  const isQueryRadar = radarType === 'topic' || radarType === 'learning';
+  console.log(`Generating ${frequency} ${radarType} digest for ${isQueryRadar ? `"${subreddit}"` : `r/${subreddit}`}... (preview: ${isPreview})`);
 
   // Calculate time period
   // For previews and first digests, always use 7 days to ensure we have content
@@ -100,18 +147,26 @@ async function generateDigest({ subreddit, subscriptionId = null, focusTopic = n
 
   console.log(`[Digest] Period: ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
 
-  // Fetch subreddit info
-  const subredditInfo = await getSubredditInfo(subreddit);
+  // Fetch subreddit info (community radars only — query radars span all of Reddit)
+  const subredditInfo = isQueryRadar ? null : await getSubredditInfo(subreddit);
 
-  // Fetch RECENT posts using hot/new endpoints (not top posts of all time!)
-  // This is the critical fix - fetchTimeBucketedPosts fetches /top which has old posts
-  const periodPosts = await fetchRecentPostsForDigest(subreddit, lookbackDays);
+  // Fetch RECENT posts:
+  //  - community radar: hot/new endpoints of the subreddit
+  //  - topic/learning radar: relevance-gated topic search across Reddit
+  const periodPosts = isQueryRadar
+    ? await fetchRecentPostsForTopic(subreddit, lookbackDays)
+    : await fetchRecentPostsForDigest(subreddit, lookbackDays);
 
   console.log(`[Digest] Posts fetched for digest: ${periodPosts.length}`);
 
   if (periodPosts.length === 0) {
-    console.log(`[Digest] No posts found for r/${subreddit}, returning empty digest`);
-    return createEmptyDigest(subreddit, periodStart, periodEnd, frequency);
+    console.log(`[Digest] No posts found for ${subreddit}, returning ${isQueryRadar ? 'quiet' : 'empty'} digest`);
+    const empty = createEmptyDigest(subreddit, periodStart, periodEnd, frequency);
+    // Query radars mark quiet periods so the scheduler skips the send —
+    // an honest silence beats a padded digest
+    if (isQueryRadar) empty.quiet = true;
+    empty.radarType = radarType;
+    return empty;
   }
 
   // Sample top posts for comment analysis
@@ -151,6 +206,7 @@ async function generateDigest({ subreddit, subscriptionId = null, focusTopic = n
   // Generate digest content using AI
   const digestContent = await generateDigestContent({
     subreddit,
+    radarType,
     subredditInfo,
     posts: periodPosts,
     postsWithComments,
@@ -177,6 +233,7 @@ async function generateDigest({ subreddit, subscriptionId = null, focusTopic = n
 
   return {
     subreddit,
+    radarType,
     issueNumber,
     frequency,
     periodStart: periodStart.toISOString(),
@@ -244,6 +301,7 @@ function createEmptyDigest(subreddit, periodStart, periodEnd, frequency) {
  */
 async function generateDigestContent({
   subreddit,
+  radarType = 'subreddit',
   subredditInfo,
   posts,
   postsWithComments,
@@ -257,6 +315,7 @@ async function generateDigestContent({
   // Build the prompt for AI analysis
   const prompt = buildDigestPrompt({
     subreddit,
+    radarType,
     subredditInfo,
     posts,
     postsWithComments,
@@ -314,6 +373,7 @@ async function generateDigestContent({
  */
 function buildDigestPrompt({
   subreddit,
+  radarType = 'subreddit',
   subredditInfo,
   posts,
   postsWithComments,
@@ -326,7 +386,36 @@ function buildDigestPrompt({
   const periodLabel = frequency === 'daily' ? 'today' : 'this week';
   const now = Date.now() / 1000;
 
-  let prompt = `You are curating a Content Radar digest for r/${subreddit}.
+  // Radar-type-specific framing — same output schema, different editorial lens
+  let framing;
+  if (radarType === 'topic') {
+    framing = `You are curating a Topic Radar digest tracking "${subreddit}" across Reddit.
+
+Your readers are content creators and researchers who follow this TOPIC (not one community) to spot trends early, find content angles, and hear what real people say about it. Posts come from many subreddits — note which community each signal comes from when it adds context.
+
+RULES FOR TONE:
+- Write like a sharp friend forwarding interesting threads, NOT a corporate newsletter
+- Keep the raw Reddit energy — messy takes, casual language, real opinions
+- DO NOT sanitize, paraphrase, or "clean up" quotes. Use them exactly as written.
+- Every item must be genuinely about "${subreddit}" — if a post only grazes the topic, leave it out. A shorter digest beats a padded one.
+
+TOPIC: ${subreddit}`;
+  } else if (radarType === 'learning') {
+    framing = `You are curating a learning digest about "${subreddit}" from across Reddit.
+
+Your readers are curious people who follow this subject to LEARN — they want the best explanations, surprising facts, expert corrections, and myth-busting they'd have found by reading the smartest threads themselves.
+
+RULES FOR TONE:
+- Write like a sharp friend sharing the most fascinating things they learned this week
+- Quote great explanations VERBATIM — the commenter's own words carry the credibility (their upvotes are peer review)
+- Prefer depth over drama: an expert correcting a misconception beats a viral hot take
+- For quickHits: lead with the "wait, really?" fact or insight, not engagement stats
+- For contentIdeas: frame them as "what to explore next" — follow-up questions and threads worth pulling
+- Every item must genuinely teach something about "${subreddit}". No filler.
+
+SUBJECT: ${subreddit}`;
+  } else {
+    framing = `You are curating a Content Radar digest for r/${subreddit}.
 
 Your readers are content creators and business researchers who follow this community to spot trends, find content angles, and understand what real people care about. They want to feel like they browsed Reddit without opening Reddit.
 
@@ -338,7 +427,10 @@ RULES FOR TONE:
 
 SUBREDDIT: r/${subreddit}
 ${subredditInfo?.title ? `Title: ${subredditInfo.title}` : ''}
-${subredditInfo?.subscribers ? `Subscribers: ${subredditInfo.subscribers.toLocaleString()}` : ''}
+${subredditInfo?.subscribers ? `Subscribers: ${subredditInfo.subscribers.toLocaleString()}` : ''}`;
+  }
+
+  let prompt = `${framing}
 Period: ${formatDateRange(periodStart, periodEnd)}
 ${focusTopic ? `Reader's focus: ${focusTopic}` : ''}
 
@@ -353,7 +445,7 @@ ${focusTopic ? `Reader's focus: ${focusTopic}` : ''}
     const ageHours = post.created_utc ? ((now - post.created_utc) / 3600).toFixed(0) : '?';
 
     prompt += `\n[#${i}] "${post.title}"`;
-    prompt += `\n  Score: ${post.score} | Comments: ${numComments} | Comment/Vote ratio: ${commentRatio} | Posted: ${ageHours}h ago | By: u/${post.author}`;
+    prompt += `\n  Score: ${post.score} | Comments: ${numComments} | Comment/Vote ratio: ${commentRatio} | Posted: ${ageHours}h ago${post.author ? ` | By: u/${post.author}` : ''}${radarType !== 'subreddit' && post.subreddit ? ` | r/${post.subreddit}` : ''}`;
 
     if (post.selftext) {
       const maxLen = i < 15 ? 500 : 200;
@@ -643,7 +735,7 @@ function parseDigestResponse(response, posts, postsWithComments) {
     return {
       id: post.id,
       title: post.title,
-      url: `https://reddit.com${post.permalink}`,
+      url: post.permalink ? `https://reddit.com${post.permalink}` : (post.url || ''),
       author: post.author,
       score: post.score,
       numComments: post.num_comments || post.numComments || 0,

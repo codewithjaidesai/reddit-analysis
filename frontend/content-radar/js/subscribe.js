@@ -7,24 +7,94 @@ document.addEventListener('DOMContentLoaded', () => {
 let currentSubredditInfo = null;
 let autocompleteTimeout = null;
 
+// Per-type input labels — the same input serves all four radar types
+const RADAR_TYPE_COPY = {
+    subreddit: {
+        label: 'Which subreddit do you want to follow?',
+        prefix: 'r/',
+        placeholder: 'artificialintelligence',
+        hint: 'Popular: artificialintelligence, recipes, WeightLossAdvice, menopause',
+        showCheck: true
+    },
+    topic: {
+        label: 'What topic do you want to track across Reddit?',
+        prefix: '🔍',
+        placeholder: 'ai video editing tools',
+        hint: 'A weekly digest of genuinely relevant discussions — quiet weeks are skipped, never padded',
+        showCheck: false
+    },
+    leads: {
+        label: 'What product or service category do you offer?',
+        prefix: '🎯',
+        placeholder: 'social media scheduling tool',
+        hint: 'We watch for fresh posts from people actively looking for this — with a suggested way to help',
+        showCheck: false
+    },
+    learning: {
+        label: 'What subject do you want to learn about?',
+        prefix: '🧠',
+        placeholder: 'roman history',
+        hint: 'The best explanations, surprising facts, and expert corrections — quoted verbatim from top threads',
+        showCheck: false
+    }
+};
+
+function getSelectedRadarType() {
+    return document.querySelector('input[name="radarType"]:checked')?.value || 'subreddit';
+}
+
+function applyRadarTypeUI(type) {
+    const copy = RADAR_TYPE_COPY[type] || RADAR_TYPE_COPY.subreddit;
+    const label = document.getElementById('targetLabel');
+    const prefix = document.getElementById('targetPrefix');
+    const hint = document.getElementById('targetHint');
+    const input = document.getElementById('subreddit');
+    const checkBtn = document.getElementById('checkSubreddit');
+    const infoCard = document.getElementById('subredditInfo');
+    const freqGroup = document.getElementById('frequencyGroup');
+
+    if (label) label.textContent = copy.label;
+    if (prefix) prefix.textContent = copy.prefix;
+    if (hint) hint.textContent = copy.hint;
+    if (input) input.placeholder = copy.placeholder;
+    if (checkBtn) checkBtn.style.display = copy.showCheck ? '' : 'none';
+    hideAutocomplete();
+
+    // Query radars skip the subreddit check step — show frequency immediately
+    if (!copy.showCheck) {
+        currentSubredditInfo = null;
+        if (infoCard) infoCard.style.display = 'none';
+        if (freqGroup) freqGroup.style.display = 'block';
+    }
+}
+
 function initSubscribePage() {
     const form = document.getElementById('subscribeForm');
     const checkBtn = document.getElementById('checkSubreddit');
     const subredditInput = document.getElementById('subreddit');
 
+    // Radar type switching
+    document.querySelectorAll('input[name="radarType"]').forEach(radio => {
+        radio.addEventListener('change', () => applyRadarTypeUI(getSelectedRadarType()));
+    });
+
     // Check subreddit button
     checkBtn.addEventListener('click', checkSubreddit);
 
-    // Also check on Enter in subreddit input
+    // Also check on Enter in subreddit input (community radar only)
     subredditInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            checkSubreddit();
+            if (getSelectedRadarType() === 'subreddit') checkSubreddit();
         }
     });
 
-    // Autocomplete on typing
+    // Autocomplete on typing (community radar only)
     subredditInput.addEventListener('input', (e) => {
+        if (getSelectedRadarType() !== 'subreddit') {
+            hideAutocomplete();
+            return;
+        }
         const value = e.target.value.trim();
         if (value.length >= 2) {
             // Debounce autocomplete
@@ -53,11 +123,21 @@ function initSubscribePage() {
         document.getElementById('email').value = savedEmail;
     }
 
-    // Check for pre-filled subreddit from URL
-    const urlSubreddit = RadarUtils.getUrlParam('subreddit');
-    if (urlSubreddit) {
-        subredditInput.value = urlSubreddit;
-        checkSubreddit();
+    // Pre-fill from URL: ?type=topic&query=... (e.g. "Watch this topic" from the main app)
+    const urlType = RadarUtils.getUrlParam('type');
+    const urlQuery = RadarUtils.getUrlParam('query');
+    if (urlType && RADAR_TYPE_COPY[urlType] && urlType !== 'subreddit') {
+        const radio = document.querySelector(`input[name="radarType"][value="${urlType}"]`);
+        if (radio) radio.checked = true;
+        applyRadarTypeUI(urlType);
+        if (urlQuery) subredditInput.value = urlQuery;
+    } else {
+        // Check for pre-filled subreddit from URL
+        const urlSubreddit = RadarUtils.getUrlParam('subreddit');
+        if (urlSubreddit) {
+            subredditInput.value = urlSubreddit;
+            checkSubreddit();
+        }
     }
 
     // Create autocomplete container
@@ -247,19 +327,30 @@ async function checkSubreddit() {
 async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!currentSubredditInfo) {
+    const radarType = getSelectedRadarType();
+    const isQueryRadar = radarType !== 'subreddit';
+
+    if (!isQueryRadar && !currentSubredditInfo) {
         showError('Please check the subreddit first');
         return;
     }
 
     const email = document.getElementById('email').value.trim();
     const frequency = document.querySelector('input[name="frequency"]:checked')?.value || 'weekly';
-    const focusTopic = document.getElementById('focusTopic').value.trim() || null;
+    const focusTopic = document.getElementById('focusTopic')?.value.trim() || null;
 
-    // Safely get subreddit name
-    const subreddit = currentSubredditInfo.subreddit?.name ||
-                      currentSubredditInfo.subreddit?.subreddit ||
-                      document.getElementById('subreddit').value.trim().replace(/^r\//, '');
+    // Target: query text for query radars, checked subreddit name for community radar
+    const rawInput = document.getElementById('subreddit').value.trim();
+    const subreddit = isQueryRadar
+        ? rawInput
+        : (currentSubredditInfo.subreddit?.name ||
+           currentSubredditInfo.subreddit?.subreddit ||
+           rawInput.replace(/^r\//, ''));
+
+    if (isQueryRadar && subreddit.length < 3) {
+        showError('Please enter at least 3 characters');
+        return;
+    }
 
     // Validate email
     if (!email || !email.includes('@')) {
@@ -278,14 +369,14 @@ async function handleSubmit(e) {
     hideError();
 
     try {
-        const data = await RadarAPI.subscribe(email, subreddit, frequency, focusTopic);
+        const data = await RadarAPI.subscribe(email, subreddit, frequency, focusTopic, radarType);
 
         // Save email for convenience
         RadarUtils.saveEmail(email);
 
         // Show success state
         showSuccess(data, subreddit);
-        Analytics.trackSubscribe(subreddit, frequency, !!focusTopic);
+        Analytics.trackSubscribe(`${radarType}:${subreddit}`, frequency, !!focusTopic);
 
     } catch (error) {
         console.error('Subscribe error:', error);

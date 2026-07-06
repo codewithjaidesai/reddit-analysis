@@ -1852,6 +1852,20 @@ function runSuggestedSearch(query) {
     handleSearchByTopic();
 }
 
+/**
+ * Open the Content Radar tab with the subscribe form prefilled as a
+ * Topic Radar for the given query ("Watch this topic" button).
+ */
+function watchCurrentTopic(query) {
+    if (!query) return;
+    const frame = document.getElementById('radarFrame');
+    if (frame) {
+        frame.src = `content-radar/subscribe.html?type=topic&query=${encodeURIComponent(query)}`;
+    }
+    if (typeof switchTab === 'function') switchTab('radar');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitching = false) {
     hideAll();
     document.getElementById('resultsSection').style.display = 'block';
@@ -2098,6 +2112,24 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             html += InsightSections.funny(structured, opts);
             html += InsightSections.soWhat(structured, opts);
             html += InsightSections.exploreNext(structured, opts);
+
+            // WATCH THIS TOPIC — one-click Topic Radar subscription for the current query
+            const watchQuery = (document.getElementById('researchQuestion')?.value || '').trim();
+            if (watchQuery) {
+                html += `
+                    <div class="analysis-section watch-topic-section">
+                        <button class="explore-next-card watch-topic-card" onclick="watchCurrentTopic(this.dataset.query)" data-query="${escapeHtml(watchQuery)}">
+                            <div class="explore-next-header">
+                                <span class="explore-next-angle">📡 TOPIC RADAR</span>
+                                <span class="explore-next-run">Set up →</span>
+                            </div>
+                            <div class="explore-next-query">Watch "${escapeHtml(watchQuery)}"</div>
+                            <div class="explore-next-why">Get a weekly email digest of new discussions on this topic — only genuinely relevant threads, quiet weeks skipped.</div>
+                        </button>
+                    </div>
+                `;
+            }
+
             html += InsightSections.confidence(structured, opts);
 
         } else {
@@ -3752,6 +3784,8 @@ const reanalyzePersonaOutcomes = {
     content_creator: {
         role: 'Content Creator',
         outcomes: [
+            { id: 'validate_idea', label: 'Validate a Content Idea', goal: 'Validate this content idea with real audience data: demand signal with counts, covered vs unanswered gaps, exact audience language for titles, the angle nobody covers. End with a go/no-go verdict.' },
+            { id: 'competitor_breakdown', label: 'Competitor Content Breakdown', goal: 'Break down audience reception of this competitor content: what viewers loved (exact quotes), complaints and gaps, unanswered questions as content opportunities, what to create to capture this audience.' },
             { id: 'rising_viral', label: 'Viral Content Ideas (Rising Creator)', goal: 'Find what people are talking about that has viral content potential. Use their exact language.' },
             { id: 'rising_audience', label: 'Audience Discovery (Rising Creator)', goal: 'Identify and segment the audience commenting. Who are they? Show quantitative breakdowns.' },
             { id: 'established_engage', label: 'Top Questions & Engagement (Established)', goal: 'Find top open questions for engagement or content creation.' },

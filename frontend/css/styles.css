@@ -8749,3 +8749,9 @@ footer a {
         border-radius: 8px;
     }
 }
+
+/* Watch this topic — standalone radar subscribe card */
+.watch-topic-card {
+    width: 100%;
+    border-color: rgba(139, 92, 246, 0.45);
+}
