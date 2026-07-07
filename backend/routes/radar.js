@@ -9,6 +9,7 @@ const db = require('../services/supabase');
 const { getSubredditInfo, fetchTimeBucketedPosts } = require('../services/search');
 const { sendWelcomeDigest } = require('../services/scheduler');
 const { generateDigest } = require('../services/contentRadar');
+const { encodeRadarTarget, parseRadarTarget, VALID_TYPES } = require('../services/radarTypes');
 
 // ============================================
 // SUBSCRIPTION ENDPOINTS
@@ -20,13 +21,25 @@ const { generateDigest } = require('../services/contentRadar');
  */
 router.post('/subscribe', async (req, res) => {
   try {
-    const { email, subreddit, frequency, focusTopic } = req.body;
+    const { email, subreddit, frequency, focusTopic, radarType, query } = req.body;
 
-    // Validation
-    if (!email || !subreddit) {
+    // Radar type: 'subreddit' (default), 'topic', 'leads', or 'learning'.
+    // Query-based radars use `query`; community radars use `subreddit`.
+    const type = radarType || 'subreddit';
+    if (!VALID_TYPES.includes(type)) {
       return res.status(400).json({
         success: false,
-        error: 'Email and subreddit are required'
+        error: `Invalid radar type. Must be one of: ${VALID_TYPES.join(', ')}`
+      });
+    }
+    const isQueryRadar = type !== 'subreddit';
+    const rawTarget = isQueryRadar ? query : subreddit;
+
+    // Validation
+    if (!email || !rawTarget) {
+      return res.status(400).json({
+        success: false,
+        error: isQueryRadar ? 'Email and query are required' : 'Email and subreddit are required'
       });
     }
 
@@ -47,24 +60,39 @@ router.post('/subscribe', async (req, res) => {
       });
     }
 
-    // Normalize subreddit name
-    const normalizedSubreddit = subreddit.replace(/^r\//, '').toLowerCase();
+    let storedTarget;
+    let subredditInfo = null;
 
-    // Verify subreddit exists
-    let subredditInfo;
-    try {
-      subredditInfo = await getSubredditInfo(normalizedSubreddit);
-    } catch (err) {
-      return res.status(400).json({
-        success: false,
-        error: `Subreddit r/${normalizedSubreddit} not found or inaccessible`
-      });
+    if (isQueryRadar) {
+      const cleanQuery = rawTarget.trim().toLowerCase();
+      // Encoded target must fit the subreddit column (VARCHAR(100))
+      if (cleanQuery.length < 3 || cleanQuery.length > 90) {
+        return res.status(400).json({
+          success: false,
+          error: 'Query must be between 3 and 90 characters'
+        });
+      }
+      storedTarget = encodeRadarTarget(type, cleanQuery);
+    } else {
+      // Normalize subreddit name
+      const normalizedSubreddit = subreddit.replace(/^r\//, '').toLowerCase();
+
+      // Verify subreddit exists
+      try {
+        subredditInfo = await getSubredditInfo(normalizedSubreddit);
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          error: `Subreddit r/${normalizedSubreddit} not found or inaccessible`
+        });
+      }
+      storedTarget = normalizedSubreddit;
     }
 
     // Create subscription
     const subscription = await db.createSubscription({
       email,
-      subreddit: normalizedSubreddit,
+      subreddit: storedTarget,
       frequency: frequency || 'weekly',
       focusTopic
     });
@@ -72,7 +100,7 @@ router.post('/subscribe', async (req, res) => {
     // Try to get cached digest for welcome email
     let cachedDigest = null;
     try {
-      cachedDigest = await db.getCachedDigest(normalizedSubreddit);
+      cachedDigest = await db.getCachedDigest(storedTarget);
     } catch (err) {
       console.log('No cached digest available for welcome email');
     }
@@ -102,11 +130,13 @@ router.post('/subscribe', async (req, res) => {
         id: subscription.id,
         email: subscription.email,
         subreddit: subscription.subreddit,
+        radarType: type,
+        target: parseRadarTarget(subscription.subreddit).target,
         frequency: subscription.frequency,
         focusTopic: subscription.focus_topic,
         createdAt: subscription.created_at
       },
-      subredditInfo: {
+      subredditInfo: subredditInfo ? {
         name: subredditInfo.subreddit,
         title: subredditInfo.title,
         subscribers: subredditInfo.subscribers,
@@ -114,7 +144,7 @@ router.post('/subscribe', async (req, res) => {
         // Use activity from getSubredditInfo (same as Community Pulse)
         activityLevel: subredditInfo.activityLevel,
         postsPerDay: subredditInfo.postsPerDay
-      },
+      } : null,
       nextDigestDate,
       welcomeEmailSent: welcomeEmailResult.success,
       welcomeEmailError: welcomeEmailResult.error,

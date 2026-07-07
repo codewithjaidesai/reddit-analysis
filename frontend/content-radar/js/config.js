@@ -20,11 +20,14 @@ const RadarAPI = {
     /**
      * Subscribe to a subreddit digest
      */
-    async subscribe(email, subreddit, frequency = 'weekly', focusTopic = null) {
+    async subscribe(email, subreddit, frequency = 'weekly', focusTopic = null, radarType = 'subreddit') {
+        const body = radarType === 'subreddit'
+            ? { email, subreddit, frequency, focusTopic, radarType }
+            : { email, query: subreddit, frequency, focusTopic, radarType };
         const response = await fetch(`${RADAR_CONFIG.baseUrl}${RADAR_CONFIG.endpoints.subscribe}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, subreddit, frequency, focusTopic })
+            body: JSON.stringify(body)
         });
 
         const data = await response.json();

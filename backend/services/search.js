@@ -166,7 +166,7 @@ function formatSearchQuery(query) {
  * @param {number} limit - Number of results (default: 15)
  * @returns {Promise<object>} Search results
  */
-async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit = 15) {
+async function searchRedditByTopic(topic, timeRange = 'week', subreddits = '', limit = 25) {
   console.log('Searching Reddit for:', topic, 'Time:', timeRange, 'Subreddits:', subreddits, 'Limit:', limit);
 
   // Initialize debug object to return to frontend

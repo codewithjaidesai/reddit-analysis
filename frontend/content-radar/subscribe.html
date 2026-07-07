@@ -35,11 +35,34 @@
                     <p class="form-subtitle">Get weekly insights delivered to your inbox</p>
 
                     <form id="subscribeForm" class="subscribe-form">
-                        <!-- Subreddit Input -->
+                        <!-- Radar Type Selector -->
                         <div class="form-group">
-                            <label for="subreddit">Which subreddit do you want to follow?</label>
+                            <label>What do you want to watch?</label>
+                            <div class="radar-type-options" id="radarTypeOptions" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                                <label class="radar-type-option" style="display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--border, #2d3a4d); border-radius: 8px; cursor: pointer;">
+                                    <input type="radio" name="radarType" value="subreddit" checked style="margin-top: 2px;">
+                                    <span><strong>📡 Community</strong><br><small style="opacity: 0.75;">Weekly pulse of one subreddit</small></span>
+                                </label>
+                                <label class="radar-type-option" style="display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--border, #2d3a4d); border-radius: 8px; cursor: pointer;">
+                                    <input type="radio" name="radarType" value="topic" style="margin-top: 2px;">
+                                    <span><strong>🔍 Topic</strong><br><small style="opacity: 0.75;">Track a topic across all of Reddit</small></span>
+                                </label>
+                                <label class="radar-type-option" style="display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--border, #2d3a4d); border-radius: 8px; cursor: pointer;">
+                                    <input type="radio" name="radarType" value="leads" style="margin-top: 2px;">
+                                    <span><strong>🎯 Leads</strong><br><small style="opacity: 0.75;">People asking for what you offer</small></span>
+                                </label>
+                                <label class="radar-type-option" style="display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--border, #2d3a4d); border-radius: 8px; cursor: pointer;">
+                                    <input type="radio" name="radarType" value="learning" style="margin-top: 2px;">
+                                    <span><strong>🧠 Learning</strong><br><small style="opacity: 0.75;">Learn a subject from the best threads</small></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Target Input (subreddit or query, per radar type) -->
+                        <div class="form-group">
+                            <label for="subreddit" id="targetLabel">Which subreddit do you want to follow?</label>
                             <div class="subreddit-input-wrapper">
-                                <span class="prefix">r/</span>
+                                <span class="prefix" id="targetPrefix">r/</span>
                                 <input
                                     type="text"
                                     id="subreddit"
@@ -50,7 +73,7 @@
                                 />
                                 <button type="button" id="checkSubreddit" class="check-btn">Check</button>
                             </div>
-                            <p class="hint">Popular: artificialintelligence, recipes, WeightLossAdvice, menopause</p>
+                            <p class="hint" id="targetHint">Popular: artificialintelligence, recipes, WeightLossAdvice, menopause</p>
                         </div>
 
                         <!-- Subreddit Info Card (shown after check) -->

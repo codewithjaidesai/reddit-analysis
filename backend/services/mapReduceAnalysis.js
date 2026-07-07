@@ -128,13 +128,16 @@ Score ALL ${posts.length} posts.`;
 
     console.log(`Pre-screening: ${filteredPosts.length}/${posts.length} posts passed (threshold: ${threshold})`);
 
-    // If too few posts pass, relax to 3 (somewhat related) but never lower
-    if (filteredPosts.length < 3 && scoredPosts.length >= 5) {
+    // If too few posts pass strict threshold, relax to 3 (somewhat related)
+    // This ensures single-source searches (YouTube-only, Reddit-only) still produce enough results
+    if (filteredPosts.length < 5) {
       const relaxedPosts = scoredPosts
         .filter(p => p.relevanceScore >= 3)
         .sort((a, b) => b.relevanceScore - a.relevanceScore || b.engagementScore - a.engagementScore);
-      console.log(`Relaxed threshold to 3: ${relaxedPosts.length} posts pass`);
-      return relaxedPosts;
+      if (relaxedPosts.length > filteredPosts.length) {
+        console.log(`Relaxed threshold to 3: ${relaxedPosts.length} posts pass (was ${filteredPosts.length} at threshold ${threshold})`);
+        return relaxedPosts;
+      }
     }
 
     return filteredPosts;
@@ -235,21 +238,29 @@ async function batchExtractPosts(urls, progressCallback = null) {
  */
 function buildMapPrompt(chunkData, role, goal, chunkIndex, totalChunks) {
   const totalComments = chunkData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
-  const subreddits = [...new Set(chunkData.map(p => p.post?.subreddit).filter(Boolean))];
+  const sources = [...new Set(chunkData.map(p => p.post?.subreddit).filter(Boolean))];
+  const hasYouTube = sources.some(s => s.startsWith('YouTube:'));
+  const hasReddit = sources.some(s => !s.startsWith('YouTube:'));
+  const sourceLabel = hasYouTube && hasReddit ? 'Reddit and YouTube' : hasYouTube ? 'YouTube' : 'Reddit';
 
   const postsContent = chunkData.map((data, idx) => {
     const post = data.post;
     const comments = data.valuableComments || [];
+    const isYouTube = (post.subreddit || '').startsWith('YouTube:');
+    const sourcePrefix = isYouTube ? post.subreddit : `r/${post.subreddit}`;
+    const scoreLabel = isYouTube ? 'likes' : 'upvotes';
     return `
 POST: "${post.title}"
-r/${post.subreddit} | ${post.score} upvotes | ${comments.length} quality comments
+${sourcePrefix} | ${post.score} ${scoreLabel} | ${comments.length} quality comments
 ${comments.map(c => `[${c.score} pts] ${c.body.substring(0, 300)}`).join('\n')}`;
   }).join('\n---\n');
 
-  return `You are analyzing Reddit data (chunk ${chunkIndex + 1} of ${totalChunks}) for a ${role || 'researcher'}.
+  const sourceList = sources.map(s => s.startsWith('YouTube:') ? s : `r/${s}`).join(', ');
+
+  return `You are analyzing ${sourceLabel} data (chunk ${chunkIndex + 1} of ${totalChunks}) for a ${role || 'researcher'}.
 Their GOAL: "${goal || 'Extract insights'}"
 
-DATA: ${chunkData.length} posts, ${totalComments} comments from: ${subreddits.map(s => 'r/' + s).join(', ')}
+DATA: ${chunkData.length} posts, ${totalComments} comments from: ${sourceList}
 
 ${postsContent}
 
@@ -407,7 +418,7 @@ Their GOAL: "${goal || 'Extract insights'}"
 METADATA:
 - Total posts analyzed: ${metadata.totalPosts}
 - Total comments analyzed: ~${totalComments}
-- Subreddits covered: ${metadata.subreddits.map(s => 'r/' + s).join(', ')}
+- Sources covered: ${metadata.subreddits.map(s => s.startsWith('YouTube:') ? s : 'r/' + s).join(', ')}
 - Analysis chunks: ${validChunks.length}
 
 THEMES FOUND ACROSS ALL CHUNKS (${allThemes.length} total):
@@ -420,10 +431,10 @@ CONTRADICTIONS FOUND (${allContradictions.length} total):
 ${allContradictions.map(c => `- ${c.point}: "${c.sideA}" vs "${c.sideB}"`).join('\n')}
 
 OUTLIER INSIGHTS (${allOutliers.length} total):
-${allOutliers.map(o => `- ${o.insight} [r/${o.subreddit}]: "${o.quote}"`).join('\n')}
+${allOutliers.map(o => `- ${o.insight} [${(o.subreddit || '').startsWith('YouTube:') ? o.subreddit : 'r/' + o.subreddit}]: "${o.quote}"`).join('\n')}
 
 TOP QUOTES (${allQuotes.length} total):
-${allQuotes.map(q => `- [${q.type}] "${q.text}" (${q.score} pts, r/${q.subreddit})`).join('\n')}
+${allQuotes.map(q => `- [${q.type}] "${q.text}" (${q.score} pts, ${(q.subreddit || '').startsWith('YouTube:') ? q.subreddit : 'r/' + q.subreddit})`).join('\n')}
 
 COMMON PHRASES: ${allPhrases.map(p => `"${p.phrase}" (${p.count}x)`).join(', ')}
 
@@ -462,7 +473,7 @@ Return ONLY valid JSON (no markdown, no backticks) in this EXACT structure:
   ],
   "confidence": {
     "level": "high or medium or low",
-    "reason": "Based on ${metadata.totalPosts} posts, ~${totalComments} comments across ${metadata.subreddits.length} subreddits"
+    "reason": "Based on ${metadata.totalPosts} posts, ~${totalComments} comments across ${metadata.subreddits.length} sources"
   },
   "quantitativeInsights": {
     "topicsDiscussed": [
@@ -738,7 +749,7 @@ function buildFallbackFromChunks(chunkResults, role, goal, metadata) {
 
   // Build structured response matching the reduce output format
   const structured = {
-    executiveSummary: `Analysis of ${metadata.totalPosts} posts across ${metadata.subreddits.length} subreddits found ${mergedThemes.length} key themes. ${allGoalFindings.length > 0 ? allGoalFindings[0] : 'Multiple perspectives emerged from the discussion.'}`,
+    executiveSummary: `Analysis of ${metadata.totalPosts} posts across ${metadata.subreddits.length} sources found ${mergedThemes.length} key themes. ${allGoalFindings.length > 0 ? allGoalFindings[0] : 'Multiple perspectives emerged from the discussion.'}`,
     topQuotes: allQuotes.map(q => ({
       type: q.type || 'INSIGHT',
       quote: q.text || q.quote || '',
@@ -752,7 +763,7 @@ function buildFallbackFromChunks(chunkResults, role, goal, metadata) {
     forYourGoal: allGoalFindings,
     confidence: {
       level: confidenceLevel,
-      reason: `Based on ${metadata.totalPosts} posts, ~${totalComments} comments across ${metadata.subreddits.length} subreddits (synthesized from ${validChunks.length} analysis chunk${validChunks.length !== 1 ? 's' : ''})`
+      reason: `Based on ${metadata.totalPosts} posts, ~${totalComments} comments across ${metadata.subreddits.length} sources (synthesized from ${validChunks.length} analysis chunk${validChunks.length !== 1 ? 's' : ''})`
     },
     quantitativeInsights: {
       topicsDiscussed: mergedThemes.map(t => ({
@@ -799,7 +810,7 @@ function buildFallbackFromChunks(chunkResults, role, goal, metadata) {
       },
       nuances: allContradictions.map(c => `${c.point}: ${c.sideA} vs ${c.sideB}`).slice(0, 3),
       confidenceLevel: confidenceLevel,
-      confidenceReason: `Based on ${metadata.totalPosts} posts across ${metadata.subreddits.length} subreddits`
+      confidenceReason: `Based on ${metadata.totalPosts} posts across ${metadata.subreddits.length} sources`
     }
   };
 

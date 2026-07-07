@@ -8458,3 +8458,300 @@ footer a {
         font-size: 0.75rem;
     }
 }
+
+/* ============================================================
+   ACTIONABLE CONTENT — AI-chosen answer sections (Insights tab)
+   ============================================================ */
+
+.actionable-section .section-title-accent {
+    color: var(--primary-light);
+}
+
+.actionable-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color, #2d3a4d);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.actionable-phase {
+    border-left: 3px solid var(--primary);
+}
+
+.actionable-pick {
+    border-left: 3px solid var(--primary);
+}
+
+.actionable-pick-top {
+    border-left-color: var(--success, #10b981);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.08);
+}
+
+.actionable-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.actionable-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+.actionable-phase .actionable-label {
+    color: var(--primary-light);
+}
+
+.actionable-meta {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.actionable-price {
+    color: var(--success, #10b981);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.actionable-rating {
+    color: var(--warning, #f59e0b);
+    font-size: 13px;
+}
+
+.actionable-desc {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+}
+
+.actionable-details {
+    margin: 4px 0 0 18px;
+    padding: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.actionable-details li {
+    margin-bottom: 4px;
+    line-height: 1.5;
+}
+
+.actionable-details-muted {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.actionable-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.actionable-tag {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    padding: 3px 9px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.actionable-comparison {
+    overflow-x: auto;
+}
+
+.actionable-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.actionable-table tr {
+    border-bottom: 1px solid var(--border-color, #2d3a4d);
+}
+
+.actionable-table td {
+    padding: 8px;
+    color: var(--text-secondary);
+}
+
+.actionable-table-label {
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.actionable-check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(45, 58, 77, 0.35);
+}
+
+.actionable-check-item:last-child {
+    border-bottom: none;
+}
+
+.actionable-check-box {
+    color: var(--success, #10b981);
+    font-size: 14px;
+    margin-top: 1px;
+}
+
+.actionable-check-label {
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.actionable-check-desc {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin: 2px 0 0 0;
+}
+
+.actionable-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(45, 58, 77, 0.35);
+}
+
+.actionable-info-row:last-child {
+    border-bottom: none;
+}
+
+.actionable-info-key {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 120px;
+}
+
+.actionable-info-value {
+    color: var(--text-primary);
+    font-size: 13px;
+    text-align: right;
+}
+
+/* ============================================================
+   EXPLORE NEXT — AI-suggested follow-up research (clickable)
+   ============================================================ */
+
+.explore-next-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.explore-next-card {
+    display: block;
+    text-align: left;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color, #2d3a4d);
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.explore-next-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.18);
+}
+
+.explore-next-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.explore-next-angle {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--primary-light);
+}
+
+.explore-next-angle.angle-adjacent {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+
+.explore-next-angle.angle-contrarian {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+.explore-next-angle.angle-audience {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.explore-next-run {
+    font-size: 12px;
+    color: var(--primary-light);
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.explore-next-card:hover .explore-next-run {
+    opacity: 1;
+}
+
+.explore-next-query {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.explore-next-why {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+/* ============================================================
+   CONTENT RADAR — embedded tab
+   ============================================================ */
+
+.radar-embed-frame {
+    width: 100%;
+    height: calc(100vh - 200px);
+    min-height: 640px;
+    border: 1px solid var(--border-color, #2d3a4d);
+    border-radius: 12px;
+    background: var(--bg-main);
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .radar-embed-frame {
+        height: calc(100vh - 160px);
+        min-height: 480px;
+        border-radius: 8px;
+    }
+}
+
+/* Watch this topic — standalone radar subscribe card */
+.watch-topic-card {
+    width: 100%;
+    border-color: rgba(139, 92, 246, 0.45);
+}

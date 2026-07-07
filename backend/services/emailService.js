@@ -43,9 +43,15 @@ async function sendDigestEmail({ to, subreddit, digest, unsubscribeToken, isWelc
   const unsubscribeUrl = `${baseUrl}/content-radar/unsubscribe.html?token=${unsubscribeToken}`;
   const manageUrl = `${baseUrl}/content-radar/manage.html`;
 
+  // Radar-type-aware display label (r/sub for community radars, plain query otherwise)
+  const radarType = digest?.radarType || 'subreddit';
+  const targetLabel = radarType === 'topic' ? `${subreddit}`
+    : radarType === 'learning' ? `Learning: ${subreddit}`
+    : `r/${subreddit}`;
+
   const subject = isWelcome
-    ? `👋 Welcome to Content Radar! Here's your first digest for r/${subreddit}`
-    : `📰 Your ${digest?.frequency || 'Weekly'} Digest: r/${subreddit}`;
+    ? `👋 Welcome to Content Radar! Here's your first digest for ${targetLabel}`
+    : `📰 Your ${digest?.frequency || 'Weekly'} Digest: ${targetLabel}`;
 
   console.log(`[Email Service] Generating HTML for digest...`);
   const html = generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelcome);
@@ -170,8 +176,8 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
 <body>
   <div class="container">
     <div class="header">
-      <h1>📡 CONTENT RADAR</h1>
-      <div class="subreddit">r/${subreddit}</div>
+      <h1>📡 ${digest?.radarType === 'topic' ? 'TOPIC RADAR' : digest?.radarType === 'learning' ? 'LEARNING RADAR' : 'CONTENT RADAR'}</h1>
+      <div class="subreddit">${digest?.radarType === 'topic' || digest?.radarType === 'learning' ? escapeHtml(subreddit) : `r/${subreddit}`}</div>
       <div class="issue">Issue #${issueNumber} · ${periodStart} – ${periodEnd}</div>
     </div>
 
@@ -506,7 +512,7 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
       <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">by Voice of the Customer</p>
     </div>
     <div style="padding: 30px;">
-      <p style="font-size: 16px; color: #333;">You're now subscribed to <strong style="color: #667eea;">r/${subreddit}</strong></p>
+      <p style="font-size: 16px; color: #333;">You're now subscribed to <strong style="color: #667eea;">${require('./radarTypes').radarDisplayLabel(subreddit)}</strong></p>
 
       <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
         <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">📅 Your first digest arrives:</p>
@@ -572,8 +578,95 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
   }
 }
 
+/**
+ * Send a Lead Radar digest — fresh purchase-intent posts for a category.
+ */
+async function sendLeadDigestEmail({ to, query, leadDigest, unsubscribeToken }) {
+  const unsubscribeUrl = `${baseUrl}/content-radar/unsubscribe.html?token=${unsubscribeToken}`;
+  const manageUrl = `${baseUrl}/content-radar/manage.html`;
+  const subject = `🎯 ${leadDigest.leads.length} new lead${leadDigest.leads.length === 1 ? '' : 's'}: people asking about "${query}"`;
+
+  if (!resend) {
+    console.log('[Email Service] SIMULATED lead digest to:', to, '| Subject:', subject);
+    return { success: true, simulated: true };
+  }
+
+  const html = generateLeadDigestHtml(leadDigest, query, unsubscribeUrl, manageUrl);
+
+  const { data, error } = await resend.emails.send({
+    from: fromEmail,
+    to,
+    subject,
+    html,
+    headers: {
+      'List-Unsubscribe': `<${unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+    }
+  });
+
+  if (error) {
+    console.error('[Email Service] Lead digest Resend error:', JSON.stringify(error));
+    throw new Error(error.message || 'Resend API error');
+  }
+  return { success: true, messageId: data?.id };
+}
+
+/**
+ * Compact lead-card email. Each card: what they asked, what they want,
+ * constraints, and a genuinely-helpful reply angle — linked to the live thread.
+ */
+function generateLeadDigestHtml(leadDigest, query, unsubscribeUrl, manageUrl) {
+  const leads = leadDigest.leads || [];
+  const period = `${new Date(leadDigest.periodStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(leadDigest.periodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
+  const leadCards = leads.map(lead => {
+    const ageHours = Math.max(1, Math.round((Date.now() / 1000 - lead.created_utc) / 3600));
+    const ageLabel = ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+    return `
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid ${lead.intentScore >= 5 ? '#10b981' : '#8b5cf6'}; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px;">
+      <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">
+        r/${escapeHtml(lead.subreddit)} · ${ageLabel} · ${lead.num_comments} repl${lead.num_comments === 1 ? 'y' : 'ies'} so far
+        <span style="float: right; background: ${lead.intentScore >= 5 ? '#d1fae5' : '#ede9fe'}; color: ${lead.intentScore >= 5 ? '#065f46' : '#5b21b6'}; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;">${lead.intentScore >= 5 ? 'HOT' : 'WARM'}</span>
+      </div>
+      <div style="font-weight: 700; font-size: 15px; color: #0f172a; margin-bottom: 8px;">${escapeHtml(lead.title)}</div>
+      ${lead.want ? `<div style="font-size: 13px; color: #334155; margin-bottom: 4px;"><strong>They want:</strong> ${escapeHtml(lead.want)}</div>` : ''}
+      ${lead.constraints ? `<div style="font-size: 13px; color: #334155; margin-bottom: 4px;"><strong>Constraints:</strong> ${escapeHtml(lead.constraints)}</div>` : ''}
+      ${lead.angle ? `<div style="font-size: 13px; color: #0f766e; margin-bottom: 10px;"><strong>How to help:</strong> ${escapeHtml(lead.angle)}</div>` : ''}
+      <a href="${lead.url}" style="display: inline-block; font-size: 13px; font-weight: 600; color: #7c3aed; text-decoration: none;">Reply on Reddit →</a>
+    </div>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin: 0; padding: 0; background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #7c3aed, #5b21b6); border-radius: 12px 12px 0 0; padding: 24px 30px; color: white;">
+      <h1 style="margin: 0; font-size: 20px;">🎯 LEAD RADAR</h1>
+      <div style="font-size: 14px; opacity: 0.9; margin-top: 4px;">"${escapeHtml(query)}" · ${period}</div>
+    </div>
+    <div style="background: #f8fafc; padding: 24px 22px; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none;">
+      <p style="font-size: 14px; color: #334155; margin: 0 0 18px 0;">
+        <strong>${leads.length}</strong> ${leads.length === 1 ? 'person is' : 'people are'} actively looking for what you offer
+        (scanned ${leadDigest.scanned} fresh posts). Reply early — the first genuinely helpful answer usually wins the thread.
+      </p>
+      ${leadCards}
+      <p style="font-size: 12px; color: #64748b; margin-top: 20px; line-height: 1.6;">
+        Tip: lead with help, not a pitch. Answer their actual question, mention your product only where it truly fits, and disclose your affiliation — Reddit rewards honesty and buries spam.
+      </p>
+      <div style="text-align: center; margin-top: 24px; font-size: 12px; color: #94a3b8;">
+        <a href="${manageUrl}" style="color: #7c3aed;">Manage subscriptions</a> ·
+        <a href="${unsubscribeUrl}" style="color: #94a3b8;">Unsubscribe</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 module.exports = {
   sendDigestEmail,
   sendNotificationEmail,
-  sendWelcomeEmail
+  sendWelcomeEmail,
+  sendLeadDigestEmail
 };

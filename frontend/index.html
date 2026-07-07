@@ -34,19 +34,19 @@
         <main>
             <!-- Tab Navigation -->
             <div class="tab-navigation">
-                <button class="tab-btn" onclick="switchTab('url')">
+                <button class="tab-btn" data-tab="url" onclick="switchTab('url')">
                     Analyze URL
                 </button>
-                <button class="tab-btn active" onclick="switchTab('topic')">
+                <button class="tab-btn active" data-tab="topic" onclick="switchTab('topic')">
                     Topic Search
                 </button>
-                <button class="tab-btn" onclick="switchTab('subreddit')">
+                <button class="tab-btn" data-tab="subreddit" onclick="switchTab('subreddit')">
                     Community Pulse
                 </button>
-                <a href="content-radar/index.html" class="tab-btn tab-btn-new" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <button class="tab-btn tab-btn-new" data-tab="radar" onclick="switchTab('radar')" style="display: inline-flex; align-items: center; gap: 6px;">
                     <span>📡</span> Content Radar
                     <span style="font-size: 10px; background: #10b981; color: white; padding: 2px 6px; border-radius: 10px;">NEW</span>
-                </a>
+                </button>
             </div>
 
             <!-- Tab 1: URL Analysis -->
@@ -395,11 +395,11 @@
                         <div class="persona-outcome-container">
                             <div class="persona-selection">
                                 <div class="persona-cards" id="subredditPersonaCards">
-                                    <div class="persona-card" data-persona="product_manager" onclick="selectPersona('subreddit', 'product_manager')">
-                                        <span class="persona-icon">PM</span>
+                                    <div class="persona-card" data-persona="content_creator" onclick="selectPersona('subreddit', 'content_creator')">
+                                        <span class="persona-icon">CC</span>
                                         <div class="persona-info">
-                                            <span class="persona-name">Product Manager</span>
-                                            <span class="persona-desc">Find pain points & opportunities</span>
+                                            <span class="persona-name">Content Creator</span>
+                                            <span class="persona-desc">Find trending topics & ideas</span>
                                         </div>
                                     </div>
                                     <div class="persona-card" data-persona="marketer" onclick="selectPersona('subreddit', 'marketer')">
@@ -407,13 +407,6 @@
                                         <div class="persona-info">
                                             <span class="persona-name">Marketer / Copywriter</span>
                                             <span class="persona-desc">Understand community voice</span>
-                                        </div>
-                                    </div>
-                                    <div class="persona-card" data-persona="content_creator" onclick="selectPersona('subreddit', 'content_creator')">
-                                        <span class="persona-icon">CC</span>
-                                        <div class="persona-info">
-                                            <span class="persona-name">Content Creator</span>
-                                            <span class="persona-desc">Find trending topics & ideas</span>
                                         </div>
                                     </div>
                                 </div>
@@ -489,6 +482,11 @@
                 <div id="communityPulseResults" style="display: none;">
                     <!-- Results populated by JS -->
                 </div>
+            </div>
+
+            <!-- Tab 4: Content Radar (embedded — stays inside the app) -->
+            <div id="radarTab" class="tab-content" style="display: none;">
+                <iframe id="radarFrame" class="radar-embed-frame" data-src="content-radar/index.html" title="Content Radar — weekly community digests"></iframe>
             </div>
 
             <!-- Status Section -->
@@ -708,16 +706,17 @@
             <svg class="mobile-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             <span>Pulse</span>
         </button>
-        <a href="content-radar/index.html" class="mobile-nav-btn">
+        <button class="mobile-nav-btn" data-tab="radar" onclick="mobileNavSwitch('radar')">
             <svg class="mobile-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
             <span>Radar</span>
-        </a>
+        </button>
     </nav>
 
     <script src="js/config.js"></script>
     <script src="js/analytics.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/insightsSections.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
     <script src="js/mobile.js"></script>

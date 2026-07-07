@@ -93,16 +93,26 @@ function showSubscriptions() {
     });
 }
 
+// Decode radar type from the stored target (topic:/leads:/learn: prefix = query radar)
+function decodeRadarTarget(raw) {
+    if (raw.startsWith('topic:')) return { icon: '🔍', typeLabel: 'Topic', display: raw.slice(6) };
+    if (raw.startsWith('leads:')) return { icon: '🎯', typeLabel: 'Leads', display: raw.slice(6) };
+    if (raw.startsWith('learn:')) return { icon: '🧠', typeLabel: 'Learning', display: raw.slice(6) };
+    return { icon: '📡', typeLabel: 'Community', display: `r/${raw}` };
+}
+
 function createSubscriptionCard(subscription) {
     const card = document.createElement('div');
     card.className = 'subscription-card';
     card.dataset.id = subscription.id;
     card.dataset.token = subscription.unsubscribeToken;
 
+    const target = decodeRadarTarget(subscription.subreddit);
+
     card.innerHTML = `
         <div class="card-header">
-            <span class="subreddit-name">r/${subscription.subreddit}</span>
-            <span class="frequency-badge">${capitalizeFirst(subscription.frequency)}</span>
+            <span class="subreddit-name">${target.icon} ${target.display}</span>
+            <span class="frequency-badge">${target.typeLabel} · ${capitalizeFirst(subscription.frequency)}</span>
         </div>
         <div class="card-details">
             <div class="detail">
@@ -161,7 +171,8 @@ function editSubscription(subscriptionId) {
 }
 
 function unsubscribeClick(token, subreddit) {
-    if (confirm(`Are you sure you want to unsubscribe from r/${subreddit}?`)) {
+    const target = decodeRadarTarget(subreddit);
+    if (confirm(`Are you sure you want to unsubscribe from ${target.display}?`)) {
         // Redirect to unsubscribe page with token
         window.location.href = `unsubscribe.html?token=${encodeURIComponent(token)}`;
     }

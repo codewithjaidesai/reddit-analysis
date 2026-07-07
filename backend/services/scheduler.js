@@ -8,7 +8,9 @@
 const cron = require('node-cron');
 const db = require('./supabase');
 const { generateDigest } = require('./contentRadar');
-const { sendDigestEmail } = require('./emailService');
+const { generateLeadDigest } = require('./leadRadar');
+const { sendDigestEmail, sendLeadDigestEmail } = require('./emailService');
+const { parseRadarTarget } = require('./radarTypes');
 
 let scheduledJobs = {};
 
@@ -104,20 +106,63 @@ async function processScheduledDigests() {
 async function processSubscriptionDigest(subscription) {
   const { id, email, subreddit, frequency, focus_topic, unsubscribe_token } = subscription;
 
-  console.log(`Processing digest for ${email} - r/${subreddit} (${frequency})`);
+  // The subreddit column may encode a query-based radar (topic:/leads:/learn:)
+  const { type: radarType, target } = parseRadarTarget(subreddit);
 
-  // Generate the digest
+  console.log(`Processing ${radarType} digest for ${email} - ${target} (${frequency})`);
+
+  // ── LEAD RADAR: separate pipeline (fresh purchase-intent posts) ──
+  if (radarType === 'leads') {
+    const leadDigest = await generateLeadDigest({ query: target, frequency });
+
+    if (leadDigest.quiet) {
+      // No qualified leads — skip the send rather than pad with noise
+      console.log(`No leads for "${target}" this period; skipping email for ${email}`);
+      await db.markSubscriptionSent(id);
+      return;
+    }
+
+    await sendLeadDigestEmail({
+      to: email,
+      query: target,
+      leadDigest,
+      unsubscribeToken: unsubscribe_token
+    });
+    await db.markSubscriptionSent(id);
+    await db.saveDigestHistory({
+      subscriptionId: id,
+      subreddit,
+      periodStart: leadDigest.periodStart,
+      periodEnd: leadDigest.periodEnd,
+      topThemes: [],
+      topPosts: leadDigest.leads.map(l => ({ id: l.id, title: l.title, score: l.score })),
+      metrics: { totalPosts: leadDigest.scanned, leads: leadDigest.leads.length },
+      digestContent: leadDigest
+    });
+    console.log(`Successfully sent lead digest to ${email} for "${target}"`);
+    return;
+  }
+
+  // ── CONTENT / TOPIC / LEARNING DIGEST: shared magazine pipeline ──
   const digest = await generateDigest({
-    subreddit,
+    subreddit: target,
+    radarType,
     subscriptionId: id,
     focusTopic: focus_topic,
     frequency
   });
 
+  if (digest.quiet) {
+    // Query radar found nothing genuinely relevant this period — honest silence
+    console.log(`Quiet period for "${target}" (${radarType}); skipping email for ${email}`);
+    await db.markSubscriptionSent(id);
+    return;
+  }
+
   // Send the email
   await sendDigestEmail({
     to: email,
-    subreddit,
+    subreddit: target,
     digest,
     unsubscribeToken: unsubscribe_token,
     isWelcome: false
