@@ -8755,3 +8755,42 @@ footer a {
     width: 100%;
     border-color: rgba(139, 92, 246, 0.45);
 }
+
+/* Community Pulse — AI-suggested analysis angles */
+.angle-suggestions {
+    margin-top: 10px;
+}
+
+.angle-suggestions-loading {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.angle-suggestions-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.angle-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.angle-chip {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color, #2d3a4d);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.angle-chip:hover {
+    border-color: var(--primary);
+    background: rgba(139, 92, 246, 0.12);
+}

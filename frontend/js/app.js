@@ -1000,6 +1000,9 @@ async function checkSubredditActivity(subreddit) {
             setTimeout(() => personaSection.classList.remove('highlight-section'), 2000);
         }
 
+        // Load AI-suggested analysis angles (non-blocking)
+        loadAngleSuggestions(subreddit);
+
     } catch (error) {
         console.error('Activity check error:', error);
         levelEl.textContent = 'Could not check activity';
@@ -1012,6 +1015,51 @@ async function checkSubredditActivity(subreddit) {
         if (nextStepEl) {
             nextStepEl.style.display = 'none';
         }
+    }
+}
+
+/**
+ * Fetch AI-suggested analysis angles for the checked subreddit and render
+ * them as clickable chips under the Analysis Angle input.
+ */
+let angleSuggestionsForSubreddit = null;
+async function loadAngleSuggestions(subreddit) {
+    const container = document.getElementById('angleSuggestions');
+    if (!container) return;
+
+    // Avoid refetching for the same subreddit
+    if (angleSuggestionsForSubreddit === subreddit && container.innerHTML) {
+        container.style.display = 'block';
+        return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = `<span class="angle-suggestions-loading">✨ Finding angles worth exploring in r/${escapeHtml(subreddit)}...</span>`;
+
+    try {
+        const result = await getSuggestedAngles(subreddit, tabSelections?.subreddit?.persona || null);
+
+        if (!result.success || !result.angles || result.angles.length === 0) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            return;
+        }
+
+        angleSuggestionsForSubreddit = subreddit;
+        container.innerHTML = `
+            <div class="angle-suggestions-label">✨ Suggested angles from this month's discussions — click to use:</div>
+            <div class="angle-chips">
+                ${result.angles.map(a => `
+                    <button type="button" class="angle-chip" title="${escapeHtml(a.why || '')}"
+                        onclick="document.getElementById('customAnalysisFocus').value = this.dataset.angle"
+                        data-angle="${escapeHtml(a.angle)}">${escapeHtml(a.angle)}</button>
+                `).join('')}
+            </div>
+        `;
+    } catch (err) {
+        console.log('Angle suggestions failed (non-fatal):', err.message);
+        container.style.display = 'none';
+        container.innerHTML = '';
     }
 }
 
@@ -2071,7 +2119,9 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
     if (structured) {
         // Detect schema: new (whatBlewUp/theVerdict) vs old (executiveSummary/keyInsights)
         const isNewSchema = !!(structured.whatBlewUp || structured.theVerdict || structured.rankedThemes);
-        const hasPersonaData = !!(structured.contentOpportunities || structured.audienceSegmentation || structured.painPoints || structured.valueProp || structured.contentGaps || structured.viralContentIdeas);
+        const hasPersonaData = !!(structured.contentOpportunities || structured.audienceSegmentation || structured.painPoints || structured.valueProp || structured.contentGaps || structured.viralContentIdeas
+            // Legacy/map-reduce fallback results render these on the data tab
+            || structured.evidenceAnalysis || structured.quantitativeInsights);
         const hasGenerated = generatedContents.length > 0;
 
         html += `
@@ -2079,7 +2129,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                 <button class="analysis-tab active" onclick="switchAnalysisTab('qualitative')">
                     Insights
                 </button>
-                ${hasPersonaData || structured.rankedThemes ? `
+                ${hasPersonaData ? `
                 <button class="analysis-tab" onclick="switchAnalysisTab('quantitative')">
                     Data & Persona Analysis
                 </button>
@@ -2108,6 +2158,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
             html += InsightSections.trenches(structured, opts);
             html += InsightSections.asking(structured, opts);
             html += InsightSections.debate(structured, opts);
+            html += InsightSections.rankedThemes(structured, opts);
             html += InsightSections.worthQuoting(structured, opts);
             html += InsightSections.funny(structured, opts);
             html += InsightSections.soWhat(structured, opts);
@@ -2178,11 +2229,9 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
         html += `</div>`; // End qualitative/insights tab
 
         // DATA & PERSONA TAB CONTENT
-        if (hasPersonaData || structured.rankedThemes) {
+        // (Ranked Themes now lives on the Insights tab; this tab is persona/legacy data only)
+        if (hasPersonaData) {
             html += `<div id="quantitativeTab" class="analysis-tab-content">`;
-
-            // RANKED THEMES (stack ranked with data) — shared builder
-            html += InsightSections.rankedThemes(structured, { tag: 'h3', cls: 'quant-subsection', titleCls: 'quant-subsection-title' });
 
             // Content Opportunities (Content Creator - new schema)
             if (structured.contentOpportunities && structured.contentOpportunities.length > 0) {
@@ -2190,7 +2239,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                     <div class="quant-subsection">
                         <h3 class="quant-subsection-title">Content Opportunities</h3>
                         <div class="content-opps-list">
-                            ${structured.contentOpportunities.map(opp => `
+                            ${structured.contentOpportunities.map((opp, oppIdx) => `
                                 <div class="content-opp-card opp-${opp.urgency || 'medium'}">
                                     <div class="opp-header">
                                         <span class="opp-idea">${escapeHtml(opp.idea)}</span>
@@ -2199,6 +2248,7 @@ function displayCombinedResults(result, role, goal, isReanalyze = false, isSwitc
                                     <div class="opp-format">${escapeHtml(opp.format || '')}</div>
                                     <div class="opp-demand">${escapeHtml(opp.demandSignal || '')}</div>
                                     ${opp.audienceQuote ? `<div class="opp-quote">"${escapeHtml(opp.audienceQuote)}"</div>` : ''}
+                                    <button class="gap-cta-btn" onclick="researchAndCreate('opportunity', ${oppIdx}, this)">Research & Create →</button>
                                 </div>
                             `).join('')}
                         </div>
@@ -3125,18 +3175,56 @@ function copyCombinedSummary() {
         text += 'AI ANALYSIS SUMMARY\n';
         text += '═══════════════════════════════════════════════════════════════\n\n';
 
-        if (structured.executiveSummary) {
-            text += 'EXECUTIVE SUMMARY\n';
+        // New schema first, with old-schema fallbacks for legacy results
+        const verdictText = structured.theVerdict?.answer || structured.executiveSummary;
+        if (verdictText) {
+            text += 'THE VERDICT\n';
             text += '─────────────────────\n';
-            text += structured.executiveSummary + '\n\n';
+            text += verdictText + '\n';
+            if (structured.theVerdict?.basis) text += `Basis: ${structured.theVerdict.basis}\n`;
+            (structured.theVerdict?.keyDataPoints || []).forEach(dp => { text += `→ ${dp}\n`; });
+            text += '\n';
         }
 
-        if (structured.topQuotes && structured.topQuotes.length > 0) {
+        if (structured.actionableContent && structured.actionableContent.length > 0) {
+            structured.actionableContent.forEach(section => {
+                text += `${(section.sectionTitle || 'ACTIONABLE INSIGHTS').toUpperCase()}\n`;
+                text += '─────────────────────\n';
+                (section.items || []).forEach((item, i) => {
+                    text += `${i + 1}. ${item.label}${item.description ? ' — ' + item.description : ''}\n`;
+                    (item.details || []).forEach(d => { text += `   • ${d}\n`; });
+                });
+                text += '\n';
+            });
+        }
+
+        if (structured.fromTheTrenches && structured.fromTheTrenches.length > 0) {
+            text += 'FROM THE TRENCHES (real data people shared)\n';
+            text += '─────────────────────\n';
+            structured.fromTheTrenches.forEach(t => {
+                text += `• ${t.insight}${t.author ? ` (@${t.author}${t.score ? `, ${t.score} pts` : ''})` : ''}\n`;
+            });
+            text += '\n';
+        }
+
+        if (structured.rankedThemes && structured.rankedThemes.length > 0) {
+            text += 'RANKED THEMES\n';
+            text += '─────────────────────\n';
+            structured.rankedThemes.forEach(t => {
+                text += `#${t.rank || '?'} ${t.theme} (${t.mentions || 0}x, ${t.sentiment || 'neutral'})\n`;
+                if (t.oneLiner) text += `   ${t.oneLiner}\n`;
+            });
+            text += '\n';
+        }
+
+        const quotes = structured.worthQuoting?.map(q => ({ type: q.category, quote: q.quote, source: '@' + (q.author || 'anon') }))
+            || structured.topQuotes?.map(q => ({ type: q.type, quote: q.quote, source: q.subreddit || 'Unknown' }))
+            || [];
+        if (quotes.length > 0) {
             text += 'KEY QUOTES\n';
             text += '─────────────────────\n';
-            structured.topQuotes.forEach((q, i) => {
-                text += `[${q.type || 'INSIGHT'}] "${q.quote}"\n`;
-                text += `   — Reddit User (${q.subreddit || 'Unknown'})\n\n`;
+            quotes.forEach(q => {
+                text += `[${(q.type || 'INSIGHT').toUpperCase()}] "${q.quote}"\n   — ${q.source}\n\n`;
             });
         }
 
@@ -3158,11 +3246,21 @@ function copyCombinedSummary() {
             });
         }
 
+        if (structured.soWhat?.signal) {
+            text += 'SO WHAT\n';
+            text += '─────────────────────\n';
+            text += structured.soWhat.signal + '\n';
+            (structured.soWhat.implications || []).forEach(imp => { text += `→ ${imp}\n`; });
+            text += '\n';
+        }
+
         if (structured.confidence) {
             text += 'CONFIDENCE\n';
             text += '─────────────────────\n';
             text += `Level: ${(structured.confidence.level || 'medium').toUpperCase()}\n`;
-            text += `Reason: ${structured.confidence.reason || 'Based on available data'}\n\n`;
+            text += `Basis: ${structured.confidence.dataQuality || structured.confidence.reason || 'Based on available data'}\n`;
+            (structured.confidence.caveats || []).forEach(c => { text += `Caveat: ${c}\n`; });
+            text += '\n';
         }
 
         text += '═══════════════════════════════════════════════════════════════\n';
@@ -3972,7 +4070,8 @@ async function submitReanalyze() {
         // Call the backend with existing extracted data
         showStatus('Generating new analysis...', 60);
 
-        const result = await reanalyzePostsData(extractedPostsData, role, goal);
+        const result = await reanalyzePostsData(extractedPostsData, role, goal,
+            window.currentResearchContext?.researchQuestion || null);
 
         if (!result.success) {
             throw new Error(result.error || 'Re-analysis failed');
@@ -4295,26 +4394,40 @@ function deleteGeneratedContent(index) {
  */
 async function researchAndCreate(type, index, btnElement) {
     const structured = window.combinedResultsData?.combinedAnalysis?.structured;
-    const contentGaps = structured?.contentGaps;
-    if (!contentGaps) return;
+    if (!structured) return;
+    const contentGaps = structured.contentGaps;
 
     // Resolve the search query and focus text based on the type clicked
     let searchQuery, focusText, displayTopic;
 
-    if (type === 'gap') {
-        const gap = contentGaps.gaps?.[index];
+    if (type === 'opportunity') {
+        // New schema: Content Opportunities (creator persona)
+        const opp = structured.contentOpportunities?.[index];
+        if (!opp) return;
+        searchQuery = opp.idea;
+        focusText = `${opp.idea}${opp.format ? ` — as ${opp.format}` : ''}${opp.demandSignal ? `. Demand: ${opp.demandSignal}` : ''}`;
+        displayTopic = opp.idea.length > 60 ? opp.idea.substring(0, 57) + '...' : opp.idea;
+    } else if (type === 'asking') {
+        // New schema: unanswered audience questions
+        const q = structured.whatTheyreAsking?.[index];
+        if (!q) return;
+        searchQuery = q.question;
+        focusText = `Answer the question: "${q.question}"`;
+        displayTopic = q.question.length > 60 ? q.question.substring(0, 57) + '...' : q.question;
+    } else if (type === 'gap') {
+        const gap = contentGaps?.gaps?.[index];
         if (!gap) return;
         searchQuery = gap.topic;
         focusText = `${gap.topic} — ${gap.opportunity || ''}`.trim();
         displayTopic = gap.topic;
     } else if (type === 'question') {
-        const question = contentGaps.underservedQuestions?.[index];
+        const question = contentGaps?.underservedQuestions?.[index];
         if (!question) return;
         searchQuery = question;
         focusText = `Answer the question: "${question}"`;
         displayTopic = question.length > 60 ? question.substring(0, 57) + '...' : question;
     } else if (type === 'format') {
-        const format = contentGaps.suggestedContentFormats?.[index];
+        const format = contentGaps?.suggestedContentFormats?.[index];
         if (!format) return;
         searchQuery = format.format;
         focusText = `Create a ${format.format}: ${format.reason}`;

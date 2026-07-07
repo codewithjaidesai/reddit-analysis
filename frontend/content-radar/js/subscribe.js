@@ -10,32 +10,44 @@ let autocompleteTimeout = null;
 // Per-type input labels — the same input serves all four radar types
 const RADAR_TYPE_COPY = {
     subreddit: {
+        heading: 'Subscribe to a Community',
+        subtitle: 'A weekly pulse of one subreddit, delivered to your inbox',
         label: 'Which subreddit do you want to follow?',
         prefix: 'r/',
         placeholder: 'artificialintelligence',
         hint: 'Popular: artificialintelligence, recipes, WeightLossAdvice, menopause',
-        showCheck: true
+        showCheck: true,
+        showFocus: true
     },
     topic: {
+        heading: 'Set Up a Topic Radar',
+        subtitle: 'Track a topic across all of Reddit — new discussions in your inbox',
         label: 'What topic do you want to track across Reddit?',
         prefix: '🔍',
         placeholder: 'ai video editing tools',
         hint: 'A weekly digest of genuinely relevant discussions — quiet weeks are skipped, never padded',
-        showCheck: false
+        showCheck: false,
+        showFocus: false
     },
     leads: {
+        heading: 'Set Up a Lead Radar',
+        subtitle: 'Get alerted when people ask for what you offer',
         label: 'What product or service category do you offer?',
         prefix: '🎯',
         placeholder: 'social media scheduling tool',
         hint: 'We watch for fresh posts from people actively looking for this — with a suggested way to help',
-        showCheck: false
+        showCheck: false,
+        showFocus: false
     },
     learning: {
+        heading: 'Set Up a Learning Digest',
+        subtitle: 'Learn a subject from the best threads, in the writers’ own words',
         label: 'What subject do you want to learn about?',
         prefix: '🧠',
         placeholder: 'roman history',
         hint: 'The best explanations, surprising facts, and expert corrections — quoted verbatim from top threads',
-        showCheck: false
+        showCheck: false,
+        showFocus: false
     }
 };
 
@@ -45,6 +57,8 @@ function getSelectedRadarType() {
 
 function applyRadarTypeUI(type) {
     const copy = RADAR_TYPE_COPY[type] || RADAR_TYPE_COPY.subreddit;
+    const heading = document.getElementById('subscribeHeading');
+    const subtitle = document.getElementById('subscribeSubtitle');
     const label = document.getElementById('targetLabel');
     const prefix = document.getElementById('targetPrefix');
     const hint = document.getElementById('targetHint');
@@ -52,7 +66,12 @@ function applyRadarTypeUI(type) {
     const checkBtn = document.getElementById('checkSubreddit');
     const infoCard = document.getElementById('subredditInfo');
     const freqGroup = document.getElementById('frequencyGroup');
+    const emailGroup = document.getElementById('emailGroup');
+    const focusGroup = document.getElementById('focusGroup');
+    const formActions = document.getElementById('formActions');
 
+    if (heading) heading.textContent = copy.heading;
+    if (subtitle) subtitle.textContent = copy.subtitle;
     if (label) label.textContent = copy.label;
     if (prefix) prefix.textContent = copy.prefix;
     if (hint) hint.textContent = copy.hint;
@@ -60,11 +79,24 @@ function applyRadarTypeUI(type) {
     if (checkBtn) checkBtn.style.display = copy.showCheck ? '' : 'none';
     hideAutocomplete();
 
-    // Query radars skip the subreddit check step — show frequency immediately
     if (!copy.showCheck) {
+        // Query radars skip the subreddit check step — show the whole form
+        // (frequency, email, subscribe button) immediately
         currentSubredditInfo = null;
         if (infoCard) infoCard.style.display = 'none';
         if (freqGroup) freqGroup.style.display = 'block';
+        if (emailGroup) emailGroup.style.display = 'block';
+        if (focusGroup) focusGroup.style.display = copy.showFocus ? 'block' : 'none';
+        if (formActions) formActions.style.display = 'block';
+    } else {
+        // Community radar reveals the form only after a successful Check —
+        // re-hide everything unless a subreddit is already verified
+        const checked = !!currentSubredditInfo;
+        if (infoCard) infoCard.style.display = checked ? 'block' : 'none';
+        if (freqGroup) freqGroup.style.display = checked ? 'block' : 'none';
+        if (emailGroup) emailGroup.style.display = checked ? 'block' : 'none';
+        if (focusGroup) focusGroup.style.display = checked ? 'block' : 'none';
+        if (formActions) formActions.style.display = checked ? 'block' : 'none';
     }
 }
 

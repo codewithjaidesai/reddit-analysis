@@ -344,6 +344,7 @@ module.exports = {
   startScheduler,
   stopScheduler,
   processScheduledDigests,
+  processSubscriptionDigest,
   sendWelcomeDigest,
   cachePopularDigests,
   triggerDigest

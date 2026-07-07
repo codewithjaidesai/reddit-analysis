@@ -93,11 +93,12 @@ async function combinedAnalysis(urls, role = null, goal = null) {
 /**
  * Re-analyze already-extracted posts with a different role/goal
  */
-async function reanalyzePostsData(postsData, role = null, goal = null) {
+async function reanalyzePostsData(postsData, role = null, goal = null, topic = null) {
     return await callAPI(API_CONFIG.endpoints.reanalyze, {
         postsData,
         role,
-        goal
+        goal,
+        topic
     });
 }
 
@@ -144,6 +145,13 @@ async function analyzeUser(username) {
  */
 async function getSubredditInfo(subreddit) {
     return await callAPI('/api/search/subreddit-info', { subreddit });
+}
+
+/**
+ * Get AI-suggested analysis angles for a subreddit (Community Pulse)
+ */
+async function getSuggestedAngles(subreddit, persona = null) {
+    return await callAPI('/api/search/suggest-angles', { subreddit, persona });
 }
 
 /**
