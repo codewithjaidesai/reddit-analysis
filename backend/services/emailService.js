@@ -420,8 +420,8 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
     </div>
 
     <div class="cta">
-      <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Want radar on another community?</p>
-      <a href="${baseUrl}/content-radar/subscribe.html" class="cta-button">Add Another Subreddit</a>
+      <p style="margin: 0 0 12px 0; font-size: 14px; color: #666;">Want another radar — a community, topic, leads, or subject?</p>
+      <a href="${baseUrl}/content-radar/subscribe.html" class="cta-button">Add Another Radar</a>
     </div>
 
     <div class="footer">
@@ -530,7 +530,7 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
       </ul>
 
       <div style="text-align: center; margin-top: 30px;">
-        <a href="${baseUrl}/content-radar/subscribe.html" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #9f7aea 100%); color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Add Another Subreddit</a>
+        <a href="${baseUrl}/content-radar/subscribe.html" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #9f7aea 100%); color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Add Another Radar</a>
       </div>
     </div>
     <div style="padding: 20px; background: #f8f9fa; font-size: 12px; color: #666; text-align: center;">

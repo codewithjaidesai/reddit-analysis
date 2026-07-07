@@ -1000,6 +1000,9 @@ async function checkSubredditActivity(subreddit) {
             setTimeout(() => personaSection.classList.remove('highlight-section'), 2000);
         }
 
+        // Load AI-suggested analysis angles (non-blocking)
+        loadAngleSuggestions(subreddit);
+
     } catch (error) {
         console.error('Activity check error:', error);
         levelEl.textContent = 'Could not check activity';
@@ -1012,6 +1015,51 @@ async function checkSubredditActivity(subreddit) {
         if (nextStepEl) {
             nextStepEl.style.display = 'none';
         }
+    }
+}
+
+/**
+ * Fetch AI-suggested analysis angles for the checked subreddit and render
+ * them as clickable chips under the Analysis Angle input.
+ */
+let angleSuggestionsForSubreddit = null;
+async function loadAngleSuggestions(subreddit) {
+    const container = document.getElementById('angleSuggestions');
+    if (!container) return;
+
+    // Avoid refetching for the same subreddit
+    if (angleSuggestionsForSubreddit === subreddit && container.innerHTML) {
+        container.style.display = 'block';
+        return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = `<span class="angle-suggestions-loading">✨ Finding angles worth exploring in r/${escapeHtml(subreddit)}...</span>`;
+
+    try {
+        const result = await getSuggestedAngles(subreddit, tabSelections?.subreddit?.persona || null);
+
+        if (!result.success || !result.angles || result.angles.length === 0) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            return;
+        }
+
+        angleSuggestionsForSubreddit = subreddit;
+        container.innerHTML = `
+            <div class="angle-suggestions-label">✨ Suggested angles from this month's discussions — click to use:</div>
+            <div class="angle-chips">
+                ${result.angles.map(a => `
+                    <button type="button" class="angle-chip" title="${escapeHtml(a.why || '')}"
+                        onclick="document.getElementById('customAnalysisFocus').value = this.dataset.angle"
+                        data-angle="${escapeHtml(a.angle)}">${escapeHtml(a.angle)}</button>
+                `).join('')}
+            </div>
+        `;
+    } catch (err) {
+        console.log('Angle suggestions failed (non-fatal):', err.message);
+        container.style.display = 'none';
+        container.innerHTML = '';
     }
 }
 

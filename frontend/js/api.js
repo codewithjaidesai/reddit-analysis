@@ -147,6 +147,13 @@ async function getSubredditInfo(subreddit) {
 }
 
 /**
+ * Get AI-suggested analysis angles for a subreddit (Community Pulse)
+ */
+async function getSuggestedAngles(subreddit, persona = null) {
+    return await callAPI('/api/search/suggest-angles', { subreddit, persona });
+}
+
+/**
  * Run full Community Pulse analysis
  */
 async function analyzeCommunityPulse(subreddit, depth, role, customFocus = null) {

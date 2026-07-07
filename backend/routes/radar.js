@@ -602,26 +602,48 @@ router.post('/send-preview', async (req, res) => {
       });
     }
 
-    console.log(`[Preview] Generating digest for ${subscription.email} - r/${subscription.subreddit}...`);
+    // Decode radar type from the stored target (topic:/leads:/learn: prefix)
+    const { type: radarType, target } = parseRadarTarget(subscription.subreddit);
 
-    // Generate the digest with isPreview flag to ensure we get content
-    const digest = await generateDigest({
-      subreddit: subscription.subreddit,
-      subscriptionId: subscription.id,
-      focusTopic: subscription.focus_topic,
-      frequency: subscription.frequency,
-      isPreview: true  // Always use 7-day window for preview digests
-    });
+    console.log(`[Preview] Generating ${radarType} digest for ${subscription.email} - ${target}...`);
 
-    // Send the email
-    const { sendDigestEmail } = require('../services/emailService');
-    await sendDigestEmail({
-      to: subscription.email,
-      subreddit: subscription.subreddit,
-      digest,
-      unsubscribeToken: subscription.unsubscribe_token,
-      isWelcome: true // Mark as welcome so it shows the banner
-    });
+    let digest;
+    if (radarType === 'leads') {
+      // Lead radar has its own pipeline and email template
+      const { generateLeadDigest } = require('../services/leadRadar');
+      const { sendLeadDigestEmail } = require('../services/emailService');
+      digest = await generateLeadDigest({
+        query: target,
+        frequency: subscription.frequency,
+        isPreview: true
+      });
+      await sendLeadDigestEmail({
+        to: subscription.email,
+        query: target,
+        leadDigest: digest,
+        unsubscribeToken: subscription.unsubscribe_token
+      });
+    } else {
+      // Generate the digest with isPreview flag to ensure we get content
+      digest = await generateDigest({
+        subreddit: target,
+        radarType,
+        subscriptionId: subscription.id,
+        focusTopic: subscription.focus_topic,
+        frequency: subscription.frequency,
+        isPreview: true  // Always use 7-day window for preview digests
+      });
+
+      // Send the email
+      const { sendDigestEmail } = require('../services/emailService');
+      await sendDigestEmail({
+        to: subscription.email,
+        subreddit: target,
+        digest,
+        unsubscribeToken: subscription.unsubscribe_token,
+        isWelcome: true // Mark as welcome so it shows the banner
+      });
+    }
 
     // Update last_sent_at so subscription enters the regular digest cycle.
     // Without this, scheduled digests would never find this subscription.
@@ -671,10 +693,13 @@ router.post('/admin/generate', async (req, res) => {
       });
     }
 
-    console.log(`Admin: Generating digest for r/${subreddit}...`);
+    // Accepts encoded targets too (topic:/leads:/learn: prefixes)
+    const { type: radarType, target } = parseRadarTarget(subreddit);
+    console.log(`Admin: Generating ${radarType} digest for ${target}...`);
 
     const digest = await generateDigest({
-      subreddit,
+      subreddit: target,
+      radarType,
       focusTopic,
       frequency
     });

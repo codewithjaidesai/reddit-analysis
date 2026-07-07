@@ -7,7 +7,10 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/supabase');
 const { generateDigest } = require('../services/contentRadar');
-const { sendDigestEmail } = require('../services/emailService');
+const { generateLeadDigest } = require('../services/leadRadar');
+const { sendDigestEmail, sendLeadDigestEmail } = require('../services/emailService');
+const { processSubscriptionDigest } = require('../services/scheduler');
+const { parseRadarTarget } = require('../services/radarTypes');
 
 /**
  * Verify cron request authenticity
@@ -77,31 +80,56 @@ async function processWelcomeDigests(req, res) {
 
     for (const sub of pendingSubscriptions) {
       try {
-        console.log(`[Cron] Processing welcome digest for ${sub.email} - r/${sub.subreddit}`);
+        // Decode radar type from the stored target (topic:/leads:/learn: prefix)
+        const { type: radarType, target } = parseRadarTarget(sub.subreddit);
+        console.log(`[Cron] Processing welcome ${radarType} digest for ${sub.email} - ${target}`);
 
-        // Generate the digest
-        const digest = await generateDigest({
-          subreddit: sub.subreddit,
-          subscriptionId: sub.id,
-          focusTopic: sub.focus_topic,
-          frequency: sub.frequency
-        });
+        if (radarType === 'leads') {
+          const leadDigest = await generateLeadDigest({
+            query: target,
+            frequency: sub.frequency,
+            isPreview: true
+          });
+          if (leadDigest.quiet) {
+            console.log(`[Cron] No leads yet for "${target}" — skipping welcome digest email`);
+          } else {
+            await sendLeadDigestEmail({
+              to: sub.email,
+              query: target,
+              leadDigest,
+              unsubscribeToken: sub.unsubscribe_token
+            });
+          }
+        } else {
+          // Generate the digest (7-day window so first digests have content)
+          const digest = await generateDigest({
+            subreddit: target,
+            radarType,
+            subscriptionId: sub.id,
+            focusTopic: sub.focus_topic,
+            frequency: sub.frequency,
+            isPreview: true
+          });
 
-        console.log(`[Cron] Digest generated for r/${sub.subreddit}`);
-
-        // Send the welcome digest email
-        await sendDigestEmail({
-          to: sub.email,
-          subreddit: sub.subreddit,
-          digest,
-          unsubscribeToken: sub.unsubscribe_token,
-          isWelcome: true
-        });
+          if (digest.quiet) {
+            // Query radar with nothing relevant yet — the plain welcome email
+            // already went out at subscribe time; don't send an empty digest
+            console.log(`[Cron] Quiet period for "${target}" — skipping welcome digest email`);
+          } else {
+            await sendDigestEmail({
+              to: sub.email,
+              subreddit: target,
+              digest,
+              unsubscribeToken: sub.unsubscribe_token,
+              isWelcome: true
+            });
+          }
+        }
 
         // Mark as sent
         await db.updateSubscriptionLastSent(sub.id);
 
-        console.log(`[Cron] Welcome digest sent to ${sub.email}`);
+        console.log(`[Cron] Welcome digest processed for ${sub.email}`);
         successCount++;
 
       } catch (error) {
@@ -169,28 +197,10 @@ async function processScheduledDigests(req, res) {
 
     for (const sub of dueSubscriptions) {
       try {
-        console.log(`[Cron] Processing scheduled digest for ${sub.email} - r/${sub.subreddit}...`);
-
-        const digest = await generateDigest({
-          subreddit: sub.subreddit,
-          subscriptionId: sub.id,
-          focusTopic: sub.focus_topic,
-          frequency: sub.frequency
-        });
-
-        console.log(`[Cron] Digest generated for r/${sub.subreddit}, sending email...`);
-
-        await sendDigestEmail({
-          to: sub.email,
-          subreddit: sub.subreddit,
-          digest,
-          unsubscribeToken: sub.unsubscribe_token,
-          isWelcome: false
-        });
-
-        await db.updateSubscriptionLastSent(sub.id);
+        // Shared handler: decodes radar type, branches lead/content pipelines,
+        // skips quiet periods, saves history and seen posts
+        await processSubscriptionDigest(sub);
         successCount++;
-        console.log(`[Cron] Successfully sent scheduled digest to ${sub.email}`);
 
       } catch (error) {
         console.error(`[Cron] Failed scheduled digest for ${sub.email}:`, error.message);

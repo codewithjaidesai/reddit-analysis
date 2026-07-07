@@ -198,6 +198,70 @@ router.post('/topic', async (req, res) => {
 });
 
 /**
+ * POST /api/search/suggest-angles
+ * AI-suggested analysis angles for a subreddit (Community Pulse helper).
+ * Reads this month's top post titles and proposes lenses worth analyzing.
+ */
+router.post('/suggest-angles', async (req, res) => {
+  try {
+    const { subreddit, persona } = req.body;
+    if (!subreddit) {
+      return res.status(400).json({ success: false, error: 'Subreddit is required' });
+    }
+
+    const topResult = await searchSubredditTopPosts(subreddit.replace(/^r\//, ''), 'month', 30);
+    if (!topResult.success || !topResult.posts || topResult.posts.length === 0) {
+      return res.json({ success: true, angles: [] });
+    }
+
+    const titles = topResult.posts.slice(0, 30).map((p, i) => `${i + 1}. ${p.title}`).join('\n');
+    const personaLine = persona === 'marketer'
+      ? 'The user is a MARKETER — favor angles about pain points, buying language, competitor mentions, and objections.'
+      : 'The user is a CONTENT CREATOR — favor angles about audience questions, recurring struggles, content gaps, and trending debates.';
+
+    const prompt = `Here are this month's top post titles from r/${subreddit}:
+
+${titles}
+
+${personaLine}
+
+Suggest 5 SPECIFIC analysis angles for exploring this community — lenses that would produce genuinely useful insights based on what these titles reveal. Each angle must reference actual patterns visible in the titles above, not generic suggestions.
+
+BAD: "community discussions" (generic)
+GOOD: "beginner struggles with X" (if several titles show beginners asking about X)
+
+Return ONLY valid JSON (no markdown):
+{"angles": [{"angle": "short phrase usable as an analysis focus (4-8 words)", "why": "one sentence citing the pattern in the titles"}]}`;
+
+    const { analyzeWithModel } = require('../services/gemini');
+    const aiResult = await analyzeWithModel(prompt, config.mapReduce.mapModel);
+
+    if (!aiResult.success) {
+      return res.json({ success: true, angles: [] });
+    }
+
+    let angles = [];
+    try {
+      let cleaned = aiResult.analysis.trim();
+      if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+      if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+      if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) cleaned = jsonMatch[0];
+      angles = JSON.parse(cleaned).angles || [];
+    } catch (parseError) {
+      console.log('Suggest-angles parse failed:', parseError.message);
+    }
+
+    res.json({ success: true, subreddit, angles: angles.slice(0, 5) });
+
+  } catch (error) {
+    console.error('Suggest-angles error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * POST /api/search/subreddit
  * Get top posts from a specific subreddit
  */
