@@ -93,11 +93,12 @@ async function combinedAnalysis(urls, role = null, goal = null) {
 /**
  * Re-analyze already-extracted posts with a different role/goal
  */
-async function reanalyzePostsData(postsData, role = null, goal = null) {
+async function reanalyzePostsData(postsData, role = null, goal = null, topic = null) {
     return await callAPI(API_CONFIG.endpoints.reanalyze, {
         postsData,
         role,
-        goal
+        goal,
+        topic
     });
 }
 

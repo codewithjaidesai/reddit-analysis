@@ -1336,6 +1336,103 @@ function formatStructuredAnalysisForPDF(analysis, source = 'reddit') {
         `;
     }
 
+    // ═══ NEW SCHEMA SECTIONS ═══
+
+    // The Verdict
+    if (analysis.theVerdict) {
+        const v = analysis.theVerdict;
+        html += `
+            <div class="section">
+                <h2>The Verdict</h2>
+                <div class="summary-box">
+                    <p style="margin: 0 0 8px 0;"><strong>${escapeHtml(v.answer || '')}</strong></p>
+                    <p style="font-size: 12px; margin: 0;">Confidence: ${escapeHtml((v.confidence || 'medium').toUpperCase())}${v.basis ? ` — ${escapeHtml(v.basis)}` : ''}</p>
+                    ${v.keyDataPoints && v.keyDataPoints.length > 0 ? `<ul style="margin: 8px 0 0 0;">${v.keyDataPoints.map(dp => `<li>${escapeHtml(dp)}</li>`).join('')}</ul>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Actionable Content (AI-chosen answer sections)
+    if (analysis.actionableContent && analysis.actionableContent.length > 0) {
+        analysis.actionableContent.forEach(section => {
+            html += `
+                <div class="section">
+                    <h2>${escapeHtml(section.sectionTitle || 'Actionable Insights')}</h2>
+                    ${(section.items || []).map((item, i) => `
+                        <div style="margin-bottom: 10px;">
+                            <strong>${i + 1}. ${escapeHtml(item.label || '')}</strong>
+                            ${item.description ? `<p style="margin: 2px 0; font-size: 13px;">${escapeHtml(item.description)}</p>` : ''}
+                            ${item.details && item.details.length > 0 ? `<ul style="margin: 4px 0 0 0; font-size: 12px;">${item.details.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        });
+    }
+
+    // Ranked Themes
+    if (analysis.rankedThemes && analysis.rankedThemes.length > 0) {
+        html += `
+            <div class="section">
+                <h2>Ranked Themes</h2>
+                ${analysis.rankedThemes.map(t => `
+                    <div style="margin-bottom: 8px;">
+                        <strong>#${t.rank || '?'} ${escapeHtml(t.theme || '')}</strong> <span style="font-size: 12px;">(${t.mentions || 0}x, ${escapeHtml(t.sentiment || 'neutral')})</span>
+                        ${t.oneLiner ? `<p style="margin: 2px 0; font-size: 13px;">${escapeHtml(t.oneLiner)}</p>` : ''}
+                        ${t.topQuote ? `<p style="margin: 2px 0; font-size: 12px; font-style: italic;">"${escapeHtml(t.topQuote.text || '')}" — @${escapeHtml(t.topQuote.author || 'anon')}</p>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // From the Trenches
+    if (analysis.fromTheTrenches && analysis.fromTheTrenches.length > 0) {
+        html += `
+            <div class="section">
+                <h2>From the Trenches</h2>
+                <ul>${analysis.fromTheTrenches.map(t => `<li>${escapeHtml(t.insight || '')}${t.author ? ` <span style="font-size: 11px;">(@${escapeHtml(t.author)}${t.score ? `, ${t.score} pts` : ''})</span>` : ''}</li>`).join('')}</ul>
+            </div>
+        `;
+    }
+
+    // What They're Asking
+    if (analysis.whatTheyreAsking && analysis.whatTheyreAsking.length > 0) {
+        html += `
+            <div class="section">
+                <h2>What They're Asking</h2>
+                <ul>${analysis.whatTheyreAsking.map(q => `<li>${escapeHtml(q.question || '')}${q.demandSignal ? ` <span style="font-size: 11px;">— ${escapeHtml(q.demandSignal)}</span>` : ''}</li>`).join('')}</ul>
+            </div>
+        `;
+    }
+
+    // Worth Quoting
+    if (analysis.worthQuoting && analysis.worthQuoting.length > 0) {
+        html += `
+            <div class="section">
+                <h2>Worth Quoting</h2>
+                ${analysis.worthQuoting.map(q => `
+                    <p style="margin: 0 0 8px 0; font-size: 13px;"><strong>[${escapeHtml((q.category || 'INSIGHT').toUpperCase())}]</strong> "${escapeHtml(q.quote || '')}" — @${escapeHtml(q.author || 'anon')}${q.score ? ` (${q.score} pts)` : ''}</p>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Funny & Memorable
+    if (analysis.funnyAndMemorable && analysis.funnyAndMemorable.length > 0) {
+        html += `
+            <div class="section">
+                <h2>Funny &amp; Memorable</h2>
+                ${analysis.funnyAndMemorable.map(f => `
+                    <p style="margin: 0 0 8px 0; font-size: 13px;">"${escapeHtml(f.quote || '')}" — @${escapeHtml(f.author || 'anon')}</p>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // ═══ LEGACY SCHEMA SECTIONS (old results) ═══
+
     // Executive Summary
     if (analysis.executiveSummary) {
         html += `

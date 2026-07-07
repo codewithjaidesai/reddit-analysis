@@ -1007,6 +1007,18 @@ function buildContentPrompt(type, typeLabel, focus, tone, length, role, goal, in
   const topQuotes = insights?.worthQuoting?.map(q => ({ type: q.category?.toUpperCase() || 'INSIGHT', quote: q.quote, source: q.author }))
     || insights?.topQuotes || [];
 
+  // The two richest new-schema sections: the AI-chosen actionable answer and
+  // the real data points people shared. Flatten for the prompt.
+  const actionableLines = (insights?.actionableContent || []).flatMap(section =>
+    (section.items || []).map(item => {
+      const details = (item.details || []).slice(0, 3).join('; ');
+      return `- [${section.sectionTitle}] ${item.label}${item.description ? ': ' + item.description : ''}${details ? ` (${details})` : ''}`;
+    })
+  ).slice(0, 25);
+  const trenchesLines = (insights?.fromTheTrenches || []).map(t =>
+    `- ${t.insight}${t.author ? ` (@${t.author}${t.score ? `, ${t.score} pts` : ''})` : ''}`
+  );
+
   // Get real quotes from raw data
   const realQuotes = [];
   if (postsData && postsData.length > 0) {
@@ -1182,6 +1194,15 @@ ${keyInsights.map(i => `- ${i.title}: ${i.description}`).join('\n')}
 
 USER RECOMMENDATIONS:
 ${forYourGoal.map(g => `- ${g}`).join('\n')}
+
+${actionableLines.length > 0 ? `
+ACTIONABLE FINDINGS (the researched answer — build the content around these):
+${actionableLines.join('\n')}
+` : ''}
+${trenchesLines.length > 0 ? `
+REAL DATA POINTS people shared (numbers, tools, prices — cite these for credibility):
+${trenchesLines.join('\n')}
+` : ''}
 
 REAL QUOTES FROM USERS (use these for authenticity):
 ${realQuotes.slice(0, 15).map(q => `[${q.score} ${q.engagementLabel}, ${q.source}]: "${q.text}"`).join('\n\n')}
