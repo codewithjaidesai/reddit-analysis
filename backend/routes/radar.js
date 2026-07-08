@@ -438,14 +438,16 @@ router.get('/subreddit/:name', async (req, res) => {
  */
 router.get('/digest/:subreddit/latest', async (req, res) => {
   try {
-    const subreddit = req.params.subreddit.replace(/^r\//, '').toLowerCase();
+    // Accepts plain subreddit names or encoded query-radar targets
+    const raw = req.params.subreddit.replace(/^r\//, '').toLowerCase();
+    const { radarDisplayLabel } = require('../services/radarTypes');
 
-    const cached = await db.getCachedDigest(subreddit);
+    const cached = await db.getCachedDigest(raw);
 
     if (!cached) {
       return res.status(404).json({
         success: false,
-        error: `No cached digest found for r/${subreddit}`
+        error: `No cached digest found for ${radarDisplayLabel(raw)}`
       });
     }
 

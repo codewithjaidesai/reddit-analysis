@@ -164,6 +164,19 @@ check('success screen decodes radar type (never shows topic:/leads:/learn:)', ()
     'showSuccess does not decode the radar target for display');
 });
 
+check('emails never render raw encoded targets or wrong r/ labels', () => {
+  const src = read('backend/services/emailService.js');
+  // Welcome subject must decode the target, not interpolate the raw column value
+  assert(!src.includes('Your Reddit Radar for r/${subreddit} is Active'),
+    'welcome email subject leaks the encoded target with a bogus r/ prefix');
+  // Digest footer must branch on radar type, not hardcode r/
+  assert(!src.includes("subscribed to Content Radar for r/${subreddit}."),
+    'digest footer hardcodes r/ for all radar types');
+  // Welcome bullets must be radar-type aware
+  assert(src.includes('welcomeBullets') && src.includes('bulletsByType'),
+    'welcome email describes community-only content to all radar types');
+});
+
 check('insightsSections.js loads before ui.js in index.html', () => {
   const html = read('frontend/index.html');
   const a = html.indexOf('js/insightsSections.js');
