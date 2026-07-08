@@ -261,6 +261,7 @@ async function cachePopularDigests() {
 
       const digest = await generateDigest({
         subreddit,
+        radarType: 'subreddit',
         frequency: 'weekly'
       });
 

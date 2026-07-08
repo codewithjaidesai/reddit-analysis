@@ -40,7 +40,14 @@ async function initUnsubscribePage() {
 function showSuccess() {
     hideAllStates();
 
-    document.getElementById('unsubSubreddit').textContent = currentSubscription.subreddit;
+    // Show a human-readable label, never the encoded topic:/leads:/learn: value
+    const raw = currentSubscription.subreddit || '';
+    let displayLabel;
+    if (raw.startsWith('topic:')) displayLabel = `Topic: ${raw.slice(6)}`;
+    else if (raw.startsWith('leads:')) displayLabel = `Leads: ${raw.slice(6)}`;
+    else if (raw.startsWith('learn:')) displayLabel = `Learning: ${raw.slice(6)}`;
+    else displayLabel = `r/${raw}`;
+    document.getElementById('unsubSubreddit').textContent = displayLabel;
     document.getElementById('successState').style.display = 'block';
 
     // Set up resubscribe button

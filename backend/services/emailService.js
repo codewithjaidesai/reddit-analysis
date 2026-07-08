@@ -45,7 +45,7 @@ async function sendDigestEmail({ to, subreddit, digest, unsubscribeToken, isWelc
 
   // Radar-type-aware display label (r/sub for community radars, plain query otherwise)
   const radarType = digest?.radarType || 'subreddit';
-  const targetLabel = radarType === 'topic' ? `${subreddit}`
+  const targetLabel = radarType === 'topic' ? `Topic: ${subreddit}`
     : radarType === 'learning' ? `Learning: ${subreddit}`
     : `r/${subreddit}`;
 
@@ -130,7 +130,7 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Content Radar - r/${subreddit}</title>
+  <title>Content Radar - ${digest?.radarType === 'topic' || digest?.radarType === 'learning' ? subreddit : 'r/' + subreddit}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a2e; background-color: #f5f5f5; margin: 0; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -425,7 +425,7 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
     </div>
 
     <div class="footer">
-      <p>You're receiving this because you subscribed to Content Radar for r/${subreddit}.</p>
+      <p>You're receiving this because you subscribed to Content Radar for ${digest?.radarType === 'topic' ? `Topic: ${escapeHtml(subreddit)}` : digest?.radarType === 'learning' ? `Learning: ${escapeHtml(subreddit)}` : `r/${subreddit}`}.</p>
       <div style="margin-top: 12px;">
         <a href="${unsubscribeUrl}">Unsubscribe</a> ·
         <a href="${manageUrl}">Manage Preferences</a>
@@ -498,6 +498,34 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
 
   const nextDigestDay = frequency === 'daily' ? 'tomorrow morning' : 'this Sunday morning';
 
+  // Describe what THIS radar type actually delivers — a lead radar sends lead
+  // cards, not community quotes
+  const { parseRadarTarget } = require('./radarTypes');
+  const radarKind = parseRadarTarget(subreddit).type;
+  const bulletsByType = {
+    subreddit: `
+        <li>🔥 Top discussions & trending topics</li>
+        <li>💬 Memorable quotes from the community</li>
+        <li>💡 Content ideas tailored for creators</li>
+        <li>📊 Community pulse & metrics</li>`,
+    topic: `
+        <li>🔥 The most relevant discussions about your topic, from across Reddit</li>
+        <li>💬 Real quotes and data points people shared</li>
+        <li>💡 Content ideas backed by demand signals</li>
+        <li>🤫 Quiet weeks are skipped — we never pad with off-topic posts</li>`,
+    leads: `
+        <li>🎯 Fresh posts from people actively looking for what you offer</li>
+        <li>📋 What they want, their constraints, and how to genuinely help</li>
+        <li>⏱️ Sorted freshest-first so you can be the first useful reply</li>
+        <li>🤫 No qualified leads = no email — we never pad with noise</li>`,
+    learning: `
+        <li>🧠 The best explanations, quoted verbatim from the smartest threads</li>
+        <li>💡 Surprising facts and expert corrections</li>
+        <li>🧭 What to explore next</li>
+        <li>🤫 Quiet weeks are skipped — only real substance</li>`
+  };
+  const welcomeBullets = bulletsByType[radarKind] || bulletsByType.subreddit;
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -523,10 +551,7 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
         Each ${frequency} digest includes:
       </p>
       <ul style="font-size: 14px; color: #666; line-height: 1.8;">
-        <li>🔥 Top discussions & trending topics</li>
-        <li>💬 Memorable quotes from the community</li>
-        <li>💡 Content ideas tailored for creators</li>
-        <li>📊 Community pulse & metrics</li>
+        ${welcomeBullets}
       </ul>
 
       <div style="text-align: center; margin-top: 30px;">
@@ -556,7 +581,7 @@ async function sendWelcomeEmail({ to, subreddit, frequency, unsubscribeToken }) 
     const { data, error } = await resend.emails.send({
       from: fromEmail,
       to: to,
-      subject: `📡 Your Reddit Radar for r/${subreddit} is Active | Voice of the Customer`,
+      subject: `📡 Your Radar for ${require('./radarTypes').radarDisplayLabel(subreddit)} is Active | Voice of the Customer`,
       html: html,
       headers: {
         'List-Unsubscribe': `<${unsubscribeUrl}>`,
