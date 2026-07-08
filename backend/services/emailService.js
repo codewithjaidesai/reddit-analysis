@@ -45,7 +45,7 @@ async function sendDigestEmail({ to, subreddit, digest, unsubscribeToken, isWelc
 
   // Radar-type-aware display label (r/sub for community radars, plain query otherwise)
   const radarType = digest?.radarType || 'subreddit';
-  const targetLabel = radarType === 'topic' ? `${subreddit}`
+  const targetLabel = radarType === 'topic' ? `Topic: ${subreddit}`
     : radarType === 'learning' ? `Learning: ${subreddit}`
     : `r/${subreddit}`;
 
@@ -130,7 +130,7 @@ function generateDigestHtml(digest, subreddit, unsubscribeUrl, manageUrl, isWelc
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Content Radar - r/${subreddit}</title>
+  <title>Content Radar - ${digest?.radarType === 'topic' || digest?.radarType === 'learning' ? subreddit : 'r/' + subreddit}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a2e; background-color: #f5f5f5; margin: 0; padding: 20px; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }

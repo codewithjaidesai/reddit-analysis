@@ -427,9 +427,16 @@ function showSuccess(data, fallbackSubreddit) {
     const successState = document.getElementById('successState');
     successState.style.display = 'block';
 
-    // Update success content - use fallback if needed
-    const subName = data.subscription?.subreddit || fallbackSubreddit;
-    document.getElementById('successSubreddit').textContent = subName;
+    // Human-readable label per radar type (never show the encoded topic:/leads:/learn: value)
+    const radarType = data.subscription?.radarType || getSelectedRadarType();
+    const target = data.subscription?.target || fallbackSubreddit;
+    const labelByType = {
+        subreddit: `r/${target}`,
+        topic: `🔍 Topic: ${target}`,
+        leads: `🎯 Leads: ${target}`,
+        learning: `🧠 Learning: ${target}`
+    };
+    document.getElementById('successSubreddit').textContent = labelByType[radarType] || `r/${target}`;
 
     // Update email status message based on whether email was sent
     const emailIcon = document.getElementById('emailStatusIcon');
@@ -548,7 +555,14 @@ async function sendPreviewDigest() {
 
         const data = await response.json();
 
-        if (data.success) {
+        if (data.success && data.quiet) {
+            // Nothing worth emailing right now — show the honest status instead
+            // of sending a blank digest
+            showPreviewResult(true, data.message || 'Quiet period — your radar is live and will email you when there is real signal.');
+            btn.disabled = false;
+            btnText.style.display = 'block';
+            btnLoading.style.display = 'none';
+        } else if (data.success) {
             showPreviewResult(true, 'Digest sent! Check your inbox in a minute.');
             // Hide the preview section after success
             setTimeout(() => {

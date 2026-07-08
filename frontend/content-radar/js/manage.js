@@ -101,6 +101,17 @@ function decodeRadarTarget(raw) {
     return { icon: '📡', typeLabel: 'Community', display: `r/${raw}` };
 }
 
+// Escape user-entered text before injecting into HTML (queries can contain
+// quotes/apostrophes/angle brackets)
+function escapeText(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 function createSubscriptionCard(subscription) {
     const card = document.createElement('div');
     card.className = 'subscription-card';
@@ -111,13 +122,13 @@ function createSubscriptionCard(subscription) {
 
     card.innerHTML = `
         <div class="card-header">
-            <span class="subreddit-name">${target.icon} ${target.display}</span>
+            <span class="subreddit-name">${target.icon} ${escapeText(target.display)}</span>
             <span class="frequency-badge">${target.typeLabel} · ${capitalizeFirst(subscription.frequency)}</span>
         </div>
         <div class="card-details">
             <div class="detail">
                 <span class="detail-label">Focus:</span>
-                <span class="focus-topic">${subscription.focusTopic || 'None'}</span>
+                <span class="focus-topic">${escapeText(subscription.focusTopic || 'None')}</span>
             </div>
             <div class="detail">
                 <span class="detail-label">Last digest:</span>
@@ -129,14 +140,16 @@ function createSubscriptionCard(subscription) {
             </div>
         </div>
         <div class="card-actions">
-            <button class="action-btn edit-btn" onclick="editSubscription('${subscription.id}')">
-                Edit
-            </button>
-            <button class="action-btn unsubscribe-btn" onclick="unsubscribeClick('${subscription.unsubscribeToken}', '${subscription.subreddit}')">
-                Unsubscribe
-            </button>
+            <button class="action-btn edit-btn">Edit</button>
+            <button class="action-btn unsubscribe-btn">Unsubscribe</button>
         </div>
     `;
+
+    // Attach handlers via listeners (NOT inline onclick strings) so targets
+    // containing apostrophes/quotes can never break the handler
+    card.querySelector('.edit-btn').addEventListener('click', () => editSubscription(subscription.id));
+    card.querySelector('.unsubscribe-btn').addEventListener('click', () =>
+        unsubscribeClick(subscription.unsubscribeToken, subscription.subreddit));
 
     return card;
 }

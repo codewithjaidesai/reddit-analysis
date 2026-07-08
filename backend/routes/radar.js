@@ -617,6 +617,16 @@ router.post('/send-preview', async (req, res) => {
         frequency: subscription.frequency,
         isPreview: true
       });
+
+      if (digest.quiet) {
+        // Never send a blank email — tell the user what's happening instead
+        return res.json({
+          success: true,
+          quiet: true,
+          message: `No one is asking for "${target}" right now (scanned ${digest.scanned} fresh posts). Your radar is live — you'll get an email the moment a qualified lead appears.`
+        });
+      }
+
       await sendLeadDigestEmail({
         to: subscription.email,
         query: target,
@@ -624,15 +634,29 @@ router.post('/send-preview', async (req, res) => {
         unsubscribeToken: subscription.unsubscribe_token
       });
     } else {
-      // Generate the digest with isPreview flag to ensure we get content
+      // Generate the digest with isPreview flag: 7-day window, widening to a
+      // month for query radars when the week is thin
       digest = await generateDigest({
         subreddit: target,
         radarType,
         subscriptionId: subscription.id,
         focusTopic: subscription.focus_topic,
         frequency: subscription.frequency,
-        isPreview: true  // Always use 7-day window for preview digests
+        isPreview: true
       });
+
+      // Never send a blank email — quiet query radars and empty community
+      // digests get an honest status message instead
+      const hasContent = !digest.quiet && (digest.metrics?.totalPosts || 0) > 0;
+      if (!hasContent) {
+        return res.json({
+          success: true,
+          quiet: true,
+          message: radarType === 'subreddit'
+            ? `r/${target} had no significant activity recently. Your radar is live — the next active period will land in your inbox.`
+            : `Not enough genuinely relevant discussion about "${target}" in the last month to fill a digest. Your radar is live and checks continuously — you'll get an email when there's real signal (we never pad with off-topic posts).`
+        });
+      }
 
       // Send the email
       const { sendDigestEmail } = require('../services/emailService');

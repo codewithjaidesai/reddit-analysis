@@ -86,27 +86,34 @@ async function fetchRecentPostsForDigest(subreddit, days = 7) {
  * @param {number} days - Lookback window
  * @returns {Promise<Array>} Relevant posts (empty array = quiet period)
  */
-async function fetchRecentPostsForTopic(query, days = 7) {
+async function fetchRecentPostsForTopic(query, days = 7, allowMonthFallback = false) {
   const { searchRedditByTopic } = require('./search');
   const { preScreenPosts } = require('./mapReduceAnalysis');
 
-  console.log(`[Digest] Fetching topic posts for "${query}" (last ${days} days)`);
-  const timeRange = days <= 7 ? 'week' : 'month';
+  async function fetchAndScreen(timeRange) {
+    const result = await searchRedditByTopic(query, timeRange, '', 40);
+    if (!result?.success || !result.posts || result.posts.length === 0) return [];
 
-  const result = await searchRedditByTopic(query, timeRange, '', 40);
-  if (!result?.success || !result.posts || result.posts.length === 0) {
-    console.log(`[Digest] No posts found for topic "${query}"`);
-    return [];
+    // QUALITY GATE 1: AI relevance pre-screen — only genuinely on-topic posts
+    // (score >= 4 of 5) make it into a digest. Better a quiet week than trash.
+    let relevant = result.posts;
+    try {
+      const screened = await preScreenPosts(result.posts, query);
+      relevant = screened.filter(p => (p.relevanceScore || 0) >= 4);
+    } catch (err) {
+      console.log(`[Digest] Pre-screen failed, using engagement-sorted posts: ${err.message}`);
+    }
+    return relevant;
   }
 
-  // QUALITY GATE 1: AI relevance pre-screen — only genuinely on-topic posts
-  // (score >= 4 of 5) make it into a digest. Better a quiet week than trash.
-  let relevant = result.posts;
-  try {
-    const screened = await preScreenPosts(result.posts, query);
-    relevant = screened.filter(p => (p.relevanceScore || 0) >= 4);
-  } catch (err) {
-    console.log(`[Digest] Pre-screen failed, using engagement-sorted posts: ${err.message}`);
+  console.log(`[Digest] Fetching topic posts for "${query}" (last ${days} days)`);
+  let relevant = await fetchAndScreen(days <= 7 ? 'week' : 'month');
+
+  // Previews/first digests widen to a month when the week is thin — the goal
+  // is to show the subscriber what the digest CAN look like
+  if (relevant.length < 3 && allowMonthFallback && days <= 7) {
+    console.log(`[Digest] Week too thin for "${query}" (${relevant.length}) — widening to month for preview`);
+    relevant = await fetchAndScreen('month');
   }
 
   // QUALITY GATE 2: minimum substance — a digest needs at least 3 relevant
@@ -154,7 +161,7 @@ async function generateDigest({ subreddit, radarType = 'subreddit', subscription
   //  - community radar: hot/new endpoints of the subreddit
   //  - topic/learning radar: relevance-gated topic search across Reddit
   const periodPosts = isQueryRadar
-    ? await fetchRecentPostsForTopic(subreddit, lookbackDays)
+    ? await fetchRecentPostsForTopic(subreddit, lookbackDays, isPreview)
     : await fetchRecentPostsForDigest(subreddit, lookbackDays);
 
   console.log(`[Digest] Posts fetched for digest: ${periodPosts.length}`);
