@@ -39,6 +39,34 @@ function switchTab(tabName) {
         }
     }
 
+    // Preserve in-flight/completed research across tab switches: hide the
+    // shared sections when leaving the research tab, restore them on return,
+    // and show a floating pill elsewhere. Never wipe running work.
+    const rs = window.researchState;
+    if (rs && (rs.running || rs.hasResults)) {
+        if (tabName === rs.tab) {
+            if (rs.running) {
+                document.getElementById('statusSection').style.display = 'block';
+            }
+            if (rs.hasResults) {
+                const multiPost = document.getElementById('multiPostResults');
+                if (multiPost && multiPost.innerHTML) multiPost.style.display = 'block';
+                if (rs.tab === 'topic') {
+                    const topicResults = document.getElementById('topicResultsSection');
+                    if (topicResults) topicResults.style.display = 'block';
+                }
+            }
+        } else {
+            // Leaving the research tab — hide its sections but keep all state
+            document.getElementById('statusSection').style.display = 'none';
+            document.getElementById('multiPostResults').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorSection').style.display = 'none';
+        }
+        if (typeof updateResearchPill === 'function') updateResearchPill();
+        return;
+    }
+
     // Hide results and status
     hideAll();
 }

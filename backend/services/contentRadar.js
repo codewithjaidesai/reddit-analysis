@@ -116,6 +116,42 @@ async function fetchRecentPostsForTopic(query, days = 7, allowMonthFallback = fa
     relevant = await fetchAndScreen('month');
   }
 
+  // Merge in fresh YouTube videos on the topic (quota-guarded, non-fatal).
+  // Videos join as post-shaped items — no comment fetch, but they surface in
+  // quick hits / emerging topics with links back to the video.
+  try {
+    if (config.features?.youtube) {
+      const { searchVideos, timeRangeToPublishedAfter } = require('./youtube');
+      const { canAffordSearch } = require('./youtubeQuota');
+      if (canAffordSearch()) {
+        const publishedAfter = timeRangeToPublishedAfter(days <= 7 ? 'week' : 'month');
+        const ytResult = await searchVideos(query, { maxResults: 8, publishedAfter });
+        if (ytResult?.success && ytResult.videos?.length > 0) {
+          const ytPosts = ytResult.videos.map(v => ({
+            id: v.id,
+            title: v.title,
+            subreddit: `YouTube: ${v.channelTitle}`,
+            author: v.channelTitle,
+            score: v.likeCount || 0,
+            num_comments: v.commentCount || 0,
+            created_utc: Math.floor(new Date(v.publishedAt).getTime() / 1000),
+            url: v.url,
+            permalink: '',
+            selftext: (v.description || '').substring(0, 300),
+            _source: 'youtube'
+          }));
+          // Same relevance gate as Reddit posts
+          const screened = await preScreenPosts(ytPosts, query);
+          const relevantVideos = screened.filter(p => (p.relevanceScore || 0) >= 4);
+          console.log(`[Digest] YouTube: ${relevantVideos.length}/${ytPosts.length} videos relevant for "${query}"`);
+          relevant.push(...relevantVideos);
+        }
+      }
+    }
+  } catch (ytError) {
+    console.log(`[Digest] YouTube merge failed (non-fatal): ${ytError.message}`);
+  }
+
   // QUALITY GATE 2: minimum substance — a digest needs at least 3 relevant
   // discussions or it reads as padding. Caller treats [] as a quiet period.
   if (relevant.length < 3) {
@@ -451,8 +487,11 @@ ${focusTopic ? `Reader's focus: ${focusTopic}` : ''}
     const commentRatio = post.score > 0 ? (numComments / post.score).toFixed(2) : 'N/A';
     const ageHours = post.created_utc ? ((now - post.created_utc) / 3600).toFixed(0) : '?';
 
+    const sourceTag = post.subreddit
+      ? (String(post.subreddit).startsWith('YouTube:') ? ` | ${post.subreddit}` : ` | r/${post.subreddit}`)
+      : '';
     prompt += `\n[#${i}] "${post.title}"`;
-    prompt += `\n  Score: ${post.score} | Comments: ${numComments} | Comment/Vote ratio: ${commentRatio} | Posted: ${ageHours}h ago${post.author ? ` | By: u/${post.author}` : ''}${radarType !== 'subreddit' && post.subreddit ? ` | r/${post.subreddit}` : ''}`;
+    prompt += `\n  Score: ${post.score} | Comments: ${numComments} | Comment/Vote ratio: ${commentRatio} | Posted: ${ageHours}h ago${post.author && !String(post.subreddit || '').startsWith('YouTube:') ? ` | By: u/${post.author}` : ''}${radarType !== 'subreddit' ? sourceTag : ''}`;
 
     if (post.selftext) {
       const maxLen = i < 15 ? 500 : 200;
