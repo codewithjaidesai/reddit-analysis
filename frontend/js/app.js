@@ -472,8 +472,12 @@ async function handleSearchByTopic() {
  */
 async function runAutoAnalyze(urls, role, goal, researchQuestion) {
     hideAll();
-    showStatus(`Extracting comments from ${urls.length} posts...`, 40);
-    setStatusDetails('Reading through discussions and extracting valuable insights');
+    showStatus(`Reading ${urls.length} discussions...`, 40);
+    setStatusDetails('Pulling real comments from the sources');
+
+    // Track running research so tab switches never lose it
+    window.researchState = { running: true, tab: 'topic', label: researchQuestion || 'Research', hasResults: false };
+    updateResearchPill();
 
     // Auto-scroll to status section
     document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -483,31 +487,42 @@ async function runAutoAnalyze(urls, role, goal, researchQuestion) {
     currentAnalysisIndex = 0;
     extractedPostsData = null;
     generatedContents = [];
-
-    // Simulated progress updates while waiting for API
-    const progressUpdates = [
-        { delay: 3000, message: `Processing ${urls.length} posts...`, detail: 'Extracting comments from Reddit discussions', progress: 50 },
-        { delay: 8000, message: 'Running AI analysis...', detail: 'Identifying patterns and insights across all posts', progress: 60 },
-        { delay: 15000, message: 'Synthesizing insights...', detail: 'Connecting themes and generating comprehensive analysis', progress: 75 },
-        { delay: 25000, message: 'Finalizing analysis...', detail: 'Preparing your personalized insights report', progress: 85 }
-    ];
-
-    const progressTimers = progressUpdates.map(update =>
-        setTimeout(() => {
-            showStatus(update.message, update.progress);
-            setStatusDetails(update.detail);
-        }, update.delay)
-    );
+    window.insightsChatHistory = [];
 
     try {
-        const result = await autoAnalysis(urls, role, goal, researchQuestion);
-
-        // Clear progress timers
-        progressTimers.forEach(timer => clearTimeout(timer));
-
-        if (!result.success) {
-            throw new Error(result.error || 'Auto-analysis failed');
+        // ── PHASE A: extraction only (fast) — get real comments on screen ──
+        const extractResult = await autoAnalysis(urls, role, goal, researchQuestion, true);
+        if (!extractResult.success || !extractResult.posts?.length) {
+            throw new Error(extractResult.error || 'Extraction failed');
         }
+
+        const postsData = extractResult.posts.map(p => p.extractedData).filter(Boolean);
+        const totalComments = postsData.reduce((sum, p) => sum + (p.valuableComments?.length || 0), 0);
+
+        // Show real quotes from the data while the AI synthesizes — immediate value
+        showStatus(`Analyzing ${totalComments.toLocaleString()} real comments...`, 60);
+        setStatusDetails('AI is synthesizing insights — meanwhile, here is what people are actually saying:');
+        startLiveQuoteFeed(postsData);
+
+        const midProgress = setTimeout(() => showStatus('Synthesizing insights...', 75), 12000);
+        const lateProgress = setTimeout(() => showStatus('Finalizing analysis...', 88), 30000);
+
+        // ── PHASE B: AI synthesis over the extracted data ──
+        const analysisResult = await reanalyzePostsData(postsData, role, goal, researchQuestion);
+        clearTimeout(midProgress);
+        clearTimeout(lateProgress);
+        stopLiveQuoteFeed();
+
+        if (!analysisResult.success) {
+            throw new Error(analysisResult.error || 'Analysis failed');
+        }
+
+        // Assemble the same shape /auto returned before the split
+        const result = {
+            success: true,
+            combinedAnalysis: analysisResult.combinedAnalysis,
+            posts: extractResult.posts
+        };
 
         showStatus('Analysis complete!', 100);
 
@@ -518,14 +533,269 @@ async function runAutoAnalyze(urls, role, goal, researchQuestion) {
             goal
         };
 
+        window.researchState = { running: false, tab: 'topic', label: researchQuestion || 'Research', hasResults: true };
+        updateResearchPill();
+
         // Display results using existing display function (compatible format)
         displayCombinedResults(result, role, goal);
+        renderInsightsChat();
+
+        // Cache for instant restore from Recent Searches
+        saveCachedResult(researchQuestion, result, role, goal);
 
     } catch (error) {
-        // Clear progress timers on error
-        progressTimers.forEach(timer => clearTimeout(timer));
+        stopLiveQuoteFeed();
+        window.researchState = { running: false, tab: 'topic', label: researchQuestion || '', hasResults: false };
+        updateResearchPill();
         console.error('Auto-analyze error:', error);
         showError(error.message || 'Analysis failed');
+    }
+}
+
+// ============================================
+// RESEARCH STATE: floating pill + live quote feed + results cache
+// ============================================
+
+/**
+ * Floating pill shown when research is running/finished on another tab.
+ * Clicking it returns to the research tab.
+ */
+function updateResearchPill() {
+    let pill = document.getElementById('researchPill');
+    const rs = window.researchState;
+    const activeTabBtn = document.querySelector('.tab-btn.active');
+    const onResearchTab = activeTabBtn?.dataset?.tab === rs?.tab;
+
+    if (!rs || (!rs.running && !rs.hasResults) || onResearchTab) {
+        if (pill) pill.style.display = 'none';
+        return;
+    }
+
+    if (!pill) {
+        pill = document.createElement('button');
+        pill.id = 'researchPill';
+        pill.className = 'research-pill';
+        pill.onclick = () => { switchTab(window.researchState?.tab || 'topic'); };
+        document.body.appendChild(pill);
+    }
+    const label = (rs.label || 'Research').substring(0, 32);
+    pill.innerHTML = rs.running
+        ? `<span class="research-pill-spinner"></span> Researching "${escapeHtml(label)}" — tap to view`
+        : `✅ Results ready: "${escapeHtml(label)}" — tap to view`;
+    pill.style.display = 'flex';
+}
+
+/** Rotate real extracted comments in the status card while AI synthesizes */
+let liveQuoteTimer = null;
+function startLiveQuoteFeed(postsData) {
+    const statusCard = document.querySelector('#statusSection .status-card');
+    if (!statusCard) return;
+
+    let feed = document.getElementById('liveQuoteFeed');
+    if (!feed) {
+        feed = document.createElement('div');
+        feed.id = 'liveQuoteFeed';
+        feed.className = 'live-quote-feed';
+        statusCard.appendChild(feed);
+    }
+    feed.style.display = 'block';
+
+    // Pool of substantive comments, highest-scored first
+    const pool = [];
+    postsData.forEach(p => {
+        const src = p.post?.subreddit ? `r/${p.post.subreddit}` : (p.post?.channelTitle ? `YouTube: ${p.post.channelTitle}` : '');
+        (p.valuableComments || []).forEach(c => {
+            if ((c.body || '').length > 60) pool.push({ text: c.body, score: c.score, src });
+        });
+    });
+    pool.sort((a, b) => (b.score || 0) - (a.score || 0));
+    const top = pool.slice(0, 40);
+    if (top.length === 0) return;
+
+    let i = 0;
+    const show = () => {
+        const q = top[i % top.length];
+        feed.innerHTML = `
+            <div class="live-quote" >
+                <span class="live-quote-text">"${escapeHtml(q.text.substring(0, 280))}${q.text.length > 280 ? '…' : ''}"</span>
+                <span class="live-quote-meta">${q.score ? `${q.score} pts · ` : ''}${escapeHtml(q.src)}</span>
+            </div>`;
+        i++;
+    };
+    show();
+    liveQuoteTimer = setInterval(show, 5000);
+}
+
+function stopLiveQuoteFeed() {
+    if (liveQuoteTimer) { clearInterval(liveQuoteTimer); liveQuoteTimer = null; }
+    const feed = document.getElementById('liveQuoteFeed');
+    if (feed) { feed.style.display = 'none'; feed.innerHTML = ''; }
+}
+
+/**
+ * Results cache — instant restore for repeat searches (localStorage, trimmed
+ * to stay within quota; oldest evicted first).
+ */
+function saveCachedResult(query, result, role, goal) {
+    if (!query || !result?.combinedAnalysis) return;
+    try {
+        const trimmedPosts = (result.posts || []).slice(0, 15).map(p => ({
+            extractedData: p.extractedData ? {
+                post: p.extractedData.post,
+                source: p.extractedData.source,
+                valuableComments: (p.extractedData.valuableComments || []).slice(0, 25).map(c => ({
+                    body: String(c.body || '').substring(0, 400),
+                    score: c.score,
+                    author: c.author
+                }))
+            } : null
+        }));
+        const entry = {
+            query: query.trim().toLowerCase(),
+            role: role || null,
+            goal: goal || null,
+            ts: Date.now(),
+            result: {
+                success: true,
+                combinedAnalysis: { structured: result.combinedAnalysis.structured, model: result.combinedAnalysis.model },
+                posts: trimmedPosts
+            }
+        };
+        let cache = JSON.parse(localStorage.getItem('vocResultsCache') || '[]');
+        cache = cache.filter(e => e.query !== entry.query);
+        cache.unshift(entry);
+        cache = cache.slice(0, 5);
+        try {
+            localStorage.setItem('vocResultsCache', JSON.stringify(cache));
+        } catch (quotaErr) {
+            // Evict until it fits
+            while (cache.length > 1) {
+                cache.pop();
+                try { localStorage.setItem('vocResultsCache', JSON.stringify(cache)); break; } catch (e) { /* keep evicting */ }
+            }
+        }
+    } catch (err) {
+        console.log('Result cache save failed (non-fatal):', err.message);
+    }
+}
+
+function getCachedResult(query) {
+    if (!query) return null;
+    try {
+        const cache = JSON.parse(localStorage.getItem('vocResultsCache') || '[]');
+        return cache.find(e => e.query === query.trim().toLowerCase()) || null;
+    } catch (err) {
+        return null;
+    }
+}
+
+/** Restore a cached analysis instantly (from Recent Searches) */
+function restoreCachedResult(cached) {
+    hideAll();
+    window.currentResearchContext = {
+        researchQuestion: cached.query,
+        role: cached.role,
+        goal: cached.goal
+    };
+    window.researchState = { running: false, tab: 'topic', label: cached.query, hasResults: true };
+    window.insightsChatHistory = [];
+    generatedContents = [];
+
+    displayCombinedResults(cached.result, cached.role, cached.goal);
+    renderInsightsChat();
+
+    // Banner: cached age + refresh CTA
+    const container = document.getElementById('multiPostResults');
+    if (container) {
+        const ageMin = Math.max(1, Math.round((Date.now() - cached.ts) / 60000));
+        const ageLabel = ageMin < 60 ? `${ageMin} min ago` : `${Math.round(ageMin / 60)}h ago`;
+        const banner = document.createElement('div');
+        banner.className = 'cached-result-banner';
+        banner.innerHTML = `⚡ Instant results from cache (${ageLabel}). <button class="cached-refresh-btn" onclick="this.parentNode.remove(); handleSearchByTopic();">Run fresh analysis →</button>`;
+        container.prepend(banner);
+    }
+}
+
+// ============================================
+// INSIGHTS CHAT: converse with the analysis
+// ============================================
+
+function renderInsightsChat() {
+    const container = document.getElementById('multiPostResults');
+    if (!container) return;
+
+    // Remove stale chat from a previous analysis
+    const old = document.getElementById('insightsChatCard');
+    if (old) old.remove();
+
+    const card = document.createElement('div');
+    card.id = 'insightsChatCard';
+    card.className = 'insights-chat-card';
+    card.innerHTML = `
+        <div class="insights-chat-header">
+            <h2 class="section-title">💬 ASK THE DATA</h2>
+            <p class="section-subtitle">Ask follow-ups about this analysis — answers come from the real comments, not general AI knowledge</p>
+        </div>
+        <div id="insightsChatMessages" class="insights-chat-messages"></div>
+        <div class="insights-chat-input-row">
+            <textarea id="insightsChatInput" class="insights-chat-input" rows="2"
+                placeholder="e.g. What does the medical tourism point mean for a small operator? What should I research next?"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendInsightsChat();}"></textarea>
+            <button class="insights-chat-send" onclick="sendInsightsChat()">Ask →</button>
+        </div>
+    `;
+    container.appendChild(card);
+}
+
+async function sendInsightsChat() {
+    const input = document.getElementById('insightsChatInput');
+    const messages = document.getElementById('insightsChatMessages');
+    if (!input || !messages) return;
+    const question = input.value.trim();
+    if (!question) return;
+
+    const structured = window.combinedResultsData?.combinedAnalysis?.structured;
+    if (!structured) return;
+
+    window.insightsChatHistory = window.insightsChatHistory || [];
+
+    // Render user message
+    input.value = '';
+    messages.innerHTML += `<div class="chat-msg chat-msg-user">${escapeHtml(question)}</div>`;
+    const thinkingId = 'chatThinking' + Date.now();
+    messages.innerHTML += `<div class="chat-msg chat-msg-ai chat-msg-thinking" id="${thinkingId}"><span class="research-pill-spinner"></span> Reading the data...</div>`;
+    messages.scrollTop = messages.scrollHeight;
+
+    try {
+        const postsData = (window.combinedResultsData?.posts || []).map(p => p.extractedData).filter(Boolean);
+        const response = await callAPI('/api/analyze/chat', {
+            question,
+            insights: structured,
+            postsData,
+            history: window.insightsChatHistory,
+            topic: window.currentResearchContext?.researchQuestion || null
+        });
+
+        document.getElementById(thinkingId)?.remove();
+        if (!response.success) throw new Error(response.error || 'Chat failed');
+
+        window.insightsChatHistory.push({ role: 'user', text: question });
+        window.insightsChatHistory.push({ role: 'assistant', text: response.answer });
+
+        // Simple paragraph rendering, with a "search this" affordance
+        const answerHtml = escapeHtml(response.answer)
+            .split(/\n{2,}/).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+        messages.innerHTML += `
+            <div class="chat-msg chat-msg-ai">
+                ${answerHtml}
+                <div class="chat-msg-actions">
+                    <button class="chat-action-btn" onclick="runSuggestedSearch(this.dataset.q)" data-q="${escapeHtml(question)}">Research this as a new topic →</button>
+                </div>
+            </div>`;
+        messages.scrollTop = messages.scrollHeight;
+    } catch (err) {
+        document.getElementById(thinkingId)?.remove();
+        messages.innerHTML += `<div class="chat-msg chat-msg-ai chat-msg-error">Couldn't answer: ${escapeHtml(err.message)}. Try again.</div>`;
     }
 }
 
@@ -3631,6 +3901,13 @@ function loadRecentSearch(index) {
             // Restore method-specific inputs
             if (search.subreddits) {
                 document.getElementById('topicSubreddits').value = search.subreddits;
+            }
+
+            // Instant restore if we have cached results for this query
+            const cached = getCachedResult(search.researchQuestion || '');
+            if (cached) {
+                switchTab('topic');
+                restoreCachedResult(cached);
             }
         }
     } catch (error) {

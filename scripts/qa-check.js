@@ -184,6 +184,37 @@ check('insightsSections.js loads before ui.js in index.html', () => {
   assert(a !== -1 && b !== -1 && a < b, 'script order wrong: shared builders must load before ui.js');
 });
 
+check('switchTab calls pass valid tab names (switchTab appends "Tab" itself)', () => {
+  const html = read('frontend/index.html');
+  const bad = html.match(/switchTab\('(\w*Tab)'\)/);
+  assert(!bad, `switchTab called with '${bad && bad[1]}' — would look for #${bad && bad[1]}Tab and show nothing`);
+});
+
+check('tab switches preserve running research (no unconditional hideAll)', () => {
+  const src = read('frontend/js/ui.js');
+  assert(src.includes('window.researchState'), 'switchTab does not check researchState — running research is lost on tab switch');
+  assert(read('frontend/js/app.js').includes('updateResearchPill'), 'research pill missing');
+});
+
+check('progressive analysis: /auto supports extractOnly and frontend uses two phases', () => {
+  assert(read('backend/routes/analyze.js').includes('extractOnly'), '/auto has no extractOnly mode');
+  const app = read('frontend/js/app.js');
+  assert(app.includes('startLiveQuoteFeed'), 'live quote feed missing from analysis wait state');
+  assert(app.includes('saveCachedResult'), 'results are not cached after analysis');
+});
+
+check('insights chat endpoint and UI exist', () => {
+  assert(read('backend/routes/analyze.js').includes("router.post('/chat'"), 'chat endpoint missing');
+  assert(read('frontend/js/app.js').includes('sendInsightsChat'), 'chat UI missing');
+});
+
+check('topic radar YouTube merge is quota-guarded and relevance-gated', () => {
+  const src = read('backend/services/contentRadar.js');
+  assert(src.includes('canAffordSearch'), 'YouTube merge in topic radar has no quota guard');
+  const ytBlock = src.substring(src.indexOf('canAffordSearch'), src.indexOf('canAffordSearch') + 1500);
+  assert(ytBlock.includes('preScreenPosts'), 'YouTube videos skip the relevance quality gate');
+});
+
 // ────────────────────────────────────────────────────────────
 console.log(`\n${passes} passed, ${failures} failed`);
 process.exit(failures > 0 ? 1 : 0);

@@ -290,7 +290,7 @@ router.post('/combined', async (req, res) => {
  */
 router.post('/auto', async (req, res) => {
   try {
-    const { urls, role, goal, topic } = req.body;
+    const { urls, role, goal, topic, extractOnly } = req.body;
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return res.status(400).json({
@@ -317,6 +317,17 @@ router.post('/auto', async (req, res) => {
     }
 
     console.log(`Extraction complete: ${postsData.length} posts, ${failures.length} failures`);
+
+    // Progressive mode: return extracted data immediately so the UI can show
+    // real quotes while analysis runs as a second request (/reanalyze)
+    if (extractOnly) {
+      return res.json({
+        success: true,
+        extractOnly: true,
+        posts: postsData.map(data => ({ extractedData: data })),
+        failures: failures.length > 0 ? failures : undefined
+      });
+    }
 
     // Step 2: Single-call analysis (simpler and faster than map-reduce for free tier)
     console.log('Step 2: Single-call analysis...');
@@ -619,6 +630,70 @@ router.get('/features', (req, res) => {
     success: true,
     features
   });
+});
+
+/**
+ * POST /api/analyze/chat
+ * Conversational follow-up on a completed analysis. Grounded in the
+ * structured insights + extracted comments — never general AI knowledge.
+ */
+router.post('/chat', async (req, res) => {
+  try {
+    const { question, insights, postsData, history, topic } = req.body;
+
+    if (!question || !question.trim()) {
+      return res.status(400).json({ success: false, error: 'Question is required' });
+    }
+    if (!insights) {
+      return res.status(400).json({ success: false, error: 'Insights context is required' });
+    }
+
+    // Condense raw comments for grounding (cap to keep the prompt fast)
+    const quotes = [];
+    for (const post of (postsData || []).slice(0, 15)) {
+      const src = post.post?.subreddit ? `r/${post.post.subreddit}` : (post.post?.channelTitle ? `YouTube: ${post.post.channelTitle}` : 'unknown');
+      for (const c of (post.valuableComments || []).slice(0, 8)) {
+        quotes.push(`[${c.score} pts, ${src}] ${String(c.body).substring(0, 250)}`);
+      }
+    }
+
+    const historyText = (history || []).slice(-6).map(m =>
+      `${m.role === 'user' ? 'USER' : 'ASSISTANT'}: ${String(m.text).substring(0, 600)}`
+    ).join('\n');
+
+    const prompt = `You are a research assistant helping a user understand and act on an analysis of real Reddit/YouTube discussions${topic ? ` about "${topic}"` : ''}.
+
+THE ANALYSIS (structured insights):
+${JSON.stringify(insights).substring(0, 15000)}
+
+REAL COMMENTS the analysis was built from (cite these when relevant):
+${quotes.slice(0, 60).join('\n')}
+
+${historyText ? `CONVERSATION SO FAR:\n${historyText}\n` : ''}
+USER'S QUESTION: ${question}
+
+RULES:
+- Answer from the analysis and comments above. If the data doesn't cover it, say so plainly and suggest a follow-up search query the user could run.
+- Quote real comments verbatim when they support your point.
+- Be concise and readable: short paragraphs, plain language, no headers.
+- If the user asks "what should I research next", propose 2-3 specific search queries.
+
+Answer:`;
+
+    const { analyzeWithModel } = require('../services/gemini');
+    const config = require('../config');
+    const result = await analyzeWithModel(prompt, config.mapReduce.mapModel);
+
+    if (!result.success) {
+      return res.status(502).json({ success: false, error: result.error || 'AI unavailable' });
+    }
+
+    res.json({ success: true, answer: result.analysis.trim(), model: result.model });
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 module.exports = router;
