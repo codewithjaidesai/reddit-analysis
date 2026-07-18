@@ -42,13 +42,13 @@ final class LexiconManager {
 
     func frequency(of word: String) -> Int {
         let row = try? db.rows("SELECT count FROM lexicon WHERE word = ?", [Self.normalize(word)]).first
-        return Int(row??["count"]?.int ?? 0)
+        return Int(row?["count"]?.int ?? 0)
     }
 
     func bigramCount(_ first: String, _ second: String) -> Int {
         let row = try? db.rows("SELECT count FROM bigrams WHERE w1 = ? AND w2 = ?",
                                [Self.normalize(first), Self.normalize(second)]).first
-        return Int(row??["count"]?.int ?? 0)
+        return Int(row?["count"]?.int ?? 0)
     }
 
     /// Known substitution for a frequently corrected misread, if any.
@@ -59,7 +59,7 @@ final class LexiconManager {
             SELECT right FROM corrections WHERE wrong = ? AND count >= 2
             ORDER BY count DESC LIMIT 1
             """, [word.lowercased()]).first
-        return row??["right"]?.string
+        return row?["right"]?.string
     }
 
     /// The user's most frequent words, passed to Vision as `customWords`
@@ -72,7 +72,7 @@ final class LexiconManager {
 
     var vocabularySize: Int {
         let row = try? db.rows("SELECT COUNT(*) AS c FROM lexicon").first
-        return Int(row??["c"]?.int ?? 0)
+        return Int(row?["c"]?.int ?? 0)
     }
 
     static func normalize(_ word: String) -> String {
