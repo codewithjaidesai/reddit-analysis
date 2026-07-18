@@ -50,3 +50,17 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jaidesai.JournalScannerTests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  JournalScanner:
+    build:
+      targets:
+        JournalScanner: all
+        JournalScannerTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - JournalScannerTests

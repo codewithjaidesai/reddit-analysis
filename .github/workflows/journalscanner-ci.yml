@@ -1,0 +1,78 @@
+name: JournalScanner CI
+
+on:
+  push:
+    paths:
+      - "JournalScanner/**"
+      - ".github/workflows/journalscanner-ci.yml"
+  pull_request:
+    paths:
+      - "JournalScanner/**"
+      - ".github/workflows/journalscanner-ci.yml"
+
+concurrency:
+  group: journalscanner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & test (iOS Simulator)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: JournalScanner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          xcodebuild -version
+          DEVICE=$(xcrun simctl list devices available \
+            | grep -E '^ *iPhone' \
+            | head -n 1 \
+            | sed -E 's/^ *//; s/ \([0-9A-Fa-f-]{36}\).*$//')
+          if [ -z "$DEVICE" ]; then
+            echo "No iPhone simulator found on this runner" >&2
+            xcrun simctl list devices >&2
+            exit 1
+          fi
+          echo "Using simulator: $DEVICE"
+          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+
+      - name: Build and run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project JournalScanner.xcodeproj \
+            -scheme JournalScanner \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | tee xcodebuild.log
+
+      - name: Summarize failures
+        if: failure()
+        run: |
+          echo "## Compiler errors / test failures" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "error:|failed:|Fatal error" xcodebuild.log | head -n 60 >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs and results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            JournalScanner/xcodebuild.log
+            JournalScanner/TestResults.xcresult
+          if-no-files-found: ignore
