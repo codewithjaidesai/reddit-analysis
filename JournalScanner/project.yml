@@ -1,0 +1,52 @@
+name: JournalScanner
+options:
+  bundleIdPrefix: com.jaidesai
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  JournalScanner:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Journal Scanner
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSCameraUsageDescription: >-
+          Journal Scanner uses the camera to capture your journal pages as you
+          flip through them. All processing happens on this device.
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              # Replace with your reversed Google OAuth iOS client ID, e.g.
+              # com.googleusercontent.apps.1234567890-abcdefg
+              - com.googleusercontent.apps.REPLACE_ME
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jaidesai.JournalScanner
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+
+  JournalScannerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: JournalScanner
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jaidesai.JournalScannerTests
